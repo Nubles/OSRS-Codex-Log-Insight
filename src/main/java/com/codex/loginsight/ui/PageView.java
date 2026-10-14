@@ -1,0 +1,152 @@
+package com.codex.loginsight.ui;
+
+import com.codex.loginsight.core.Report;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import javax.swing.BoxLayout;
+import javax.swing.JPanel;
+import javax.swing.border.EmptyBorder;
+
+/** One page in depth: its counts and luck, the wait for the next slot, and every slot with its odds. */
+final class PageView
+{
+	private static final int COLUMNS = 5;
+
+	private PageView()
+	{
+	}
+
+	static StackPanel build(Report.PageReport page, ItemIcons icons, Runnable back)
+	{
+		StackPanel stack = new StackPanel(6, 8);
+		JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+		top.setOpaque(false);
+		top.add(new CodexButton("< All pages", false, back));
+		stack.add(top);
+
+		Card head = new Card(new BorderLayout(10, 0));
+		head.setBorder(new EmptyBorder(9, 10, 9, 10));
+		head.highlighted(true);
+		ProgressRing ring = new ProgressRing(54, 6f);
+		ring.setProgress(page.progress(), page.isComplete(), false);
+		JPanel ringHolder = new JPanel(new BorderLayout());
+		ringHolder.setOpaque(false);
+		ringHolder.add(ring, BorderLayout.NORTH);
+		head.add(ringHolder, BorderLayout.WEST);
+		JPanel text = new JPanel();
+		text.setOpaque(false);
+		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+		text.add(Ui.label(page.getTab().toUpperCase(), Theme.small(), Theme.GOLD));
+		text.add(Ui.wrapped(page.getName(), Theme.title(), Theme.GOLD_BRIGHT, 120));
+		text.add(Ui.label(page.getOwned() + " of " + page.getTotal() + " slots", Theme.small(), Theme.TEXT_MUTED));
+		for (String counter : page.getCounters())
+		{
+			text.add(Ui.label(counter, Theme.small(), Theme.TEXT));
+		}
+		head.add(text, BorderLayout.CENTER);
+		stack.add(head);
+
+		if (page.getLuck() != null)
+		{
+			Card dialCard = new Card(new BorderLayout());
+			dialCard.setBorder(new EmptyBorder(8, 8, 8, 8));
+			LuckDial dial = new LuckDial(104);
+			dial.setLuck(page.getLuck(), false);
+			dialCard.add(dial, BorderLayout.CENTER);
+			dialCard.setToolTipText("An average player would own " + String.format("%.1f", page.getLuck().getExpected())
+				+ " of these " + page.getLuck().getSlots() + " slots by now; you own " + page.getLuck().getOwned() + ".");
+			stack.add(dialCard);
+		}
+		else if (!page.isComplete() && !page.isRead())
+		{
+			stack.add(Rows.note("Open this page in your collection log to read its kill count and see your luck here.", 190));
+		}
+
+		if (!page.isComplete())
+		{
+			JPanel tiles = new JPanel(new GridLayout(1, 2, 6, 6));
+			tiles.setOpaque(false);
+			tiles.add(new StatTile(Format.hours(page.getHoursToNext()), "Next slot",
+				page.getNextSource() == null ? "no rates" : page.getNextSource(), Theme.TEAL));
+			String finishNote = page.getUnrated() > 0 ? "+" + page.getUnrated() + " unrated" : "whole page";
+			tiles.add(new StatTile(Format.hours(page.getHoursToFinish()), "To finish", finishNote, Theme.EMBER));
+			stack.add(tiles);
+		}
+
+		List<Report.ItemReport> missing = new ArrayList<>();
+		List<Report.ItemReport> owned = new ArrayList<>();
+		for (Report.ItemReport item : page.getItems())
+		{
+			(item.isOwned() ? owned : missing).add(item);
+		}
+		if (!missing.isEmpty())
+		{
+			missing.sort(Comparator.comparingDouble(PageView::dryOrder));
+			stack.add(new SectionHeader("Still to find", String.valueOf(missing.size())));
+			for (Report.ItemReport item : missing)
+			{
+				stack.add(missingRow(item, icons, false));
+			}
+		}
+		if (!owned.isEmpty())
+		{
+			stack.add(new SectionHeader("Found", String.valueOf(owned.size())));
+			stack.add(grid(owned, icons));
+		}
+		return stack;
+	}
+
+	/** Missing slots with a known dry chance first, driest at the top. */
+	private static double dryOrder(Report.ItemReport item)
+	{
+		return item.getDryChance() < 0 ? 2 + (Double.isFinite(item.getHours()) ? 0 : 1) : item.getDryChance();
+	}
+
+	static JPanel grid(List<Report.ItemReport> items, ItemIcons icons)
+	{
+		JPanel grid = new JPanel(new GridLayout(0, COLUMNS, 4, 4));
+		grid.setOpaque(false);
+		for (Report.ItemReport item : items)
+		{
+			grid.add(new ItemTile(item, icons));
+		}
+		for (int i = items.size(); i % COLUMNS != 0; i++)
+		{
+			JPanel filler = new JPanel();
+			filler.setOpaque(false);
+			grid.add(filler);
+		}
+		return grid;
+	}
+
+	/** A missing slot: its odds, how dry you are and where it comes fastest. */
+	static Card missingRow(Report.ItemReport item, ItemIcons icons, boolean withPage)
+	{
+		StringBuilder detail = new StringBuilder(Format.chance(item.getChance()));
+		if (item.getCount() >= 0)
+		{
+			detail.append(" at ").append(Format.count(item.getCount())).append(" kc");
+		}
+		else if (item.getSource() != null)
+		{
+			detail.append("  ·  ").append(Format.about(item.getHours()));
+		}
+		if (withPage && item.getPage() != null)
+		{
+			detail.append("  ·  ").append(item.getPage());
+		}
+		Pill dry = null;
+		if (item.getDryChance() >= 0)
+		{
+			dry = new Pill(Format.percent(item.getDryChance()) + " dry", Theme.dry(item.getDryChance()));
+		}
+		Card card = Rows.line(new IconBadge(item.getItemId(), icons, false), item.getName(), detail.toString(), dry,
+			item.getDryChance() >= 0 && item.getDryChance() < 0.2 ? Theme.dry(item.getDryChance()) : null);
+		card.setToolTipText(ItemTile.tooltip(item));
+		return card;
+	}
+}

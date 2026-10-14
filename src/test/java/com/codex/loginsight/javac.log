@@ -1,0 +1,1897 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=38299 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/util/WorldUtil.java:42: error: package net.runelite.http.api.worlds does not exist
+	public static EnumSet<WorldType> toWorldTypes(final EnumSet<net.runelite.http.api.worlds.WorldType> apiTypes)
+	                                                                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/RuneLite.java:90: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:89: error: package net.runelite.http.api.config does not exist
+import net.runelite.http.api.config.ConfigPatch;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:90: error: package net.runelite.http.api.config does not exist
+import net.runelite.http.api.config.ConfigPatchResult;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:91: error: package net.runelite.http.api.config does not exist
+import net.runelite.http.api.config.Configuration;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:92: error: package net.runelite.http.api.config does not exist
+import net.runelite.http.api.config.Profile;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:42: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:43: error: package net.runelite.http.api.config does not exist
+import net.runelite.http.api.config.ConfigPatch;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:44: error: package net.runelite.http.api.config does not exist
+import net.runelite.http.api.config.ConfigPatchResult;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:45: error: package net.runelite.http.api.config does not exist
+import net.runelite.http.api.config.Configuration;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:46: error: package net.runelite.http.api.config does not exist
+import net.runelite.http.api.config.Profile;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/account/SessionManager.java:50: error: package net.runelite.http.api.account does not exist
+import net.runelite.http.api.account.OAuthResponse;
+                                    ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:638: error: cannot find symbol
+	private void mergeRemoteProfiles(List<Profile> remoteProfiles)
+	                                      ^
+  symbol:   class Profile
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:697: error: cannot find symbol
+	private void syncRemote(ProfileManager.Lock lock, ConfigProfile profile, List<Profile> remoteProfiles)
+	                                                                              ^
+  symbol:   class Profile
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:1440: error: cannot find symbol
+	private static ConfigPatch buildConfigPatch(@Nullable String profileName, Map<String, String> patchChanges)
+	               ^
+  symbol:   class ConfigPatch
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/account/AccountClient.java:38: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/account/AccountClient.java:39: error: package net.runelite.http.api.account does not exist
+import net.runelite.http.api.account.OAuthResponse;
+                                    ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/account/AccountClient.java:63: error: cannot find symbol
+	public OAuthResponse login(int port) throws IOException
+	       ^
+  symbol:   class OAuthResponse
+  location: class AccountClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:73: error: cannot find symbol
+	public List<Profile> profiles() throws IOException
+	            ^
+  symbol:   class Profile
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:108: error: cannot find symbol
+	public Configuration get(long profile) throws IOException
+	       ^
+  symbol:   class Configuration
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:134: error: cannot find symbol
+	public CompletableFuture<ConfigPatchResult> patch(ConfigPatch patch, long profile)
+	                                                  ^
+  symbol:   class ConfigPatch
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:134: error: cannot find symbol
+	public CompletableFuture<ConfigPatchResult> patch(ConfigPatch patch, long profile)
+	                         ^
+  symbol:   class ConfigPatchResult
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:42: error: package net.runelite.discord does not exist
+import net.runelite.discord.DiscordEventHandlers;
+                           ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:43: error: package net.runelite.discord does not exist
+import net.runelite.discord.DiscordRPC;
+                           ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:44: error: package net.runelite.discord does not exist
+import net.runelite.discord.DiscordRichPresence;
+                           ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:45: error: package net.runelite.discord does not exist
+import net.runelite.discord.DiscordUser;
+                           ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/TelemetryClient.java:38: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/TelemetryClient.java:39: error: package net.runelite.http.api.telemetry does not exist
+import net.runelite.http.api.telemetry.Telemetry;
+                                      ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/TelemetryClient.java:161: error: cannot find symbol
+	private static Telemetry buildTelemetry()
+	               ^
+  symbol:   class Telemetry
+  location: class TelemetryClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:54: error: cannot find symbol
+	private final DiscordRPC discordRPC;
+	              ^
+  symbol:   class DiscordRPC
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:57: error: cannot find symbol
+	private DiscordEventHandlers discordEventHandlers;
+	        ^
+  symbol:   class DiscordEventHandlers
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:60: error: cannot find symbol
+	private DiscordUser currentUser;
+	        ^
+  symbol:   class DiscordUser
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:208: error: cannot find symbol
+	private void ready(DiscordUser user)
+	                   ^
+  symbol:   class DiscordUser
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:243: error: cannot find symbol
+	private void joinRequest(DiscordUser user)
+	                         ^
+  symbol:   class DiscordUser
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:59: error: cannot find symbol
+	@Getter
+	^
+  symbol:   class DiscordUser
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/externalplugins/ExternalPluginClient.java:50: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/OSXFullScreenAdapter.java:27: error: package com.apple.eawt does not exist
+import com.apple.eawt.FullScreenAdapter;
+                     ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/OSXFullScreenAdapter.java:28: error: package com.apple.eawt does not exist
+import com.apple.eawt.FullScreenUtilities;
+                     ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/OSXFullScreenAdapter.java:29: error: package com.apple.eawt.event does not exist
+import com.apple.eawt.event.FullScreenEvent;
+                           ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/OSXFullScreenAdapter.java:36: error: cannot find symbol
+class OSXFullScreenAdapter extends FullScreenAdapter
+                                   ^
+  symbol: class FullScreenAdapter
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/OSXFullScreenAdapter.java:41: error: cannot find symbol
+	public void windowEnteredFullScreen(FullScreenEvent e)
+	                                    ^
+  symbol:   class FullScreenEvent
+  location: class OSXFullScreenAdapter
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/OSXFullScreenAdapter.java:48: error: cannot find symbol
+	public void windowExitedFullScreen(FullScreenEvent e)
+	                                   ^
+  symbol:   class FullScreenEvent
+  location: class OSXFullScreenAdapter
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldClient.java:35: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldClient.java:36: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldResult;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldClient.java:49: error: cannot find symbol
+	public WorldResult lookupWorlds() throws IOException
+	       ^
+  symbol:   class WorldResult
+  location: class WorldClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemClient.java:39: error: package net.runelite.http.api.item does not exist
+import net.runelite.http.api.item.ItemPrice;
+                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemClient.java:65: error: cannot find symbol
+	public ItemPrice[] getPrices() throws IOException
+	       ^
+  symbol:   class ItemPrice
+  location: class ItemClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemStats.java:40: error: package net.runelite.http.api.item does not exist
+	net.runelite.http.api.item.ItemStats toHttpApiFormat()
+	                          ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemEquipmentStats.java:58: error: package net.runelite.http.api.item does not exist
+	net.runelite.http.api.item.ItemEquipmentStats toHttpApiFormat()
+	                          ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:65: error: package net.runelite.http.api.item does not exist
+import net.runelite.http.api.item.ItemPrice;
+                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:103: error: cannot find symbol
+	private Map<Integer, ItemPrice> itemPrices = Collections.emptyMap();
+	                     ^
+  symbol:   class ItemPrice
+  location: class ItemManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:373: error: cannot find symbol
+	public long getWikiPrice(ItemPrice itemPrice)
+	                         ^
+  symbol:   class ItemPrice
+  location: class ItemManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:415: error: package net.runelite.http.api.item does not exist
+	public net.runelite.http.api.item.ItemStats getItemStats(int itemId, boolean allowNote)
+	                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:434: error: cannot find symbol
+	public List<ItemPrice> search(String itemName)
+	            ^
+  symbol:   class ItemPrice
+  location: class ItemManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:44: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.World;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:45: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldResult;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:59: error: cannot find symbol
+	private final CompletableFuture<WorldResult> firstRunFuture = new CompletableFuture<>();
+	                                ^
+  symbol:   class WorldResult
+  location: class WorldService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:61: error: cannot find symbol
+	private WorldResult worlds;
+	        ^
+  symbol:   class WorldResult
+  location: class WorldService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:114: error: cannot find symbol
+	public WorldResult getWorlds()
+	       ^
+  symbol:   class WorldResult
+  location: class WorldService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/RuntimeConfigLoader.java:39: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:38: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:39: error: package net.runelite.http.api.chat does not exist
+import net.runelite.http.api.chat.Duels;
+                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:40: error: package net.runelite.http.api.chat does not exist
+import net.runelite.http.api.chat.LayoutRoom;
+                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:41: error: package net.runelite.http.api.chat does not exist
+import net.runelite.http.api.chat.Task;
+                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:171: error: cannot find symbol
+	public Task getTask(String username) throws IOException
+	       ^
+  symbol:   class Task
+  location: class ChatClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:308: error: cannot find symbol
+	public Duels getDuels(String username) throws IOException
+	       ^
+  symbol:   class Duels
+  location: class ChatClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:336: error: cannot find symbol
+	public boolean submitLayout(String username, LayoutRoom[] rooms) throws IOException
+	                                             ^
+  symbol:   class LayoutRoom
+  location: class ChatClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:355: error: cannot find symbol
+	public LayoutRoom[] getLayout(String username) throws IOException
+	       ^
+  symbol:   class LayoutRoom
+  location: class ChatClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/events/WorldsFetch.java:28: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldResult;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/events/WorldsFetch.java:36: error: cannot find symbol
+	private final WorldResult worldResult;
+	              ^
+  symbol:   class WorldResult
+  location: class WorldsFetch
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/events/WorldsFetch.java:33: error: cannot find symbol
+@Value
+^
+  symbol:   class WorldResult
+  location: class WorldsFetch
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/events/WorldsFetch.java:36: error: cannot find symbol
+	private final WorldResult worldResult;
+	                          ^
+  symbol:   class WorldResult
+  location: class WorldsFetch
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/party/WebsocketGsonFactory.java:36: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/RuneLiteModule.java:62: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/discord/DiscordPlugin.java:64: error: package net.runelite.discord does not exist
+import net.runelite.discord.DiscordUser;
+                           ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/chatcommands/ChatCommandsPlugin.java:97: error: package net.runelite.http.api.chat does not exist
+import net.runelite.http.api.chat.Duels;
+                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/chatcommands/ChatCommandsPlugin.java:98: error: package net.runelite.http.api.item does not exist
+import net.runelite.http.api.item.ItemPrice;
+                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/chatcommands/ChatCommandsPlugin.java:2090: error: cannot find symbol
+	private ItemPrice retrieveFromList(List<ItemPrice> items, String originalInput)
+	                                        ^
+  symbol:   class ItemPrice
+  location: class ChatCommandsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/chatcommands/ChatCommandsPlugin.java:2090: error: cannot find symbol
+	private ItemPrice retrieveFromList(List<ItemPrice> items, String originalInput)
+	        ^
+  symbol:   class ItemPrice
+  location: class ChatCommandsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerClient.java:37: error: package net.runelite.http.api does not exist
+import net.runelite.http.api.RuneLiteAPI;
+                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerClient.java:38: error: package net.runelite.http.api does not exist
+import static net.runelite.http.api.RuneLiteAPI.JSON;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerClient.java:38: error: static import only from classes and interfaces
+import static net.runelite.http.api.RuneLiteAPI.JSON;
+^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerClient.java:39: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecord;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerClient.java:67: error: cannot find symbol
+	public CompletableFuture<Void> submit(Collection<LootRecord> lootRecords)
+	                                                 ^
+  symbol:   class LootRecord
+  location: class LootTrackerClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:123: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.GameItem;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:124: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecord;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:125: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecordType;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPanel.java:67: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecordType;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:419: error: cannot find symbol
+	private final List<LootRecord> queuedLoots = new ArrayList<>();
+	                   ^
+  symbol:   class LootRecord
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:675: error: cannot find symbol
+	private void initLoot(LootRecordType type, String name)
+	                      ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:694: error: cannot find symbol
+	void addLoot(@NonNull String name, int combatLevel, LootRecordType type, Object metadata, Collection<ItemStack> items)
+	                                                    ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:699: error: cannot find symbol
+	void addLoot(@NonNull String name, int combatLevel, LootRecordType type, Object metadata, Collection<ItemStack> items, int amount)
+	                                                    ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/PluginLootReceived.java:34: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecordType;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1537: error: cannot find symbol
+	private Collection<ConfigLoot> combine(List<LootRecord> records)
+	                                            ^
+  symbol:   class LootRecord
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/ConfigLoot.java:32: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecordType;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1557: error: cannot find symbol
+	private void saveLoot(List<LootRecord> records)
+	                           ^
+  symbol:   class LootRecord
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1595: error: cannot find symbol
+	private InvChangeCallback collectInvItems(LootRecordType type, String event)
+	                                          ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1600: error: cannot find symbol
+	private InvChangeCallback collectInvItems(LootRecordType type, String event, Object metadata)
+	                                          ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1606: error: cannot find symbol
+	private InvChangeCallback collectInvAndGroundItems(LootRecordType type, String event)
+	                                                   ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1611: error: cannot find symbol
+	private InvChangeCallback collectInvAndGroundItems(LootRecordType type, String event, Object metadata)
+	                                                   ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1758: error: cannot find symbol
+	private static Collection<GameItem> toGameItems(Collection<ItemStack> items)
+	                          ^
+  symbol:   class GameItem
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerRecord.java:32: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecordType;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1819: error: cannot find symbol
+	ConfigLoot getLootConfig(LootRecordType type, String name)
+	                         ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1837: error: cannot find symbol
+	void setLootConfig(LootRecordType type, String name, ConfigLoot loot)
+	                   ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1850: error: cannot find symbol
+	void removeLootConfig(LootRecordType type, String name)
+	                      ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerRecord.java:42: error: cannot find symbol
+	private final LootRecordType type;
+	              ^
+  symbol:   class LootRecordType
+  location: class LootTrackerRecord
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerRecord.java:52: error: cannot find symbol
+	boolean matches(final String id, LootRecordType type)
+	                                 ^
+  symbol:   class LootRecordType
+  location: class LootTrackerRecord
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerRecord.java:42: error: cannot find symbol
+	private final LootRecordType type;
+	                             ^
+  symbol:   class LootRecordType
+  location: class LootTrackerRecord
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerRecord.java:35: error: cannot find symbol
+@AllArgsConstructor
+^
+  symbol:   class LootRecordType
+  location: class LootTrackerRecord
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/ConfigLoot.java:39: error: cannot find symbol
+	LootRecordType type;
+	^
+  symbol:   class LootRecordType
+  location: class ConfigLoot
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/ConfigLoot.java:46: error: cannot find symbol
+	ConfigLoot(LootRecordType type, String name)
+	           ^
+  symbol:   class LootRecordType
+  location: class ConfigLoot
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/ConfigLoot.java:39: error: cannot find symbol
+	LootRecordType type;
+	               ^
+  symbol:   class LootRecordType
+  location: class ConfigLoot
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/ConfigLoot.java:34: error: cannot find symbol
+@Data
+^
+  symbol:   class LootRecordType
+  location: class ConfigLoot
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/PluginLootReceived.java:50: error: cannot find symbol
+	LootRecordType type;
+	^
+  symbol:   class LootRecordType
+  location: class PluginLootReceived
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/PluginLootReceived.java:39: error: cannot find symbol
+@Builder
+^
+  symbol:   class LootRecordType
+  location: class PluginLootReceived
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/PluginLootReceived.java:50: error: cannot find symbol
+	LootRecordType type;
+	               ^
+  symbol:   class LootRecordType
+  location: class PluginLootReceived
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerBox.java:60: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecordType;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPanel.java:132: error: cannot find symbol
+	private LootRecordType currentType;
+	        ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPanel.java:372: error: cannot find symbol
+	void add(final String eventName, final LootRecordType type, final int actorLevel, LootTrackerItem[] items, int kills)
+	                                       ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPanel.java:417: error: cannot find symbol
+	boolean hasRecord(LootRecordType type, String name)
+	                  ^
+  symbol:   class LootRecordType
+  location: class LootTrackerPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerBox.java:162: error: cannot find symbol
+	boolean matches(final String id, final LootRecordType type)
+	                                       ^
+  symbol:   class LootRecordType
+  location: class LootTrackerBox
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootReceived.java:31: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecordType;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootReceived.java:42: error: cannot find symbol
+	private LootRecordType type;
+	        ^
+  symbol:   class LootRecordType
+  location: class LootReceived
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootReceived.java:42: error: cannot find symbol
+	private LootRecordType type;
+	                       ^
+  symbol:   class LootRecordType
+  location: class LootReceived
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootReceived.java:36: error: cannot find symbol
+@Data
+^
+  symbol:   class LootRecordType
+  location: class LootReceived
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootReceived.java:37: error: cannot find symbol
+@AllArgsConstructor
+^
+  symbol:   class LootRecordType
+  location: class LootReceived
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldSwitcherPanel.java:49: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.World;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldSwitcherPanel.java:50: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldType;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:46: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.World;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:47: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldRegion;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:48: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldType;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:97: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.World;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:98: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldResult;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:99: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldType;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:29: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldRegion;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:30: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldType;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldSwitcherPanel.java:250: error: cannot find symbol
+	void populate(List<World> worlds, @Nullable EnumComposition worldLocations)
+	                   ^
+  symbol:   class World
+  location: class WorldSwitcherPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldSwitcherPanel.java:415: error: cannot find symbol
+	private WorldTableRow buildRow(World world, boolean stripe, boolean current, boolean favorite, int worldLocation)
+	                               ^
+  symbol:   class World
+  location: class WorldSwitcherPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:109: error: cannot find symbol
+	abstract boolean matches(Set<WorldType> types);
+	                             ^
+  symbol:   class WorldType
+  location: class WorldTypeFilter
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:59: error: cannot find symbol
+	private final WorldRegion region;
+	              ^
+  symbol:   class WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:61: error: cannot find symbol
+	static RegionFilterMode of(WorldRegion region)
+	                           ^
+  symbol:   class WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:31: error: cannot find symbol
+@RequiredArgsConstructor
+^
+  symbol:   class WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:58: error: cannot find symbol
+	@Getter
+	^
+  symbol:   class WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:350: error: cannot find symbol
+	boolean isFavorite(World world)
+	                   ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:361: error: cannot find symbol
+	void addToFavorites(World world)
+	                    ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:368: error: cannot find symbol
+	void removeFromFavorites(World world)
+	                         ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:684: error: cannot find symbol
+	void hopTo(World world)
+	           ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:690: error: cannot find symbol
+	private void hop(World world)
+	                 ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:953: error: cannot find symbol
+	Integer getStoredPing(World world)
+	                      ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:963: error: cannot find symbol
+	private int ping(World world, boolean isCurrentWorld)
+	                 ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:95: error: cannot find symbol
+	private final World world;
+	              ^
+  symbol:   class World
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:96: error: cannot find symbol
+	private final BiConsumer<World, Boolean> onFavorite;
+	                         ^
+  symbol:   class World
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:112: error: cannot find symbol
+	WorldTableRow(World world, boolean current, boolean favorite, Integer ping, Consumer<World> onSelect, BiConsumer<World, Boolean> onFavorite, int worldLocation)
+	              ^
+  symbol:   class World
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:112: error: cannot find symbol
+	WorldTableRow(World world, boolean current, boolean favorite, Integer ping, Consumer<World> onSelect, BiConsumer<World, Boolean> onFavorite, int worldLocation)
+	                                                                                     ^
+  symbol:   class World
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:112: error: cannot find symbol
+	WorldTableRow(World world, boolean current, boolean favorite, Integer ping, Consumer<World> onSelect, BiConsumer<World, Boolean> onFavorite, int worldLocation)
+	                                                                                                                 ^
+  symbol:   class World
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:414: error: cannot find symbol
+	private static ImageIcon getFlag(WorldRegion region, int worldLocation)
+	                                 ^
+  symbol:   class WorldRegion
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:94: error: cannot find symbol
+	@Getter
+	^
+  symbol:   class World
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/ping/Ping.java:46: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.World;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/ping/Ping.java:59: error: cannot find symbol
+	public static int ping(World world)
+	                       ^
+  symbol:   class World
+  location: class Ping
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/ping/Ping.java:64: error: cannot find symbol
+	public static int ping(World world, boolean useTcpPing)
+	                       ^
+  symbol:   class World
+  location: class Ping
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/motherlode/MotherlodePlugin.java:75: error: package net.runelite.http.api.loottracker does not exist
+import net.runelite.http.api.loottracker.LootRecordType;
+                                        ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/defaultworld/DefaultWorldPlugin.java:41: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.World;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/defaultworld/DefaultWorldPlugin.java:42: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldResult;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/defaultworld/DefaultWorldPlugin.java:43: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldType;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsOverlay.java:46: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.World;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsOverlay.java:47: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldRegion;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsOverlay.java:48: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldResult;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsPlugin.java:94: error: package net.runelite.http.api.chat does not exist
+import net.runelite.http.api.chat.LayoutRoom;
+                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/gpu/GpuPlugin.java:79: error: package net.runelite.rlawt does not exist
+import net.runelite.rlawt.AWTContext;
+                         ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/gpu/GpuPlugin.java:137: error: cannot find symbol
+	private AWTContext awtContext;
+	        ^
+  symbol:   class AWTContext
+  location: class GpuPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/grandexchange/GrandExchangeSearchPanel.java:51: error: package net.runelite.http.api.item does not exist
+import net.runelite.http.api.item.ItemPrice;
+                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/grandexchange/GrandExchangeSearchPanel.java:194: error: cannot find symbol
+	private void processResult(List<ItemPrice> result, String lookup, boolean exactMatch)
+	                                ^
+  symbol:   class ItemPrice
+  location: class GrandExchangeSearchPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/devtools/ShellFrame.java:32: error: package net.runelite.jshell does not exist
+import net.runelite.jshell.ShellPanel;
+                          ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/devtools/ShellFrame.java:37: error: cannot find symbol
+	private final ShellPanel shellPanel;
+	              ^
+  symbol:   class ShellPanel
+  location: class ShellFrame
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/WorldSupplier.java:39: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.World;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/WorldSupplier.java:41: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.WorldType;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/WorldSupplier.java:47: error: cannot find symbol
+class WorldSupplier implements Supplier<World>
+                                        ^
+  symbol: class World
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/WorldSupplier.java:51: error: cannot find symbol
+	private final Queue<World> worlds = new ArrayDeque<>();
+	                    ^
+  symbol:   class World
+  location: class WorldSupplier
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/WorldSupplier.java:54: error: cannot find symbol
+	public World get()
+	       ^
+  symbol:   class World
+  location: class WorldSupplier
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/ClientLoader.java:42: error: package net.runelite.http.api.worlds does not exist
+import net.runelite.http.api.worlds.World;
+                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/util/WorldUtil.java:45: error: package net.runelite.http.api.worlds does not exist
+			.mapToInt(net.runelite.http.api.worlds.WorldType::getMask)
+			                                      ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/RuneLite.java:209: error: cannot find symbol
+		RuneLiteAPI.CLIENT = okHttpClient;
+		^
+  symbol:   variable RuneLiteAPI
+  location: class RuneLite
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:185: error: cannot find symbol
+				List<Profile> profiles = configClient.profiles();
+				     ^
+  symbol:   class Profile
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:257: error: cannot find symbol
+			List<Profile> profiles = configClient.profiles();
+			     ^
+  symbol:   class Profile
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:272: error: cannot find symbol
+		ConfigPatch patch = buildConfigPatch(rsProfile.getName(), rsProfileConfigProfile.get());
+		^
+  symbol:   class ConfigPatch
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:325: error: cannot find symbol
+				ConfigPatch patch = buildConfigPatch(profile.getName(), data.get());
+				^
+  symbol:   class ConfigPatch
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:499: error: cannot find symbol
+		List<Profile> remoteProfiles = Collections.emptyList();
+		     ^
+  symbol:   class Profile
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:505: error: cannot find symbol
+				List<Profile> profiles = configClient.profiles();
+				     ^
+  symbol:   class Profile
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:645: error: cannot find symbol
+			for (Profile remoteProfile : remoteProfiles)
+			     ^
+  symbol:   class Profile
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:673: error: cannot find symbol
+				for (Profile remoteProfile : remoteProfiles)
+				     ^
+  symbol:   class Profile
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:705: error: cannot find symbol
+		Profile remoteProfile = remoteProfiles.stream()
+		^
+  symbol:   class Profile
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:730: error: cannot find symbol
+				Configuration remoteConfiguration = configClient.get(profile.getId());
+				^
+  symbol:   class Configuration
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:1404: error: cannot find symbol
+				ConfigPatchResult patchResult = configClient.patch(buildConfigPatch(profile.isInternal() ? profile.getName() : null, patch), profile.getId()).get();
+				^
+  symbol:   class ConfigPatchResult
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:1442: error: cannot find symbol
+		ConfigPatch patch = new ConfigPatch();
+		^
+  symbol:   class ConfigPatch
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:1442: error: cannot find symbol
+		ConfigPatch patch = new ConfigPatch();
+		                        ^
+  symbol:   class ConfigPatch
+  location: class ConfigManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:191: error: exception IOException is never thrown in body of corresponding try statement
+			catch (IOException ex)
+			^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:263: error: exception IOException is never thrown in body of corresponding try statement
+		catch (IOException e)
+		^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:512: error: exception IOException is never thrown in body of corresponding try statement
+			catch (IOException ex)
+			^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:1429: error: exception ExecutionException is never thrown in body of corresponding try statement
+			catch (ExecutionException | InterruptedException e)
+			       ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigManager.java:1429: error: exception InterruptedException is never thrown in body of corresponding try statement
+			catch (ExecutionException | InterruptedException e)
+			                            ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/ContainableFrame.java:211: error: cannot find symbol
+			FlatNativeWindowsLibrary.setContainInScreen(this, containedInScreen == Mode.ALWAYS);
+			                        ^
+  symbol:   method setContainInScreen(ContainableFrame,boolean)
+  location: class FlatNativeWindowsLibrary
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:84: error: cannot find symbol
+			.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString())
+			        ^
+  symbol:   variable RuneLiteAPI
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:98: error: cannot find symbol
+			final Type type = new TypeToken<List<Profile>>() {}.getType();
+			                                     ^
+  symbol:   class Profile
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:119: error: cannot find symbol
+			.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString())
+			        ^
+  symbol:   variable RuneLiteAPI
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:126: error: cannot find symbol
+			return gson.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), Configuration.class);
+			                                                                        ^
+  symbol:   class Configuration
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:146: error: cannot find symbol
+			.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString())
+			        ^
+  symbol:   variable RuneLiteAPI
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:145: error: cannot find symbol
+			.patch(RequestBody.create(RuneLiteAPI.JSON, gson.toJson(patch)))
+			                          ^
+  symbol:   variable RuneLiteAPI
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:150: error: cannot find symbol
+		CompletableFuture<ConfigPatchResult> future = new CompletableFuture<>();
+		                  ^
+  symbol:   class ConfigPatchResult
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:184: error: cannot find symbol
+						future.complete(gson.fromJson(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8), ConfigPatchResult.class));
+						                                                                                                           ^
+  symbol: class ConfigPatchResult
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:209: error: cannot find symbol
+			.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString())
+			        ^
+  symbol:   variable RuneLiteAPI
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/config/ConfigClient.java:243: error: cannot find symbol
+			.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString())
+			        ^
+  symbol:   variable RuneLiteAPI
+  location: class ConfigClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/account/SessionManager.java:197: error: cannot find symbol
+		final OAuthResponse login;
+		      ^
+  symbol:   class OAuthResponse
+  location: class SessionManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/account/AccountClient.java:80: error: cannot find symbol
+			return gson.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), OAuthResponse.class);
+			                                                                        ^
+  symbol:   class OAuthResponse
+  location: class AccountClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/account/AccountClient.java:98: error: cannot find symbol
+			.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString())
+			        ^
+  symbol:   variable RuneLiteAPI
+  location: class AccountClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/account/AccountClient.java:118: error: cannot find symbol
+			.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString())
+			        ^
+  symbol:   variable RuneLiteAPI
+  location: class AccountClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:81: error: cannot find symbol
+		DiscordRPC discordRPC;
+		^
+  symbol:   class DiscordRPC
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:85: error: cannot find symbol
+			discordRPC = DiscordRPC.INSTANCE;
+			             ^
+  symbol:   variable DiscordRPC
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:110: error: cannot find symbol
+		discordEventHandlers = new DiscordEventHandlers();
+		                           ^
+  symbol:   class DiscordEventHandlers
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:111: error: method reference not expected here
+		discordEventHandlers.ready = this::ready;
+		                             ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:112: error: method reference not expected here
+		discordEventHandlers.disconnected = this::disconnected;
+		                                    ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:113: error: method reference not expected here
+		discordEventHandlers.errored = this::errored;
+		                               ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:114: error: method reference not expected here
+		discordEventHandlers.joinGame = this::joinGame;
+		                                ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:115: error: method reference not expected here
+		discordEventHandlers.spectateGame = this::spectateGame;
+		                                    ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:116: error: method reference not expected here
+		discordEventHandlers.joinRequest = this::joinRequest;
+		                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:148: error: cannot find symbol
+		final DiscordRichPresence discordRichPresence = new DiscordRichPresence();
+		      ^
+  symbol:   class DiscordRichPresence
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/discord/DiscordService.java:148: error: cannot find symbol
+		final DiscordRichPresence discordRichPresence = new DiscordRichPresence();
+		                                                    ^
+  symbol:   class DiscordRichPresence
+  location: class DiscordService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/TelemetryClient.java:65: error: cannot find symbol
+			.post(RequestBody.create(RuneLiteAPI.JSON, gson.toJson(buildTelemetry())))
+			                         ^
+  symbol:   variable RuneLiteAPI
+  location: class TelemetryClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/TelemetryClient.java:163: error: cannot find symbol
+		Telemetry telemetry = new Telemetry();
+		^
+  symbol:   class Telemetry
+  location: class TelemetryClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/TelemetryClient.java:163: error: cannot find symbol
+		Telemetry telemetry = new Telemetry();
+		                          ^
+  symbol:   class Telemetry
+  location: class TelemetryClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/externalplugins/ExternalPluginClient.java:187: error: cannot find symbol
+			.post(RequestBody.create(RuneLiteAPI.JSON, gson.toJson(plugins)))
+			                         ^
+  symbol:   variable RuneLiteAPI
+  location: class ExternalPluginClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/OSXFullScreenAdapter.java:40: error: method does not override or implement a method from a supertype
+	@Override
+	^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/OSXFullScreenAdapter.java:47: error: method does not override or implement a method from a supertype
+	@Override
+	^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/ui/OSXFullScreenAdapter.java:56: error: cannot find symbol
+		FullScreenUtilities.addFullScreenListenerTo(frame, new OSXFullScreenAdapter(frame));
+		^
+  symbol:   variable FullScreenUtilities
+  location: class OSXFullScreenAdapter
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldClient.java:70: error: cannot find symbol
+			return RuneLiteAPI.GSON.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), WorldResult.class);
+			                                                                                    ^
+  symbol:   class WorldResult
+  location: class WorldClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldClient.java:70: error: package RuneLiteAPI does not exist
+			return RuneLiteAPI.GSON.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), WorldResult.class);
+			                  ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemClient.java:88: error: cannot find symbol
+			return gson.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), ItemPrice[].class);
+			                                                                        ^
+  symbol:   class ItemPrice
+  location: class ItemClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemStats.java:42: error: cannot infer type for local variable equipment
+		var equipment = this.equipment == null ? null : this.equipment.toHttpApiFormat();
+		    ^
+  (variable initializer is 'null')
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemStats.java:43: error: package net.runelite.http.api.item does not exist
+		return new net.runelite.http.api.item.ItemStats(this.equipable, this.weight, this.geLimit, equipment);
+		                                     ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemEquipmentStats.java:60: error: package net.runelite.http.api.item does not exist
+		return net.runelite.http.api.item.ItemEquipmentStats.builder()
+		                                 ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:273: error: cannot find symbol
+			ItemPrice[] prices = itemClient.getPrices();
+			^
+  symbol:   class ItemPrice
+  location: class ItemManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:276: error: cannot find symbol
+				ImmutableMap.Builder<Integer, ItemPrice> map = ImmutableMap.builderWithExpectedSize(prices.length);
+				                              ^
+  symbol:   class ItemPrice
+  location: class ItemManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:277: error: cannot find symbol
+				for (ItemPrice price : prices)
+				     ^
+  symbol:   class ItemPrice
+  location: class ItemManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:350: error: cannot find symbol
+			final ItemPrice ip = itemPrices.get(itemID);
+			      ^
+  symbol:   class ItemPrice
+  location: class ItemManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:438: error: cannot find symbol
+		List<ItemPrice> result = new ArrayList<>();
+		     ^
+  symbol:   class ItemPrice
+  location: class ItemManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:439: error: cannot find symbol
+		for (ItemPrice itemPrice : itemPrices.values())
+		     ^
+  symbol:   class ItemPrice
+  location: class ItemManager
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/ItemManager.java:286: error: exception IOException is never thrown in body of corresponding try statement
+		catch (IOException e)
+		^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:97: error: cannot find symbol
+			WorldResult worldResult = worldClient.lookupWorlds();
+			^
+  symbol:   class WorldResult
+  location: class WorldService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:98: error: cannot find symbol
+			worldResult.getWorlds().sort(Comparator.comparingInt(World::getId));
+			                                                     ^
+  symbol:   variable World
+  location: class WorldService
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:122: error: exception InterruptedException is never thrown in body of corresponding try statement
+			catch (InterruptedException | ExecutionException | TimeoutException e)
+			       ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:122: error: exception ExecutionException is never thrown in body of corresponding try statement
+			catch (InterruptedException | ExecutionException | TimeoutException e)
+			                              ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/game/WorldService.java:122: error: exception TimeoutException is never thrown in body of corresponding try statement
+			catch (InterruptedException | ExecutionException | TimeoutException e)
+			                                                   ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/RuntimeConfigLoader.java:95: error: package RuneLiteAPI does not exist
+				RuntimeConfig conf = RuneLiteAPI.GSON.fromJson(strConf, RuntimeConfig.class);
+				                                ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/RuntimeConfigLoader.java:123: error: package RuneLiteAPI does not exist
+					RuntimeConfig config = RuneLiteAPI.GSON.fromJson(response.body().charStream(), RuntimeConfig.class);
+					                                  ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:191: error: cannot find symbol
+			return gson.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), Task.class);
+			                                                                        ^
+  symbol:   class Task
+  location: class ChatClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:328: error: cannot find symbol
+			return gson.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), Duels.class);
+			                                                                        ^
+  symbol:   class Duels
+  location: class ChatClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:345: error: cannot find symbol
+			.post(RequestBody.create(RuneLiteAPI.JSON, gson.toJson(rooms)))
+			                         ^
+  symbol:   variable RuneLiteAPI
+  location: class ChatClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:375: error: cannot find symbol
+			return gson.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), LayoutRoom[].class);
+			                                                                        ^
+  symbol:   class LayoutRoom
+  location: class ChatClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/chat/ChatClient.java:392: error: cannot find symbol
+			.post(RequestBody.create(RuneLiteAPI.JSON, gson.toJson(petList)))
+			                         ^
+  symbol:   variable RuneLiteAPI
+  location: class ChatClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/party/WebsocketGsonFactory.java:69: error: package RuneLiteAPI does not exist
+		return RuneLiteAPI.GSON.newBuilder()
+		                  ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/RuneLiteModule.java:138: error: cannot find symbol
+		bind(Gson.class).toInstance(RuneLiteAPI.GSON);
+		                            ^
+  symbol:   variable RuneLiteAPI
+  location: class RuneLiteModule
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/discord/DiscordPlugin.java:264: error: cannot find symbol
+		final DiscordUser discordUser = discordService.getCurrentUser();
+		      ^
+  symbol:   class DiscordUser
+  location: class DiscordPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/chatcommands/ChatCommandsPlugin.java:1127: error: cannot find symbol
+		Duels duels;
+		^
+  symbol:   class Duels
+  location: class ChatCommandsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/chatcommands/ChatCommandsPlugin.java:1646: error: cannot find symbol
+		List<ItemPrice> results = itemManager.search(search);
+		     ^
+  symbol:   class ItemPrice
+  location: class ChatCommandsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/chatcommands/ChatCommandsPlugin.java:1650: error: cannot find symbol
+			ItemPrice item = retrieveFromList(results, search);
+			^
+  symbol:   class ItemPrice
+  location: class ChatCommandsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/chatcommands/ChatCommandsPlugin.java:2092: error: cannot find symbol
+		ItemPrice shortest = null;
+		^
+  symbol:   class ItemPrice
+  location: class ChatCommandsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/chatcommands/ChatCommandsPlugin.java:2093: error: cannot find symbol
+		for (ItemPrice item : items)
+		     ^
+  symbol:   class ItemPrice
+  location: class ChatCommandsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerClient.java:78: error: cannot find symbol
+			requestBuilder.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString());
+			                      ^
+  symbol:   variable RuneLiteAPI
+  location: class LootTrackerClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerClient.java:80: error: cannot find symbol
+		requestBuilder.post(RequestBody.create(JSON, gson.toJson(lootRecords)))
+		                                       ^
+  symbol:   variable JSON
+  location: class LootTrackerClient
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:709: error: cannot find symbol
+		LootRecord lootRecord = new LootRecord(name, type, metadata, toGameItems(items), Instant.now(), getLootWorldId(), amount, null);
+		^
+  symbol:   class LootRecord
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:709: error: cannot find symbol
+		LootRecord lootRecord = new LootRecord(name, type, metadata, toGameItems(items), Instant.now(), getLootWorldId(), amount, null);
+		                            ^
+  symbol:   class LootRecord
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:791: error: cannot find symbol
+		addLoot(name, combat, LootRecordType.NPC, buildNpcMetadata(npc), items);
+		                      ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:824: error: cannot find symbol
+		addLoot(name, combat, LootRecordType.PLAYER, null, items);
+		                      ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:960: error: cannot find symbol
+		addLoot(event, -1, LootRecordType.EVENT, metadata, items);
+		                   ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:980: error: cannot find symbol
+			addLoot("Loot Chest", -1, LootRecordType.EVENT, null, items);
+			                          ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1011: error: cannot find symbol
+			addLoot(DOM, -1, LootRecordType.EVENT, level, items);
+			                 ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1042: error: cannot find symbol
+				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, CHEST_EVENT_TYPES.get(regionID),
+				                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1049: error: cannot find symbol
+				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, CHEST_EVENT_TYPES.get(regionID),
+				                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1054: error: cannot find symbol
+			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, CHEST_EVENT_TYPES.get(regionID)));
+			                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1069: error: cannot find symbol
+			onInvChange(collectInvItems(LootRecordType.EVENT, eventName));
+			                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1080: error: cannot find symbol
+				addLoot(GOLEM_CRAFTING_EVENT, -1, LootRecordType.EVENT, null, List.of(new ItemStack(itemId, 1)));
+				                                  ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1095: error: cannot find symbol
+					addLoot(COURIER_TASK_REWARD_EVENT, -1, LootRecordType.EVENT, null, invItems, cnt);
+					                                       ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1107: error: cannot find symbol
+			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, HERBIBOAR_EVENT, client.getBoostedSkillLevel(Skill.HERBLORE)));
+			                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1117: error: cannot find symbol
+			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, String.format("H.A.M. chest (%s)", keyType)));
+			                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1134: error: cannot find symbol
+			onInvChange(collectInvAndGroundItems(LootRecordType.PICKPOCKET, pickpocketTarget));
+			                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1170: error: cannot find symbol
+			onInvChange(InventoryID.TRAIL_REWARDINV, collectInvItems(LootRecordType.EVENT, eventType));
+			                                                         ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1194: error: cannot find symbol
+			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, type, client.getBoostedSkillLevel(Skill.HUNTER)));
+			                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1237: error: cannot find symbol
+			onInvChange(collectInvItems(LootRecordType.EVENT, eventType, client.getBoostedSkillLevel(Skill.CRAFTING)));
+			                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1243: error: cannot find symbol
+			onInvChange(collectInvItems(LootRecordType.EVENT, TEMPOROSS_EVENT, client.getBoostedSkillLevel(Skill.FISHING)));
+			                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1249: error: cannot find symbol
+			onInvChange(collectInvItems(LootRecordType.EVENT, GUARDIANS_OF_THE_RIFT_EVENT, client.getBoostedSkillLevel(Skill.RUNECRAFT)));
+			                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1255: error: cannot find symbol
+			onInvChange(collectInvItems(LootRecordType.EVENT, WINTERTODT_REWARD_CART_EVENT, client.getBoostedSkillLevel(Skill.FIREMAKING)));
+			                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1261: error: cannot find symbol
+			onInvChange(collectInvItems(LootRecordType.EVENT, "Unsired"));
+			                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1268: error: cannot find symbol
+				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, BA_HIGH_GAMBLE));
+				                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1287: error: cannot find symbol
+			addLoot(MAGGOT_KING, -1, LootRecordType.UNKNOWN, Map.of("message", message), Collections.emptyList(), 1);
+			                         ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1291: error: cannot find symbol
+			addLoot(MAGGOT_KING, -1, LootRecordType.UNKNOWN, Map.of("message", message, "item", lastMaggotEggPopped), Collections.emptyList(), 1);
+			                         ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1313: error: cannot find symbol
+				addLoot(name, -1, LootRecordType.EVENT, metadata, combined, cnt);
+				                  ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1371: error: cannot find symbol
+			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, SHADE_CHEST_OBJECTS.get(event.getId())));
+			                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1377: error: cannot find symbol
+				onInvChange(collectInvItems(LootRecordType.EVENT, SEEDPACK_EVENT));
+				                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1381: error: cannot find symbol
+				onInvChange(collectInvItems(LootRecordType.EVENT, BIRDNEST_EVENT));
+				                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1388: error: cannot find symbol
+						onInvChange(collectInvItems(LootRecordType.EVENT, CASKET_EVENT));
+						                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1391: error: cannot find symbol
+						onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, BAG_FULL_OF_GEMS_PERCY_EVENT));
+						                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1394: error: cannot find symbol
+						onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, BAG_FULL_OF_GEMS_BELONA_EVENT));
+						                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1397: error: cannot find symbol
+						onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, BAG_FULL_OF_GEMS_DUSURI_EVENT));
+						                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1401: error: cannot find symbol
+						onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, WINTERTODT_SUPPLY_CRATE_EVENT));
+						                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1404: error: cannot find symbol
+						onInvChange(collectInvItems(LootRecordType.EVENT, SPOILS_OF_WAR_EVENT));
+						                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1407: error: cannot find symbol
+						onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, TEMPOROSS_CASKET_EVENT));
+						                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1430: error: cannot find symbol
+						onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, itemManager.getItemComposition(event.getItemId()).getName()));
+						                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1433: error: cannot find symbol
+						onInvChange(collectInvItems(LootRecordType.EVENT, MAHOGANY_CRATE_EVENT, client.getBoostedSkillLevel(Skill.CONSTRUCTION)));
+						                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1436: error: cannot find symbol
+						onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, HALLOWED_SACK_EVENT));
+						                                     ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1439: error: cannot find symbol
+						onInvChange(collectInvItems(LootRecordType.EVENT, ORE_PACK_VM_EVENT));
+						                            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1460: error: cannot find symbol
+								addLoot(name, -1, LootRecordType.EVENT, levels, invItems, cnt);
+								                  ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1513: error: cannot find symbol
+		List<LootRecord> copy;
+		     ^
+  symbol:   class LootRecord
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1540: error: cannot find symbol
+		for (LootRecord record : records)
+		     ^
+  symbol:   class LootRecord
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1549: error: cannot find symbol
+			for (GameItem item : record.getDrops())
+			     ^
+  symbol:   class GameItem
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1672: error: cannot find symbol
+		addLoot(HERBIBOAR_EVENT, -1, LootRecordType.EVENT, herbloreLevel, herbs);
+		                             ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1681: error: cannot find symbol
+		addLoot(ZOMBIE_PIRATE_LOCKER_EVENT, -1, LootRecordType.EVENT, null, List.of(new ItemStack(itemId, quantity)));
+		                                        ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPlugin.java:1761: error: cannot find symbol
+			.map(item -> new GameItem(item.getId(), item.getQuantity()))
+			                 ^
+  symbol:   class GameItem
+  location: class LootTrackerPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/loottracker/LootTrackerPanel.java:375: error: cannot find symbol
+		if (type == LootRecordType.PICKPOCKET)
+		            ^
+  symbol:   variable LootRecordType
+  location: class LootTrackerPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldSwitcherPanel.java:129: error: cannot find symbol
+			World world = worldTableRow.getWorld();
+			^
+  symbol:   class World
+  location: class WorldSwitcherPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldSwitcherPanel.java:256: error: cannot find symbol
+			World world = worlds.get(i);
+			^
+  symbol:   class World
+  location: class WorldSwitcherPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldSwitcherPanel.java:261: error: cannot find symbol
+					if (world.getTypes().contains(WorldType.MEMBERS))
+					                              ^
+  symbol:   variable WorldType
+  location: class WorldSwitcherPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldSwitcherPanel.java:267: error: cannot find symbol
+					if (!world.getTypes().contains(WorldType.MEMBERS))
+					                               ^
+  symbol:   variable WorldType
+  location: class WorldSwitcherPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:269: error: cannot find symbol
+		EnumSet<WorldType> types = world.getTypes();
+		        ^
+  symbol:   class WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:270: error: cannot find symbol
+		if (types.contains(WorldType.PVP)
+		                   ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:271: error: cannot find symbol
+			|| types.contains(WorldType.HIGH_RISK)
+			                  ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:272: error: cannot find symbol
+			|| types.contains(WorldType.DEADMAN))
+			                  ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:276: error: cannot find symbol
+		else if (types.contains(WorldType.SEASONAL) || types.contains(WorldType.TOURNAMENT))
+		                        ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:276: error: cannot find symbol
+		else if (types.contains(WorldType.SEASONAL) || types.contains(WorldType.TOURNAMENT))
+		                                                              ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:280: error: cannot find symbol
+		else if (types.contains(WorldType.NOSAVE_MODE) || types.contains(WorldType.BETA_WORLD)
+		                        ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:280: error: cannot find symbol
+		else if (types.contains(WorldType.NOSAVE_MODE) || types.contains(WorldType.BETA_WORLD)
+		                                                                 ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:281: error: cannot find symbol
+			|| types.contains(WorldType.LEGACY_ONLY)) // sometimes used for arbitrarily restricted worlds
+			                  ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:285: error: cannot find symbol
+		else if (types.contains(WorldType.PVP_ARENA))
+		                        ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:289: error: cannot find symbol
+		else if (types.contains(WorldType.QUEST_SPEEDRUNNING))
+		                        ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:293: error: cannot find symbol
+		else if (types.contains(WorldType.FRESH_START_WORLD))
+		                        ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTableRow.java:302: error: cannot find symbol
+		worldField.setForeground(types.contains(WorldType.MEMBERS) ? MEMBERS_WORLD : FREE_WORLD);
+		                                        ^
+  symbol:   variable WorldType
+  location: class WorldTableRow
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:178: error: reference to hop is ambiguous
+			clientThread.invoke(() -> hop(true));
+			                          ^
+  both method hop(boolean) in WorldHopperPlugin and method hop(World) in WorldHopperPlugin match
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:186: error: reference to hop is ambiguous
+			clientThread.invoke(() -> hop(false));
+			                          ^
+  both method hop(boolean) in WorldHopperPlugin and method hop(World) in WorldHopperPlugin match
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:320: error: cannot find symbol
+			World world = worldService.getWorlds().findWorld(worldNumber);
+			^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:419: error: cannot find symbol
+			WorldResult worldResult = worldService.getWorlds();
+			^
+  symbol:   class WorldResult
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:427: error: cannot find symbol
+			World currentWorld = worldResult.findWorld(client.getWorld());
+			^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:428: error: cannot find symbol
+			World targetWorld = worldResult.findWorld(player.getWorld());
+			^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:430: error: cannot find symbol
+				|| (!currentWorld.getTypes().contains(WorldType.PVP) && targetWorld.getTypes().contains(WorldType.PVP)))
+				                                      ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:430: error: cannot find symbol
+				|| (!currentWorld.getTypes().contains(WorldType.PVP) && targetWorld.getTypes().contains(WorldType.PVP)))
+				                                                                                        ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:446: error: reference to hop is ambiguous
+						hop(p.getWorld());
+						^
+  both method hop(int) in WorldHopperPlugin and method hop(World) in WorldHopperPlugin match
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:514: error: cannot find symbol
+		WorldResult worldResult = worldService.getWorlds();
+		^
+  symbol:   class WorldResult
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:533: error: cannot find symbol
+		WorldResult worldResult = worldService.getWorlds();
+		^
+  symbol:   class WorldResult
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:539: error: cannot find symbol
+		World currentWorld = worldResult.findWorld(client.getWorld());
+		^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:546: error: cannot find symbol
+		EnumSet<WorldType> currentWorldTypes = currentWorld.getTypes().clone();
+		        ^
+  symbol:   class WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:550: error: cannot find symbol
+			currentWorldTypes.remove(WorldType.PVP);
+			                         ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:551: error: cannot find symbol
+			currentWorldTypes.remove(WorldType.HIGH_RISK);
+			                         ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:554: error: cannot find symbol
+		currentWorldTypes.remove(WorldType.BOUNTY);
+		                         ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:555: error: cannot find symbol
+		currentWorldTypes.remove(WorldType.SKILL_TOTAL);
+		                         ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:556: error: cannot find symbol
+		currentWorldTypes.remove(WorldType.LAST_MAN_STANDING);
+		                         ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:558: error: cannot find symbol
+		List<World> worlds = worldResult.getWorlds();
+		     ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:569: error: cannot find symbol
+		World world;
+		^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:605: error: cannot find symbol
+			EnumSet<WorldType> types = world.getTypes().clone();
+			        ^
+  symbol:   class WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:607: error: cannot find symbol
+			types.remove(WorldType.BOUNTY);
+			             ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:609: error: cannot find symbol
+			types.remove(WorldType.LAST_MAN_STANDING);
+			             ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:611: error: cannot find symbol
+			if (types.contains(WorldType.SKILL_TOTAL))
+			                   ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:620: error: cannot find symbol
+					final int effectiveTotalLevel = types.contains(WorldType.MEMBERS) ? totalLevel : f2pTotalLevel;
+					                                               ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:624: error: cannot find symbol
+						types.remove(WorldType.SKILL_TOTAL);
+						             ^
+  symbol:   variable WorldType
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:673: error: cannot find symbol
+		WorldResult worldResult = worldService.getWorlds();
+		^
+  symbol:   class WorldResult
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:675: error: cannot find symbol
+		World world = worldResult.findWorld(worldId);
+		^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:840: error: cannot find symbol
+		WorldResult worldResult = worldService.getWorlds();
+		^
+  symbol:   class WorldResult
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:848: error: cannot find symbol
+		for (World world : worldResult.getWorlds())
+		     ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:864: error: cannot find symbol
+		WorldResult worldResult = worldService.getWorlds();
+		^
+  symbol:   class WorldResult
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:870: error: cannot find symbol
+		List<World> worlds = worldResult.getWorlds();
+		     ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:882: error: cannot find symbol
+		World world = worlds.get(currentWorld++);
+		^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:905: error: cannot find symbol
+		WorldResult worldResult = worldService.getWorlds();
+		^
+  symbol:   class WorldResult
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldHopperPlugin.java:912: error: cannot find symbol
+		final World currentWorld = worldResult.findWorld(client.getWorld());
+		      ^
+  symbol:   class World
+  location: class WorldHopperPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:34: error: cannot find symbol
+	AUSTRALIA(WorldRegion.AUSTRALIA),
+	          ^
+  symbol:   variable WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:35: error: cannot find symbol
+	GERMANY(WorldRegion.GERMANY),
+	        ^
+  symbol:   variable WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:36: error: cannot find symbol
+	UNITED_KINGDOM(WorldRegion.UNITED_KINGDOM)
+	               ^
+  symbol:   variable WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:44: error: cannot find symbol
+	UNITED_STATES(WorldRegion.UNITED_STATES_OF_AMERICA)
+	              ^
+  symbol:   variable WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:52: error: cannot find symbol
+	BRAZIL(WorldRegion.BRAZIL),
+	       ^
+  symbol:   variable WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:53: error: cannot find symbol
+	JAPAN(WorldRegion.JAPAN),
+	      ^
+  symbol:   variable WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:54: error: cannot find symbol
+	SINGAPORE(WorldRegion.SINGAPORE),
+	          ^
+  symbol:   variable WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/RegionFilterMode.java:55: error: cannot find symbol
+	SOUTH_AFRICA(WorldRegion.SOUTH_AFRICA),
+	             ^
+  symbol:   variable WorldRegion
+  location: class RegionFilterMode
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:37: error: cannot find symbol
+			boolean matches(Set<WorldType> types)
+			                    ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:39: error: cannot find symbol
+				EnumSet<WorldType> normal = EnumSet.of(WorldType.MEMBERS, WorldType.SKILL_TOTAL, WorldType.LAST_MAN_STANDING);
+				        ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:39: error: cannot find symbol
+				EnumSet<WorldType> normal = EnumSet.of(WorldType.MEMBERS, WorldType.SKILL_TOTAL, WorldType.LAST_MAN_STANDING);
+				                                       ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:39: error: cannot find symbol
+				EnumSet<WorldType> normal = EnumSet.of(WorldType.MEMBERS, WorldType.SKILL_TOTAL, WorldType.LAST_MAN_STANDING);
+				                                                          ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:39: error: cannot find symbol
+				EnumSet<WorldType> normal = EnumSet.of(WorldType.MEMBERS, WorldType.SKILL_TOTAL, WorldType.LAST_MAN_STANDING);
+				                                                                                 ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:40: error: cannot find symbol
+				EnumSet<WorldType> inverse = EnumSet.complementOf(normal);
+				        ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:47: error: cannot find symbol
+			boolean matches(Set<WorldType> types)
+			                    ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:49: error: cannot find symbol
+				return types.contains(WorldType.DEADMAN);
+				                      ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:55: error: cannot find symbol
+			boolean matches(Set<WorldType> types)
+			                    ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:57: error: cannot find symbol
+				return types.contains(WorldType.SEASONAL) || types.contains(WorldType.TOURNAMENT);
+				                      ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:57: error: cannot find symbol
+				return types.contains(WorldType.SEASONAL) || types.contains(WorldType.TOURNAMENT);
+				                                                            ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:63: error: cannot find symbol
+			boolean matches(Set<WorldType> types)
+			                    ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:65: error: cannot find symbol
+				return types.contains(WorldType.QUEST_SPEEDRUNNING);
+				                      ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:71: error: cannot find symbol
+			boolean matches(Set<WorldType> types)
+			                    ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:73: error: cannot find symbol
+				return types.contains(WorldType.FRESH_START_WORLD);
+				                      ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:79: error: cannot find symbol
+			boolean matches(Set<WorldType> types)
+			                    ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:81: error: cannot find symbol
+				return types.contains(WorldType.PVP);
+				                      ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:87: error: cannot find symbol
+			boolean matches(Set<WorldType> types)
+			                    ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:89: error: cannot find symbol
+				return types.contains(WorldType.SKILL_TOTAL);
+				                      ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:95: error: cannot find symbol
+			boolean matches(Set<WorldType> types)
+			                    ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:97: error: cannot find symbol
+				return types.contains(WorldType.HIGH_RISK) && !types.contains(WorldType.PVP);
+				                      ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:97: error: cannot find symbol
+				return types.contains(WorldType.HIGH_RISK) && !types.contains(WorldType.PVP);
+				                                                              ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:103: error: cannot find symbol
+			boolean matches(Set<WorldType> types)
+			                    ^
+  symbol: class WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/WorldTypeFilter.java:105: error: cannot find symbol
+				return types.contains(WorldType.BOUNTY);
+				                      ^
+  symbol: variable WorldType
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/worldhopper/ping/Ping.java:71: error: exception UnknownHostException is never thrown in body of corresponding try statement
+		catch (UnknownHostException ex)
+		^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/motherlode/MotherlodePlugin.java:228: error: cannot find symbol
+			.type(LootRecordType.EVENT)
+			      ^
+  symbol:   variable LootRecordType
+  location: class MotherlodePlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/motherlode/MotherlodePlugin.java:371: error: cannot find symbol
+			.type(LootRecordType.EVENT)
+			      ^
+  symbol:   variable LootRecordType
+  location: class MotherlodePlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/defaultworld/DefaultWorldPlugin.java:115: error: cannot find symbol
+		final WorldResult worldResult = worldService.getWorlds();
+		      ^
+  symbol:   class WorldResult
+  location: class DefaultWorldPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/defaultworld/DefaultWorldPlugin.java:122: error: cannot find symbol
+		final World world = worldResult.findWorld(correctedWorld);
+		      ^
+  symbol:   class World
+  location: class DefaultWorldPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/defaultworld/DefaultWorldPlugin.java:129: error: cannot find symbol
+		if (world.getTypes().contains(WorldType.BETA_WORLD) ||
+		                              ^
+  symbol:   variable WorldType
+  location: class DefaultWorldPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/defaultworld/DefaultWorldPlugin.java:130: error: cannot find symbol
+			world.getTypes().contains(WorldType.NOSAVE_MODE))
+			                          ^
+  symbol:   variable WorldType
+  location: class DefaultWorldPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsOverlay.java:106: error: cannot find symbol
+			WorldResult worldResult = worldService.getWorlds();
+			^
+  symbol:   class WorldResult
+  location: class RaidsOverlay
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsOverlay.java:109: error: cannot find symbol
+				World world = worldResult.findWorld(client.getWorld());
+				^
+  symbol:   class World
+  location: class RaidsOverlay
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsOverlay.java:110: error: cannot find symbol
+				WorldRegion region = world.getRegion();
+				^
+  symbol:   class WorldRegion
+  location: class RaidsOverlay
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsPlugin.java:721: error: cannot find symbol
+		LayoutRoom[] layout;
+		^
+  symbol:   class LayoutRoom
+  location: class RaidsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsPlugin.java:772: error: cannot find symbol
+		LayoutRoom[] layoutRooms = orderedRooms.stream()
+		^
+  symbol:   class LayoutRoom
+  location: class RaidsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsPlugin.java:773: error: cannot find symbol
+			.map(room -> LayoutRoom.valueOf(room.name()))
+			             ^
+  symbol:   variable LayoutRoom
+  location: class RaidsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsPlugin.java:774: error: cannot find symbol
+			.toArray(LayoutRoom[]::new);
+			         ^
+  symbol:   class LayoutRoom
+  location: class RaidsPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/raids/RaidsPlugin.java:726: error: exception IOException is never thrown in body of corresponding try statement
+		catch (IOException ex)
+		^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/gpu/GpuPlugin.java:300: error: cannot find symbol
+				AWTContext.loadNatives();
+				^
+  symbol:   variable AWTContext
+  location: class GpuPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/gpu/GpuPlugin.java:311: error: cannot find symbol
+					awtContext = new AWTContext(canvas);
+					                 ^
+  symbol:   class AWTContext
+  location: class GpuPlugin
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/slayer/SlayerPlugin.java:733: error: package net.runelite.http.api.chat does not exist
+		net.runelite.http.api.chat.Task task;
+		                          ^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/grandexchange/GrandExchangeSearchPanel.java:180: error: cannot find symbol
+		List<ItemPrice> result = itemManager.search(searchBar.getText());
+		     ^
+  symbol:   class ItemPrice
+  location: class GrandExchangeSearchPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/grandexchange/GrandExchangeSearchPanel.java:203: error: cannot find symbol
+		for (ItemPrice item : result)
+		     ^
+  symbol:   class ItemPrice
+  location: class GrandExchangeSearchPanel
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/devtools/ShellFrame.java:42: error: cannot find symbol
+		this.shellPanel = new ShellPanel(executor)
+		                      ^
+  symbol:   class ShellPanel
+  location: class ShellFrame
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/plugins/devtools/ShellFrame.java:44: error: method does not override or implement a method from a supertype
+			@Override
+			^
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/WorldSupplier.java:63: error: cannot find symbol
+			List<World> newWorlds = new WorldClient(okHttpClient, HttpUrl.get(RuneLiteProperties.getApiBase()))
+			     ^
+  symbol:   class World
+  location: class WorldSupplier
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/WorldSupplier.java:67: error: cannot find symbol
+				.filter(w -> w.getTypes().isEmpty() || EnumSet.of(WorldType.MEMBERS).equals(w.getTypes()))
+				                                                  ^
+  symbol:   variable WorldType
+  location: class WorldSupplier
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/WorldSupplier.java:82: error: cannot find symbol
+			World world = World.builder()
+			^
+  symbol:   class World
+  location: class WorldSupplier
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/WorldSupplier.java:82: error: cannot find symbol
+			World world = World.builder()
+			              ^
+  symbol:   variable World
+  location: class WorldSupplier
+/home/claude/ref/rl-src/runelite-client/src/main/java/net/runelite/client/rs/ClientLoader.java:178: error: cannot find symbol
+		World world = worldSupplier.get();
+		^
+  symbol:   class World
+  location: class ClientLoader
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API that is marked for removal.
+Note: Recompile with -Xlint:removal for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+428 errors
