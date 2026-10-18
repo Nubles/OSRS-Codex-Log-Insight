@@ -68,11 +68,18 @@ final class LedgerView
 			report.isIronRates() ? "at ironman rates" : "at your rates", Theme.EMBER));
 		stack.add(tiles);
 
-		List<Report.Hunt> hunts = report.getHunts();
+		List<Report.Hunt> hunts = new java.util.ArrayList<>();
+		for (Report.Hunt hunt : report.getHunts())
+		{
+			if (hunt.getLockedBy() == null && hunts.size() < 3)
+			{
+				hunts.add(hunt);
+			}
+		}
 		if (!hunts.isEmpty())
 		{
 			stack.add(new SectionHeader("Best next hunts", "all in Quarry"));
-			for (int i = 0; i < Math.min(3, hunts.size()); i++)
+			for (int i = 0; i < hunts.size(); i++)
 			{
 				stack.add(QuarryView.row(hunts.get(i), i + 1, icons).onClick(openQuarry));
 			}

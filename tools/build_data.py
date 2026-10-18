@@ -3,7 +3,7 @@
 
 Usage: tools/build_data.py <LogAdviser checkout> <collection-log-luck checkout>
 
-Rates and pace come from Log Adviser's activity tables (BSD 2-Clause,
+Rates, pace and skill/quest requirements come from Log Adviser's activity tables (BSD 2-Clause,
 SFranciscoSouza). Per-kill-count odds for the luck read come from Collection Log
 Luck's item table (BSD 2-Clause, peanubnutter). See THIRD_PARTY_NOTICES.md.
 """
@@ -23,6 +23,7 @@ def activities(adviser):
     acts = json.load(open(data / 'activities.json'))
     rows = json.load(open(data / 'activity_map.json'))
     pets = [p['itemId'] for p in json.load(open(data / 'pets.json'))]
+    needs = json.load(open(data / 'activity_requirements.json'))
     by_index = {}
     for a in acts:
         by_index[a['index']] = {
@@ -33,6 +34,9 @@ def activities(adviser):
             'f': a['extraTimeFirst'],
             'd': [],
         }
+        need = needs.get(str(a['index']), {})
+        if need.get('skills') or need.get('quests'):
+            by_index[a['index']]['r'] = {'s': need.get('skills', {}), 'q': need.get('quests', [])}
     for r in rows:
         a = by_index.get(r['activityIndex'])
         if a is None or r['dropRateAttempts'] <= 0:

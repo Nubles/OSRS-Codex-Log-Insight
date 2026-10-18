@@ -196,11 +196,29 @@ public final class Report
 		private final boolean ownPace;
 		private final boolean pet;
 		private final List<Integer> missing;
+		/** Expected hours to a missing pet here, or infinity. */
+		private final double hoursToPet;
+		private final String petName;
+		private final int petItemId;
+		/** What the account still needs to do this, such as "85 Slayer", or null. */
+		private final String lockedBy;
 
 		public Hunt(String name, Activity.Category category, double hoursToNext, double hoursToFinish, int remaining,
 			int nextItemId, String nextItemName, double nextChance, boolean nextEarned, double perHour, boolean ownPace, boolean pet,
 			List<Integer> missing)
 		{
+			this(name, category, hoursToNext, hoursToFinish, remaining, nextItemId, nextItemName, nextChance, nextEarned,
+				perHour, ownPace, pet, missing, Double.POSITIVE_INFINITY, -1, null, null);
+		}
+
+		public Hunt(String name, Activity.Category category, double hoursToNext, double hoursToFinish, int remaining,
+			int nextItemId, String nextItemName, double nextChance, boolean nextEarned, double perHour, boolean ownPace, boolean pet,
+			List<Integer> missing, double hoursToPet, int petItemId, String petName, String lockedBy)
+		{
+			this.petItemId = petItemId;
+			this.hoursToPet = hoursToPet;
+			this.petName = petName;
+			this.lockedBy = lockedBy;
 			this.name = name;
 			this.category = category;
 			this.hoursToNext = hoursToNext;

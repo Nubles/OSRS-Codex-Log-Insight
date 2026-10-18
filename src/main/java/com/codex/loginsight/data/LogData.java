@@ -85,7 +85,9 @@ public final class LogData
 					drops.set(at, drop);
 				}
 			}
-			activities.add(new Activity(index, a.n, Activity.Category.of(a.c), a.m, a.i, a.f, drops));
+			Map<String, Integer> skills = a.r == null || a.r.s == null ? Collections.emptyMap() : a.r.s;
+			List<String> quests = a.r == null || a.r.q == null ? Collections.emptyList() : a.r.q;
+			activities.add(new Activity(index, a.n, Activity.Category.of(a.c), a.m, a.i, a.f, drops, skills, quests));
 		}
 		Map<Integer, ItemOdds> odds = new HashMap<>();
 		for (Map.Entry<String, RawOdds> e : raw.odds.entrySet())
@@ -138,6 +140,17 @@ public final class LogData
 		return odds.get(itemId);
 	}
 
+	/** Every quest any activity needs, by name. */
+	public Set<String> questsNeeded()
+	{
+		Set<String> quests = new java.util.TreeSet<>();
+		for (Activity activity : activities)
+		{
+			quests.addAll(activity.getQuests());
+		}
+		return quests;
+	}
+
 	/** The collection log counter names the odds refer to, such as "Vorkath kills". */
 	public List<String> getLabels()
 	{
@@ -165,6 +178,13 @@ public final class LogData
 		double i;
 		double f;
 		List<double[]> d = new ArrayList<>();
+		RawNeeds r;
+	}
+
+	static final class RawNeeds
+	{
+		Map<String, Integer> s;
+		List<String> q;
 	}
 
 	static final class RawOdds

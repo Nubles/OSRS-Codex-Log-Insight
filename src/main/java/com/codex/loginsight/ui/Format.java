@@ -160,7 +160,14 @@ public final class Format
 	public static String detail(String name)
 	{
 		java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\(([^)]*)\\)").matcher(name);
-		return m.find() ? m.group(1).trim() : null;
+		if (!m.find())
+		{
+			return null;
+		}
+		String detail = m.group(1).trim();
+		// Tombs of Amascut rows differ only by raid level.
+		return detail.matches("[0-9]+") && name.toLowerCase(java.util.Locale.ENGLISH).contains("amascut")
+			? "raid level " + detail : detail;
 	}
 
 	/** An activity name for a card title: the parenthetical detail moves to the tooltip. */

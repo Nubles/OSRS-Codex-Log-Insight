@@ -31,7 +31,7 @@ public class FormatTest
 		assertEquals("Hard Caskets", Format.source("Opening hard caskets"));
 		assertEquals("Tombs of Amascut Reward Chests", Format.source("Tombs of amascut reward chests (300)"));
 		assertEquals("Leviathan", Format.source("Killing the leviathan"));
-		assertEquals("300", Format.detail("Tombs of amascut reward chests (300)"));
+		assertEquals("raid level 300", Format.detail("Tombs of amascut reward chests (300)"));
 		assertNull(Format.detail("Killing vorkath"));
 	}
 

@@ -6,6 +6,7 @@ import com.codex.loginsight.core.LogStructure;
 import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
+import com.codex.loginsight.core.Unlocks;
 import com.codex.loginsight.data.Activity;
 import com.codex.loginsight.data.ItemOdds;
 import com.codex.loginsight.data.LogData;
@@ -36,8 +37,11 @@ import net.runelite.api.Client;
 import net.runelite.api.EnumComposition;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
+import net.runelite.api.Quest;
+import net.runelite.api.QuestState;
 import net.runelite.api.ScriptEvent;
 import net.runelite.api.ScriptID;
+import net.runelite.api.Skill;
 import net.runelite.api.StructComposition;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
@@ -92,6 +96,8 @@ public class CodexLogInsightPlugin extends Plugin
 	/** The chat line and the pop-up can both announce one slot; the second is ignored. */
 	private static final long SAME_SLOT_MS = 10_000;
 	private static final String POPUP_PREFIX = "New item:";
+	/** Skill levels and quests are read again this often, to notice what has opened up. */
+	private static final int UNLOCKS_TICKS = 100;
 
 	@Inject
 	private Client client;
@@ -144,6 +150,9 @@ public class CodexLogInsightPlugin extends Plugin
 	private int lastTransmitTick = -1;
 	private int officialOwned = -1;
 	private int officialTotal = -1;
+	private final Map<String, Quest> questsNeeded = new HashMap<>();
+	private Unlocks unlocks = Unlocks.UNKNOWN;
+	private int unlocksReadAt = -1;
 	private boolean notificationStarted;
 	private String lastSlot;
 	private long lastSlotAt;
@@ -160,6 +169,20 @@ public class CodexLogInsightPlugin extends Plugin
 		data = LogData.load(gson);
 		analyst = new Analyst(data);
 		chat = new ChatReader(data.getLabels());
+		Map<String, Quest> quests = new HashMap<>();
+		for (Quest quest : Quest.values())
+		{
+			quests.putIfAbsent(Unlocks.normalise(quest.name()), quest);
+			quests.putIfAbsent(Unlocks.normalise(quest.getName()), quest);
+		}
+		for (String name : data.questsNeeded())
+		{
+			Quest quest = quests.get(Unlocks.normalise(name));
+			if (quest != null)
+			{
+				questsNeeded.put(name, quest);
+			}
+		}
 		ItemIcons icons = (itemId, onLoaded) ->
 		{
 			AsyncBufferedImage image = itemManager.getImage(itemId);
@@ -220,6 +243,8 @@ public class CodexLogInsightPlugin extends Plugin
 			profile = null;
 			officialOwned = -1;
 			officialTotal = -1;
+			unlocks = Unlocks.UNKNOWN;
+			unlocksReadAt = -1;
 			plaque.clear();
 			publish(Report.loggedOut(), null);
 		}
@@ -277,6 +302,11 @@ public class CodexLogInsightPlugin extends Plugin
 			officialOwned = owned;
 			officialTotal = total;
 			dirty = true;
+		}
+
+		if (progress != null && (unlocksReadAt < 0 || client.getTickCount() - unlocksReadAt >= UNLOCKS_TICKS))
+		{
+			readUnlocks();
 		}
 
 		ticksSinceAnalysis++;
@@ -393,6 +423,31 @@ public class CodexLogInsightPlugin extends Plugin
 		lastSlot = slot;
 		lastSlotAt = now;
 		onNewSlot(slot);
+	}
+
+	/** Reads the account's real skill levels and which needed quests are still unfinished. */
+	private void readUnlocks()
+	{
+		unlocksReadAt = client.getTickCount();
+		Map<String, Integer> levels = new HashMap<>();
+		for (Skill skill : Skill.values())
+		{
+			levels.put(skill.name(), client.getRealSkillLevel(skill));
+		}
+		Set<String> unfinished = new HashSet<>();
+		for (Map.Entry<String, Quest> quest : questsNeeded.entrySet())
+		{
+			if (quest.getValue().getState(client) != QuestState.FINISHED)
+			{
+				unfinished.add(quest.getKey());
+			}
+		}
+		Unlocks read = new Unlocks(levels, unfinished);
+		if (!read.equals(unlocks))
+		{
+			unlocks = read;
+			dirty = true;
+		}
 	}
 
 	/** Reads the page open in the collection log: its counters and which slots are owned. */
@@ -686,6 +741,7 @@ public class CodexLogInsightPlugin extends Plugin
 		LogStructure shape = structure;
 		boolean iron = ironRates();
 		boolean pace = config.learnPace();
+		Unlocks can = unlocks;
 		int owned = officialOwned;
 		int total = officialTotal;
 		Player player = client.getLocalPlayer();
@@ -695,7 +751,7 @@ public class CodexLogInsightPlugin extends Plugin
 		{
 			try
 			{
-				Report report = analyst.analyse(shape, snapshot, iron, pace, owned, total);
+				Report report = analyst.analyse(shape, snapshot, iron, pace, owned, total, can);
 				if (ticket == generation.get())
 				{
 					publish(report, name);

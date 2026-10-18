@@ -1,6 +1,9 @@
 package com.codex.loginsight.data;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import lombok.Getter;
 
@@ -43,9 +46,21 @@ public final class Activity
 	private final double setupHours;
 	/** In table order, which matters for slots that only drop once the one before is owned. */
 	private final List<Drop> drops;
+	/** Real skill levels needed, by RuneLite skill name such as "SLAYER". */
+	private final Map<String, Integer> skills;
+	/** Quests that must be finished, by name. */
+	private final List<String> quests;
 
 	public Activity(int index, String name, Category category, double perHourMain, double perHourIron, double setupHours, List<Drop> drops)
 	{
+		this(index, name, category, perHourMain, perHourIron, setupHours, drops, Collections.emptyMap(), Collections.emptyList());
+	}
+
+	public Activity(int index, String name, Category category, double perHourMain, double perHourIron, double setupHours,
+		List<Drop> drops, Map<String, Integer> skills, List<String> quests)
+	{
+		this.skills = Collections.unmodifiableMap(new LinkedHashMap<>(skills));
+		this.quests = Collections.unmodifiableList(new ArrayList<>(quests));
 		this.index = index;
 		this.name = name;
 		this.category = category;

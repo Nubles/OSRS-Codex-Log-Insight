@@ -8,6 +8,9 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.geom.Ellipse2D;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -32,18 +35,28 @@ final class QuarryView
 			stack.add(Rows.note("Log in to rank where your next slots will come from.", 190));
 			return stack;
 		}
-		stack.add(Rows.note(report.isIronRates()
-			? "Ranked by the wait for a new slot at ironman rates. Activities you do often switch to your own pace."
-			: "Ranked by the wait for a new slot at typical rates. Activities you do often switch to your own pace.", 190));
-		int rank = 0;
+		boolean pets = filter == 4;
+		stack.add(Rows.note((pets ? "Ranked by the wait for a pet" : "Ranked by the wait for a new slot")
+			+ (report.isIronRates() ? " at ironman rates" : " at typical rates")
+			+ ". Activities you do often switch to your own pace; ones you cannot do yet come last.", 190));
+		List<Report.Hunt> hunts = new ArrayList<>();
 		for (Report.Hunt hunt : report.getHunts())
 		{
-			if (!matches(hunt, filter))
+			if (matches(hunt, filter))
 			{
-				continue;
+				hunts.add(hunt);
 			}
+		}
+		if (pets)
+		{
+			hunts.sort(Comparator.comparing((Report.Hunt h) -> h.getLockedBy() != null)
+				.thenComparingDouble(Report.Hunt::getHoursToPet));
+		}
+		int rank = 0;
+		for (Report.Hunt hunt : hunts)
+		{
 			rank++;
-			stack.add(row(hunt, rank, icons));
+			stack.add(row(hunt, rank, icons, pets));
 			if (rank >= SHOWN)
 			{
 				break;
@@ -75,28 +88,47 @@ final class QuarryView
 
 	static Card row(Report.Hunt hunt, int rank, ItemIcons icons)
 	{
+		return row(hunt, rank, icons, false);
+	}
+
+	/** @param pets lead with the wait for this activity's pet rather than its next slot */
+	static Card row(Report.Hunt hunt, int rank, ItemIcons icons, boolean pets)
+	{
+		boolean locked = hunt.getLockedBy() != null;
 		Card card = new Card(new BorderLayout(8, 0));
 		card.setBorder(new EmptyBorder(6, 8, 6, 8));
-		if (rank == 1)
+		if (rank == 1 && !locked)
 		{
 			card.accent(Theme.TEAL);
 		}
 		JPanel lead = new JPanel(new BorderLayout());
 		lead.setOpaque(false);
-		lead.add(new Rank(rank), BorderLayout.NORTH);
+		lead.add(new Rank(rank, locked), BorderLayout.NORTH);
 		card.add(lead, BorderLayout.WEST);
 
 		JPanel text = new JPanel();
 		text.setOpaque(false);
 		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
-		text.add(Ui.clamped(Format.source(hunt.getName()), Theme.body(), Theme.TEXT, 118, 2));
+		text.add(Ui.clamped(Format.source(hunt.getName()), Theme.body(), locked ? Theme.TEXT_MUTED : Theme.TEXT, 118, 2));
 		String detail = Format.detail(hunt.getName());
 		if (detail != null && !detail.isEmpty())
 		{
 			text.add(Ui.clamped(detail, Theme.small(), Theme.GOLD_DIM, 118, 1));
 		}
-		text.add(Ui.label("Next " + Format.about(hunt.getHoursToNext()) + "  ·  " + hunt.getRemaining() + " left",
-			Theme.small(), Theme.TEAL));
+		if (locked)
+		{
+			text.add(Ui.clamped("Needs " + hunt.getLockedBy(), Theme.small(), Theme.EMBER, 118, 1));
+		}
+		if (pets && hunt.getPetName() != null)
+		{
+			text.add(Ui.label("Pet " + Format.about(hunt.getHoursToPet()) + "  ·  " + hunt.getRemaining() + " left",
+				Theme.small(), Theme.VIOLET));
+		}
+		else
+		{
+			text.add(Ui.label("Next " + Format.about(hunt.getHoursToNext()) + "  ·  " + hunt.getRemaining() + " left",
+				Theme.small(), locked ? Theme.TEXT_MUTED : Theme.TEAL));
+		}
 		String next = "";
 		if (hunt.getNextItemName() != null)
 		{
@@ -104,6 +136,10 @@ final class QuarryView
 			next = hunt.getNextItemName() + (hunt.isNextEarned()
 				? (after <= 1 ? ", every time" : ", earned in " + Format.count(after))
 				: " " + Format.chance(hunt.getNextChance()));
+		}
+		if (pets && hunt.getPetName() != null)
+		{
+			next = hunt.getPetName();
 		}
 		JLabel nextLabel = Ui.label(next, Theme.small(), Theme.TEXT_MUTED);
 		nextLabel.setToolTipText(next);
@@ -114,11 +150,12 @@ final class QuarryView
 		text.setPreferredSize(new Dimension(10, text.getPreferredSize().height));
 		card.add(text, BorderLayout.CENTER);
 
-		if (hunt.getNextItemId() > 0)
+		int shown = pets && hunt.getPetItemId() > 0 ? hunt.getPetItemId() : hunt.getNextItemId();
+		if (shown > 0)
 		{
 			JPanel trail = new JPanel(new BorderLayout());
 			trail.setOpaque(false);
-			trail.add(new IconBadge(hunt.getNextItemId(), icons, false), BorderLayout.NORTH);
+			trail.add(new IconBadge(shown, icons, false), BorderLayout.NORTH);
 			card.add(trail, BorderLayout.EAST);
 		}
 		card.setToolTipText("<html>" + Ui.escape(hunt.getName()) + "<br>" + Math.round(hunt.getPerHour()) + " per hour"
@@ -130,10 +167,12 @@ final class QuarryView
 	private static final class Rank extends JComponent
 	{
 		private final int rank;
+		private final boolean locked;
 
-		Rank(int rank)
+		Rank(int rank, boolean locked)
 		{
 			this.rank = rank;
+			this.locked = locked;
 			Dimension d = new Dimension(20, 20);
 			setPreferredSize(d);
 			setMinimumSize(d);
@@ -145,7 +184,7 @@ final class QuarryView
 		{
 			Graphics2D g = (Graphics2D) graphics.create();
 			Theme.smooth(g);
-			boolean first = rank <= 3;
+			boolean first = rank <= 3 && !locked;
 			g.setColor(first ? Theme.alpha(Theme.GOLD, 60) : Theme.INK_DEEP);
 			g.fill(new Ellipse2D.Float(1, 1, 18, 18));
 			g.setColor(first ? Theme.GOLD : Theme.STROKE);

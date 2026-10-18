@@ -59,6 +59,15 @@ public final class Analyst
 	public Report analyse(LogStructure structure, Progress progress, boolean iron, boolean ownPace, int officialOwned,
 		int officialTotal)
 	{
+		return analyse(structure, progress, iron, ownPace, officialOwned, officialTotal, Unlocks.UNKNOWN);
+	}
+
+	/**
+	 * @param unlocks what the account can do yet; activities it cannot do sink below the rest
+	 */
+	public Report analyse(LogStructure structure, Progress progress, boolean iron, boolean ownPace, int officialOwned,
+		int officialTotal, Unlocks unlocks)
+	{
 		Rates rates = new Rates(progress, iron, ownPace);
 		Set<Integer> owned = progress.getOwned();
 		Map<String, Integer> counters = progress.getCounters();
@@ -97,7 +106,7 @@ public final class Analyst
 		Finish finish = finish(missing, owned, rates);
 		Luck luck = luck(unique, owned, counters);
 		List<Report.ItemReport> driest = driest(structure, missing, progress, rates);
-		List<Report.Hunt> hunts = hunts(structure, owned, rates);
+		List<Report.Hunt> hunts = hunts(structure, owned, rates, unlocks);
 
 		return new Report(true, !structure.isEmpty(), officialOwned, officialTotal, knownOwned, unique.size(),
 			progress.getFullReadAt(), progress.pagesReadCount(), pages.size(), complete, luck, finish.hours,
@@ -276,7 +285,7 @@ public final class Analyst
 		return shown;
 	}
 
-	private List<Report.Hunt> hunts(LogStructure structure, Set<Integer> owned, Rates rates)
+	private List<Report.Hunt> hunts(LogStructure structure, Set<Integer> owned, Rates rates, Unlocks unlocks)
 	{
 		Set<Integer> inLog = new HashSet<>();
 		for (LogStructure.Tab tab : structure.getTabs())
@@ -304,12 +313,23 @@ public final class Analyst
 			{
 				pet |= data.isPet(id);
 			}
+			double petHours = Double.POSITIVE_INFINITY;
+			int petItem = -1;
+			if (pet)
+			{
+				Eval pets = evaluate(activity, owned, id -> data.isPet(id) && (inLog.isEmpty() || inLog.contains(id)));
+				petHours = rates.hoursFor(activity, pets.nextAttempts);
+				petItem = pets.nextItem;
+			}
 			hunts.add(new Report.Hunt(activity.getName(), activity.getCategory(),
 				rates.hoursFor(activity, eval.nextAttempts), rates.hoursFor(activity, eval.allAttempts), eval.remaining,
 				eval.nextItem, eval.nextItem < 0 ? null : structure.name(eval.nextItem), eval.nextChance, eval.nextExact, perHour,
-				rates.isOwnPace(activity), pet, eval.missing));
+				rates.isOwnPace(activity), pet, eval.missing, petHours, petItem, petItem < 0 ? null : structure.name(petItem),
+				unlocks.missing(activity)));
 		}
-		hunts.sort(Comparator.comparingDouble(Report.Hunt::getHoursToNext));
+		// What can be done now comes first, each part ranked by the wait for a new slot.
+		hunts.sort(Comparator.comparing((Report.Hunt h) -> h.getLockedBy() != null)
+			.thenComparingDouble(Report.Hunt::getHoursToNext));
 		return hunts;
 	}
 
