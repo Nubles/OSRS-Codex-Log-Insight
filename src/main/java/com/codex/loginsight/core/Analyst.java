@@ -31,6 +31,8 @@ public final class Analyst
 	private final LogData data;
 	/** The counter each activity advances, when its slots agree on one. */
 	private final Map<Integer, String> activityLabels = new HashMap<>();
+	private static final int MAX_CACHED = 20_000;
+	private final Map<String, Eval> evaluations = new java.util.concurrent.ConcurrentHashMap<>();
 
 	public Analyst(LogData data)
 	{
@@ -397,6 +399,37 @@ public final class Analyst
 	 * run of rolled slots that only drop in order waits one piece after another.
 	 */
 	private Eval evaluate(Activity activity, Set<Integer> owned, java.util.function.IntPredicate include)
+	{
+		// The result depends only on which slots are wanted and which are owned, so it is kept between
+		// reports: a new kill count costs nothing here, only a new slot does.
+		StringBuilder key = new StringBuilder().append(activity.getIndex());
+		boolean previousOwned = false;
+		for (Activity.Drop drop : activity.getDrops())
+		{
+			int id = drop.getItemId();
+			boolean has = owned.contains(id);
+			if (!has && include.test(id))
+			{
+				key.append(drop.isSequential() && previousOwned ? ',' : ';').append(id);
+			}
+			previousOwned = has;
+		}
+		String cacheKey = key.toString();
+		Eval cached = evaluations.get(cacheKey);
+		if (cached != null)
+		{
+			return cached;
+		}
+		Eval eval = compute(activity, owned, include);
+		if (evaluations.size() > MAX_CACHED)
+		{
+			evaluations.clear();
+		}
+		evaluations.put(cacheKey, eval);
+		return eval;
+	}
+
+	private Eval compute(Activity activity, Set<Integer> owned, java.util.function.IntPredicate include)
 	{
 		Eval eval = new Eval();
 		double chanceSum = 0;
