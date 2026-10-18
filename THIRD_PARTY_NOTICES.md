@@ -4,7 +4,7 @@ Codex Log Insight bundles data derived from two BSD 2-Clause projects. `tools/bu
 
 ## Log Adviser
 
-Activity names, completions per hour and per-activity drop rates come from [SFranciscoSouza/LogAdviser](https://github.com/SFranciscoSouza/LogAdviser) at commit `aef4c72f307547ce212b94a42c7f5f18a230eb68`.
+Activity names, completions per hour, per-activity drop rates and skill and quest requirements come from [SFranciscoSouza/LogAdviser](https://github.com/SFranciscoSouza/LogAdviser) at commit `aef4c72f307547ce212b94a42c7f5f18a230eb68`.
 
 ```
 Copyright (c) 2026, SFranciscoSouza
