@@ -1,11 +1,13 @@
 package com.codex.loginsight;
 
 import com.codex.loginsight.core.Analyst;
+import com.codex.loginsight.core.Announcements;
 import com.codex.loginsight.core.ChatReader;
 import com.codex.loginsight.core.LogStructure;
 import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
+import com.codex.loginsight.core.Unlocks;
 import com.codex.loginsight.data.Activity;
 import com.codex.loginsight.data.ItemOdds;
 import com.codex.loginsight.data.LogData;
@@ -26,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.inject.Inject;
@@ -36,8 +39,11 @@ import net.runelite.api.Client;
 import net.runelite.api.EnumComposition;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
+import net.runelite.api.Quest;
+import net.runelite.api.QuestState;
 import net.runelite.api.ScriptEvent;
 import net.runelite.api.ScriptID;
+import net.runelite.api.Skill;
 import net.runelite.api.StructComposition;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
@@ -45,6 +51,7 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
@@ -55,6 +62,7 @@ import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.game.ItemManager;
@@ -88,6 +96,9 @@ public class CodexLogInsightPlugin extends Plugin
 	private static final int TRANSMIT_SETTLE_TICKS = 3;
 	private static final int SAVE_TICKS = 100;
 	private static final int ANALYSE_GAP_TICKS = 2;
+	private static final String POPUP_PREFIX = "New item:";
+	/** Skill levels and quests are read again this often, to notice what has opened up. */
+	private static final int UNLOCKS_TICKS = 100;
 
 	@Inject
 	private Client client;
@@ -140,6 +151,12 @@ public class CodexLogInsightPlugin extends Plugin
 	private int lastTransmitTick = -1;
 	private int officialOwned = -1;
 	private int officialTotal = -1;
+	private final Map<String, Quest> questsNeeded = new HashMap<>();
+	private Unlocks unlocks = Unlocks.UNKNOWN;
+	private int unlocksReadAt = -1;
+	private boolean notificationStarted;
+	/** The chat line and the pop-up can both announce one slot; the second is ignored. */
+	private final Announcements announcements = new Announcements();
 
 	@Provides
 	CodexLogInsightConfig provideConfig(ConfigManager configManager)
@@ -153,6 +170,20 @@ public class CodexLogInsightPlugin extends Plugin
 		data = LogData.load(gson);
 		analyst = new Analyst(data);
 		chat = new ChatReader(data.getLabels());
+		Map<String, Quest> quests = new HashMap<>();
+		for (Quest quest : Quest.values())
+		{
+			quests.putIfAbsent(Unlocks.normalise(quest.name()), quest);
+			quests.putIfAbsent(Unlocks.normalise(quest.getName()), quest);
+		}
+		for (String name : data.questsNeeded())
+		{
+			Quest quest = quests.get(Unlocks.normalise(name));
+			if (quest != null)
+			{
+				questsNeeded.put(name, quest);
+			}
+		}
 		ItemIcons icons = (itemId, onLoaded) ->
 		{
 			AsyncBufferedImage image = itemManager.getImage(itemId);
@@ -199,6 +230,29 @@ public class CodexLogInsightPlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onClientShutdown(ClientShutdown event)
+	{
+		// ConfigManager writes its changes to disk in this same event, before a save queued on the
+		// client thread runs, so a save made here has to be sent on by hand or it is never written.
+		CompletableFuture<Void> done = new CompletableFuture<>();
+		clientThread.invokeLater(() ->
+		{
+			try
+			{
+				if (save())
+				{
+					configManager.sendConfig();
+				}
+			}
+			finally
+			{
+				done.complete(null);
+			}
+		});
+		event.waitFor(done);
+	}
+
+	@Subscribe
 	public void onGameStateChanged(GameStateChanged event)
 	{
 		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.HOPPING)
@@ -213,6 +267,9 @@ public class CodexLogInsightPlugin extends Plugin
 			profile = null;
 			officialOwned = -1;
 			officialTotal = -1;
+			unlocks = Unlocks.UNKNOWN;
+			unlocksReadAt = -1;
+			announcements.clear();
 			plaque.clear();
 			publish(Report.loggedOut(), null);
 		}
@@ -272,6 +329,11 @@ public class CodexLogInsightPlugin extends Plugin
 			dirty = true;
 		}
 
+		if (progress != null && (unlocksReadAt < 0 || client.getTickCount() - unlocksReadAt >= UNLOCKS_TICKS))
+		{
+			readUnlocks();
+		}
+
 		ticksSinceAnalysis++;
 		if (dirty && ticksSinceAnalysis >= ANALYSE_GAP_TICKS)
 		{
@@ -288,6 +350,16 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onScriptPreFired(ScriptPreFired event)
 	{
+		if (event.getScriptId() == ScriptID.NOTIFICATION_START)
+		{
+			notificationStarted = true;
+			return;
+		}
+		if (event.getScriptId() == ScriptID.NOTIFICATION_DELAY)
+		{
+			readNotification();
+			return;
+		}
 		if (event.getScriptId() != COLLECTION_TRANSMIT || progress == null || isAnotherPlayersLog())
 		{
 			return;
@@ -341,7 +413,62 @@ public class CodexLogInsightPlugin extends Plugin
 		String slot = ChatReader.newSlot(message);
 		if (slot != null)
 		{
-			onNewSlot(slot);
+			announced(slot, Announcements.Channel.CHAT);
+		}
+	}
+
+	/** The game's pop-up for a new slot, for players who turned the chat line off. */
+	private void readNotification()
+	{
+		if (!notificationStarted)
+		{
+			return;
+		}
+		notificationStarted = false;
+		String title = client.getVarcStrValue(VarClientID.NOTIFICATION_TITLE);
+		String body = client.getVarcStrValue(VarClientID.NOTIFICATION_MAIN);
+		if (progress == null || title == null || body == null || !"Collection log".equalsIgnoreCase(title.trim()))
+		{
+			return;
+		}
+		String text = Text.removeTags(body).trim();
+		if (text.startsWith(POPUP_PREFIX))
+		{
+			announced(text.substring(POPUP_PREFIX.length()).trim(), Announcements.Channel.POPUP);
+		}
+	}
+
+	private void announced(String slot, Announcements.Channel channel)
+	{
+		if (!announcements.fresh(slot, channel, System.currentTimeMillis()))
+		{
+			return;
+		}
+		onNewSlot(slot.trim());
+	}
+
+	/** Reads the account's real skill levels and which needed quests are still unfinished. */
+	private void readUnlocks()
+	{
+		unlocksReadAt = client.getTickCount();
+		Map<String, Integer> levels = new HashMap<>();
+		for (Skill skill : Skill.values())
+		{
+			levels.put(skill.name(), client.getRealSkillLevel(skill));
+		}
+		Set<String> unfinished = new HashSet<>();
+		for (Map.Entry<String, Quest> quest : questsNeeded.entrySet())
+		{
+			if (quest.getValue().getState(client) != QuestState.FINISHED)
+			{
+				unfinished.add(quest.getKey());
+			}
+		}
+		Unlocks read = new Unlocks(levels, unfinished);
+		if (!read.equals(unlocks))
+		{
+			unlocks = read;
+			dirty = true;
 		}
 	}
 
@@ -590,32 +717,41 @@ public class CodexLogInsightPlugin extends Plugin
 		seedFromChatCommands();
 	}
 
-	/** Fills counters the log has not shown yet from the kill counts RuneLite's chat commands remember. */
+	/**
+	 * Brings counters up to the kill counts RuneLite's chat commands remember, which can be
+	 * newer than the last time a log page was opened. Counts only ever go up.
+	 */
 	private void seedFromChatCommands()
 	{
 		for (String label : data.getLabels())
 		{
-			if (progress.counter(label) != null)
+			Integer known = progress.counter(label);
+			for (String key : ChatReader.savedKeys(label))
 			{
-				continue;
-			}
-			Integer count = configManager.getRSProfileConfiguration("killcount", ChatReader.base(label), Integer.class);
-			if (count != null && count > 0)
-			{
-				progress.setCounter(label, count);
+				Integer count = configManager.getRSProfileConfiguration("killcount", key, Integer.class);
+				if (count != null && count > 0)
+				{
+					if (known == null || count > known)
+					{
+						progress.setCounter(label, count);
+					}
+					break;
+				}
 			}
 		}
 	}
 
-	private void save()
+	/** Writes progress to the profile if it changed, and says whether it did. */
+	private boolean save()
 	{
 		ticksSinceSave = 0;
 		if (progress == null || profile == null || !unsaved)
 		{
-			return;
+			return false;
 		}
 		unsaved = false;
 		configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, PROGRESS_KEY, gson.toJson(progress));
+		return true;
 	}
 
 	private void analyse()
@@ -629,6 +765,7 @@ public class CodexLogInsightPlugin extends Plugin
 		LogStructure shape = structure;
 		boolean iron = ironRates();
 		boolean pace = config.learnPace();
+		Unlocks can = unlocks;
 		int owned = officialOwned;
 		int total = officialTotal;
 		Player player = client.getLocalPlayer();
@@ -638,7 +775,7 @@ public class CodexLogInsightPlugin extends Plugin
 		{
 			try
 			{
-				Report report = analyst.analyse(shape, snapshot, iron, pace, owned, total);
+				Report report = analyst.analyse(shape, snapshot, iron, pace, owned, total, can);
 				if (ticket == generation.get())
 				{
 					publish(report, name);

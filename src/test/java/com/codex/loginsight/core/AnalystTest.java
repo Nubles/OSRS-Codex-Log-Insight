@@ -148,6 +148,50 @@ public class AnalystTest
 	}
 
 	@Test
+	public void rewardsBoughtWithPointsAddUp()
+	{
+		// Two shop rewards costing 100 and 200 points: the first comes at 100, both only at 300.
+		List<Activity.Drop> drops = Arrays.asList(new Activity.Drop(0, 10, 100, 3), new Activity.Drop(0, 11, 200, 3));
+		Activity shop = new Activity(0, "Earning points", Activity.Category.MINIGAME, 100, 100, 0, drops);
+		LogData shopData = new LogData(Collections.singletonList(shop), Collections.emptyList(), new HashMap<>(),
+			Collections.emptySet());
+		LogStructure shopLog = new LogStructure(Collections.singletonList(new LogStructure.Tab("Minigames",
+			Collections.singletonList(new LogStructure.Page("Minigames", "Shop", Arrays.asList(10, 11))))), new HashMap<>());
+		Report.Hunt hunt = new Analyst(shopData).analyse(shopLog, new Progress(), false, true, -1, -1).getHunts().get(0);
+		assertTrue(hunt.isNextEarned());
+		assertEquals(1.0, hunt.getHoursToNext(), 1e-9);
+		assertEquals(3.0, hunt.getHoursToFinish(), 1e-9);
+	}
+
+	@Test
+	public void activitiesYouCannotDoYetComeLast()
+	{
+		List<Activity.Drop> easy = Collections.singletonList(new Activity.Drop(0, 20, 1000, 0));
+		List<Activity.Drop> hard = Collections.singletonList(new Activity.Drop(1, 21, 10, 0));
+		Activity cows = new Activity(0, "Killing cows", Activity.Category.COMBAT, 100, 100, 0, easy);
+		Activity hydra = new Activity(1, "Killing hydra", Activity.Category.COMBAT, 100, 100, 0, hard,
+			Collections.singletonMap("SLAYER", 95), Collections.singletonList("Heroes' Quest"));
+		LogData both = new LogData(Arrays.asList(cows, hydra), Collections.emptyList(), new HashMap<>(), Collections.singleton(21));
+		LogStructure log = new LogStructure(Collections.singletonList(new LogStructure.Tab("Bosses",
+			Collections.singletonList(new LogStructure.Page("Bosses", "Mixed", Arrays.asList(20, 21))))), new HashMap<>());
+		Analyst analyst = new Analyst(both);
+
+		List<Report.Hunt> open = analyst.analyse(log, new Progress(), false, true, -1, -1).getHunts();
+		assertEquals("Killing hydra", open.get(0).getName());
+		assertEquals(0.1, open.get(0).getHoursToPet(), 1e-9);
+
+		Unlocks low = new Unlocks(Collections.singletonMap("SLAYER", 80), Collections.emptySet());
+		List<Report.Hunt> ranked = analyst.analyse(log, new Progress(), false, true, -1, -1, low).getHunts();
+		assertEquals("Killing cows", ranked.get(0).getName());
+		assertEquals("95 Slayer", ranked.get(1).getLockedBy());
+
+		Unlocks noQuest = new Unlocks(Collections.singletonMap("SLAYER", 99), Collections.singleton("HEROES_QUEST"));
+		assertEquals("Heroes' Quest", noQuest.missing(hydra));
+		assertNull(new Unlocks(Collections.singletonMap("SLAYER", 99), Collections.emptySet()).missing(hydra));
+		assertNull(Unlocks.UNKNOWN.missing(hydra));
+	}
+
+	@Test
 	public void officialCountWinsWhenHigher()
 	{
 		Report report = new Analyst(data).analyse(structure, new Progress(), false, true, 300, 1700);

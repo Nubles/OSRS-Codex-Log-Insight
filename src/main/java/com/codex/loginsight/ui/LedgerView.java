@@ -4,6 +4,7 @@ import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridLayout;
 import java.util.List;
 import java.util.function.Consumer;
@@ -48,11 +49,17 @@ final class LedgerView
 		}
 		stack.add(dialCard);
 
+		// The crest already carries slots, pages and hours; the tiles add what it cannot say.
+		List<Report.Hunt> hunts = new java.util.ArrayList<>();
+		for (Report.Hunt hunt : report.getHunts())
+		{
+			if (hunt.getLockedBy() == null && hunts.size() < 3)
+			{
+				hunts.add(hunt);
+			}
+		}
 		JPanel tiles = new JPanel(new GridLayout(2, 2, 6, 6));
 		tiles.setOpaque(false);
-		tiles.add(new StatTile(Format.count(report.owned()), "Owned", "of " + Format.count(report.total()) + " slots", Theme.GOLD_BRIGHT));
-		tiles.add(new StatTile(report.getPagesComplete() + "/" + report.getPagesTotal(), "Pages done",
-			report.getPagesRead() + " pages read", Theme.TEAL));
 		if (luck != null)
 		{
 			long diff = Math.round(luck.getOwned() - luck.getExpected());
@@ -63,15 +70,39 @@ final class LedgerView
 		{
 			tiles.add(new StatTile("-", "Vs average", "needs kill counts", Theme.TEXT_MUTED));
 		}
-		tiles.add(new StatTile(Format.hours(report.getHoursLeft()), "Hours left",
-			report.isIronRates() ? "at ironman rates" : "at your rates", Theme.EMBER));
+		if (hunts.isEmpty())
+		{
+			tiles.add(new StatTile("-", "Next slot", "nothing rated", Theme.TEXT_MUTED));
+		}
+		else
+		{
+			tiles.add(new StatTile(Format.hours(hunts.get(0).getHoursToNext()), "Next slot",
+				Format.source(hunts.get(0).getName()), Theme.TEAL));
+		}
+		int pets = 0;
+		int petsOwned = 0;
+		java.util.Set<Integer> seen = new java.util.HashSet<>();
+		for (Report.PageReport page : report.getPages())
+		{
+			for (Report.ItemReport item : page.getItems())
+			{
+				if (item.isPet() && seen.add(item.getItemId()))
+				{
+					pets++;
+					petsOwned += item.isOwned() ? 1 : 0;
+				}
+			}
+		}
+		tiles.add(new StatTile(petsOwned + "/" + pets, "Pets", pets == petsOwned ? "every one" : (pets - petsOwned) + " to go",
+			Theme.VIOLET));
+		tiles.add(new StatTile(report.getPagesRead() + "/" + report.getPagesTotal(), "Pages read",
+			report.getPagesRead() < report.getPagesTotal() ? "open more for luck" : "all kill counts", Theme.GOLD));
 		stack.add(tiles);
 
-		List<Report.Hunt> hunts = report.getHunts();
 		if (!hunts.isEmpty())
 		{
 			stack.add(new SectionHeader("Best next hunts", "all in Quarry"));
-			for (int i = 0; i < Math.min(3, hunts.size()); i++)
+			for (int i = 0; i < hunts.size(); i++)
 			{
 				stack.add(QuarryView.row(hunts.get(i), i + 1, icons).onClick(openQuarry));
 			}
@@ -117,27 +148,27 @@ final class LedgerView
 		return card;
 	}
 
+	/** A find: what, the odds and count it came at, then how lucky it was and when. */
 	private static JComponent findRow(Progress.Find find, ItemIcons icons, long now)
 	{
 		StringBuilder detail = new StringBuilder();
+		if (find.getChance() > 0)
+		{
+			detail.append(Format.chance(find.getChance()));
+		}
 		if (find.getCount() > 0)
 		{
-			detail.append(Format.count(find.getCount())).append(" kc");
+			detail.append(detail.length() > 0 ? " at " : "").append(Format.count(find.getCount())).append(" kc");
 		}
-		if (find.getLuckier() >= 0)
+		if (detail.length() == 0 && find.getPage() != null)
 		{
-			if (detail.length() > 0)
-			{
-				detail.append("  ·  ");
-			}
-			detail.append("luckier than ").append(Math.round(find.getLuckier() * 100)).append("%");
+			detail.append(find.getPage());
 		}
-		if (detail.length() == 0)
-		{
-			detail.append(find.getPage() == null ? "" : find.getPage());
-		}
-		Pill when = new Pill(Format.ago(find.getAt(), now), Theme.TEXT_MUTED);
-		return Rows.line(new IconBadge(find.getItemId(), icons, true), find.getName(), detail.toString(), when,
-			find.getLuckier() >= 0 ? Theme.luck(find.getLuckier()) : Theme.GOLD);
+		String when = Format.ago(find.getAt(), now);
+		boolean known = find.getLuckier() >= 0;
+		String verdict = known ? "Luckier than " + Math.round(find.getLuckier() * 100) + "%  ·  " + when : when;
+		Color color = known ? Theme.luck(find.getLuckier()) : Theme.GOLD;
+		return Rows.line(new IconBadge(find.getItemId(), icons, true), find.getName(), detail.toString(), verdict,
+			known ? color : Theme.TEXT_FAINT, null, color);
 	}
 }

@@ -24,11 +24,15 @@ public final class Analyst
 	/** Kill count gaps needed before your own pace replaces the typical rate. */
 	static final int PACE_SAMPLES = 15;
 	private static final int DRIEST = 6;
+	/** At most this many of the driest slots come from one page, so one dry casket tier cannot fill the list. */
+	private static final int DRIEST_PER_PAGE = 2;
 	private static final double DRY_SHOWN_BELOW = 0.35;
 
 	private final LogData data;
 	/** The counter each activity advances, when its slots agree on one. */
 	private final Map<Integer, String> activityLabels = new HashMap<>();
+	private static final int MAX_CACHED = 20_000;
+	private final Map<String, Eval> evaluations = new java.util.concurrent.ConcurrentHashMap<>();
 
 	public Analyst(LogData data)
 	{
@@ -56,6 +60,15 @@ public final class Analyst
 	 */
 	public Report analyse(LogStructure structure, Progress progress, boolean iron, boolean ownPace, int officialOwned,
 		int officialTotal)
+	{
+		return analyse(structure, progress, iron, ownPace, officialOwned, officialTotal, Unlocks.UNKNOWN);
+	}
+
+	/**
+	 * @param unlocks what the account can do yet; activities it cannot do sink below the rest
+	 */
+	public Report analyse(LogStructure structure, Progress progress, boolean iron, boolean ownPace, int officialOwned,
+		int officialTotal, Unlocks unlocks)
 	{
 		Rates rates = new Rates(progress, iron, ownPace);
 		Set<Integer> owned = progress.getOwned();
@@ -95,7 +108,7 @@ public final class Analyst
 		Finish finish = finish(missing, owned, rates);
 		Luck luck = luck(unique, owned, counters);
 		List<Report.ItemReport> driest = driest(structure, missing, progress, rates);
-		List<Report.Hunt> hunts = hunts(structure, owned, rates);
+		List<Report.Hunt> hunts = hunts(structure, owned, rates, unlocks);
 
 		return new Report(true, !structure.isEmpty(), officialOwned, officialTotal, knownOwned, unique.size(),
 			progress.getFullReadAt(), progress.pagesReadCount(), pages.size(), complete, luck, finish.hours,
@@ -258,10 +271,23 @@ public final class Analyst
 			}
 		}
 		dry.sort(Comparator.comparingDouble(Report.ItemReport::getDryChance));
-		return dry.size() > DRIEST ? new ArrayList<>(dry.subList(0, DRIEST)) : dry;
+		List<Report.ItemReport> shown = new ArrayList<>();
+		Map<String, Integer> perPage = new HashMap<>();
+		for (Report.ItemReport item : dry)
+		{
+			if (perPage.merge(String.valueOf(item.getPage()), 1, Integer::sum) <= DRIEST_PER_PAGE)
+			{
+				shown.add(item);
+			}
+			if (shown.size() == DRIEST)
+			{
+				break;
+			}
+		}
+		return shown;
 	}
 
-	private List<Report.Hunt> hunts(LogStructure structure, Set<Integer> owned, Rates rates)
+	private List<Report.Hunt> hunts(LogStructure structure, Set<Integer> owned, Rates rates, Unlocks unlocks)
 	{
 		Set<Integer> inLog = new HashSet<>();
 		for (LogStructure.Tab tab : structure.getTabs())
@@ -289,12 +315,23 @@ public final class Analyst
 			{
 				pet |= data.isPet(id);
 			}
+			double petHours = Double.POSITIVE_INFINITY;
+			int petItem = -1;
+			if (pet)
+			{
+				Eval pets = evaluate(activity, owned, id -> data.isPet(id) && (inLog.isEmpty() || inLog.contains(id)));
+				petHours = rates.hoursFor(activity, pets.nextAttempts);
+				petItem = pets.nextItem;
+			}
 			hunts.add(new Report.Hunt(activity.getName(), activity.getCategory(),
 				rates.hoursFor(activity, eval.nextAttempts), rates.hoursFor(activity, eval.allAttempts), eval.remaining,
 				eval.nextItem, eval.nextItem < 0 ? null : structure.name(eval.nextItem), eval.nextChance, eval.nextExact, perHour,
-				rates.isOwnPace(activity), pet, eval.missing));
+				rates.isOwnPace(activity), pet, eval.missing, petHours, petItem, petItem < 0 ? null : structure.name(petItem),
+				unlocks.missing(activity)));
 		}
-		hunts.sort(Comparator.comparingDouble(Report.Hunt::getHoursToNext));
+		// What can be done now comes first, each part ranked by the wait for a new slot.
+		hunts.sort(Comparator.comparing((Report.Hunt h) -> h.getLockedBy() != null)
+			.thenComparingDouble(Report.Hunt::getHoursToNext));
 		return hunts;
 	}
 
@@ -357,40 +394,76 @@ public final class Analyst
 
 	/**
 	 * Walks an activity's table in order. A slot can roll when it is missing and, if it
-	 * only drops after the slot before it, that slot is owned.
+	 * only drops after the slot before it, that slot is owned. Slots earned outright are
+	 * paid for one by one, so their counts add up; rolled slots wait side by side, and a
+	 * run of rolled slots that only drop in order waits one piece after another.
 	 */
 	private Eval evaluate(Activity activity, Set<Integer> owned, java.util.function.IntPredicate include)
 	{
-		Eval eval = new Eval();
-		double chanceSum = 0;
-		double exactNext = Double.POSITIVE_INFINITY;
-		double bestChance = 0;
-		List<Double> chains = new ArrayList<>();
-		List<Double> exactChains = new ArrayList<>();
+		// The result depends only on which slots are wanted and which are owned, so it is kept between
+		// reports: a new kill count costs nothing here, only a new slot does.
+		StringBuilder key = new StringBuilder().append(activity.getIndex());
 		boolean previousOwned = false;
-		boolean previousOpen = false;
-		boolean previousExact = false;
-		Set<Integer> counted = new HashSet<>();
 		for (Activity.Drop drop : activity.getDrops())
 		{
 			int id = drop.getItemId();
 			boolean has = owned.contains(id);
 			if (!has && include.test(id))
 			{
-				if (counted.add(id))
-				{
-					eval.missing.add(id);
-				}
+				key.append(drop.isSequential() && previousOwned ? ',' : ';').append(id);
+			}
+			previousOwned = has;
+		}
+		String cacheKey = key.toString();
+		Eval cached = evaluations.get(cacheKey);
+		if (cached != null)
+		{
+			return cached;
+		}
+		Eval eval = compute(activity, owned, include);
+		if (evaluations.size() > MAX_CACHED)
+		{
+			evaluations.clear();
+		}
+		evaluations.put(cacheKey, eval);
+		return eval;
+	}
+
+	private Eval compute(Activity activity, Set<Integer> owned, java.util.function.IntPredicate include)
+	{
+		Eval eval = new Eval();
+		double chanceSum = 0;
+		double exactNext = Double.POSITIVE_INFINITY;
+		int exactItem = -1;
+		double bestChance = 0;
+		double fixed = 0;
+		List<double[]> runs = new ArrayList<>();
+		boolean previousOwned = false;
+		boolean previousRolledOpen = false;
+		for (Activity.Drop drop : activity.getDrops())
+		{
+			int id = drop.getItemId();
+			boolean has = owned.contains(id);
+			boolean rolledOpen = false;
+			if (!has && include.test(id))
+			{
+				eval.missing.add(id);
 				boolean canRoll = !drop.isSequential() || previousOwned;
-				if (canRoll)
+				double attempts = Math.max(1, drop.getAttempts());
+				if (drop.isExact())
 				{
-					if (drop.isExact())
+					fixed += attempts;
+					if (canRoll && attempts < exactNext)
 					{
-						exactNext = Math.min(exactNext, drop.getAttempts());
+						exactNext = attempts;
+						exactItem = id;
 					}
-					else
+				}
+				else
+				{
+					if (canRoll)
 					{
-						double chance = 1 / Math.max(1, drop.getAttempts());
+						double chance = 1 / attempts;
 						chanceSum += chance;
 						if (chance > bestChance)
 						{
@@ -398,52 +471,41 @@ public final class Analyst
 							eval.nextItem = id;
 						}
 					}
+					if (drop.isSequential() && previousRolledOpen && !runs.isEmpty())
+					{
+						double[] run = runs.get(runs.size() - 1);
+						run[0] += attempts;
+						run[1]++;
+					}
+					else
+					{
+						runs.add(new double[]{attempts, 1});
+					}
+					rolledOpen = true;
 				}
-				List<Double> target = drop.isExact() ? exactChains : chains;
-				if (drop.isSequential() && previousOpen && previousExact == drop.isExact() && !target.isEmpty())
-				{
-					target.set(target.size() - 1, target.get(target.size() - 1) + drop.getAttempts());
-				}
-				else
-				{
-					target.add(drop.getAttempts());
-				}
-				previousOpen = true;
-				previousExact = drop.isExact();
 			}
-			else
-			{
-				previousOpen = false;
-			}
+			previousRolledOpen = rolledOpen;
 			previousOwned = has;
 		}
-		if (Double.isFinite(exactNext) && (eval.nextItem < 0 || exactNext < 1 / chanceSum))
+		if (exactItem >= 0 && (eval.nextItem < 0 || exactNext < 1 / chanceSum))
 		{
-			for (Activity.Drop drop : activity.getDrops())
-			{
-				if (drop.isExact() && drop.getAttempts() == exactNext && eval.missing.contains(drop.getItemId()))
-				{
-					eval.nextItem = drop.getItemId();
-					eval.nextExact = true;
-					bestChance = 1 / Math.max(1, exactNext);
-					break;
-				}
-			}
+			eval.nextItem = exactItem;
+			eval.nextExact = true;
+			bestChance = 1 / exactNext;
 		}
-		double exactAll = 0;
-		for (double c : exactChains)
+		double[] means = new double[runs.size()];
+		int[] stages = new int[runs.size()];
+		for (int i = 0; i < means.length; i++)
 		{
-			exactAll = Math.max(exactAll, c);
-		}
-		double[] rolled = new double[chains.size()];
-		for (int i = 0; i < rolled.length; i++)
-		{
-			rolled[i] = chains.get(i);
+			means[i] = runs.get(i)[0];
+			stages[i] = (int) runs.get(i)[1];
 		}
 		eval.remaining = eval.missing.size();
 		eval.nextChance = bestChance;
 		eval.nextAttempts = eval.remaining == 0 ? Double.POSITIVE_INFINITY : Odds.attemptsToNext(chanceSum, exactNext);
-		eval.allAttempts = eval.remaining == 0 ? 0 : Odds.attemptsToAll(rolled, exactAll);
+		double all = Odds.attemptsToAll(fixed, means, stages);
+		eval.allAttempts = eval.remaining == 0 ? 0
+			: Double.isFinite(eval.nextAttempts) ? Math.max(eval.nextAttempts, all) : all;
 		return eval;
 	}
 

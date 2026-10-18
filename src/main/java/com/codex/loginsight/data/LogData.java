@@ -67,12 +67,27 @@ public final class LogData
 		for (RawActivity a : raw.activities)
 		{
 			List<Activity.Drop> drops = new ArrayList<>();
+			Map<Integer, Integer> positions = new HashMap<>();
 			int index = activities.size();
 			for (double[] d : a.d)
 			{
-				drops.add(new Activity.Drop(index, (int) d[0], d[1], (int) d[2]));
+				Activity.Drop drop = new Activity.Drop(index, (int) d[0], d[1], (int) d[2]);
+				Integer at = positions.putIfAbsent(drop.getItemId(), drops.size());
+				if (at == null)
+				{
+					drops.add(drop);
+				}
+				else if (better(drop, drops.get(at)))
+				{
+					// A second row for the same slot is another way to earn it on the same activity (destroying
+					// Araxxor instead of looting, buying with points instead of rolling). They are alternatives,
+					// not extra rolls, so the slot takes whichever is quicker, in the first row's place.
+					drops.set(at, drop);
+				}
 			}
-			activities.add(new Activity(index, a.n, Activity.Category.of(a.c), a.m, a.i, a.f, drops));
+			Map<String, Integer> skills = a.r == null || a.r.s == null ? Collections.emptyMap() : a.r.s;
+			List<String> quests = a.r == null || a.r.q == null ? Collections.emptyList() : a.r.q;
+			activities.add(new Activity(index, a.n, Activity.Category.of(a.c), a.m, a.i, a.f, drops, skills, quests));
 		}
 		Map<Integer, ItemOdds> odds = new HashMap<>();
 		for (Map.Entry<String, RawOdds> e : raw.odds.entrySet())
@@ -90,6 +105,16 @@ public final class LogData
 			pets.add(id);
 		}
 		return new LogData(activities, raw.labels, odds, pets);
+	}
+
+	/** True when this row earns its slot sooner than the other, a fixed count winning ties. */
+	private static boolean better(Activity.Drop drop, Activity.Drop other)
+	{
+		if (drop.getAttempts() != other.getAttempts())
+		{
+			return drop.getAttempts() < other.getAttempts();
+		}
+		return drop.isExact() && !other.isExact();
 	}
 
 	public List<Activity> getActivities()
@@ -113,6 +138,17 @@ public final class LogData
 	public ItemOdds odds(int itemId)
 	{
 		return odds.get(itemId);
+	}
+
+	/** Every quest any activity needs, by name. */
+	public Set<String> questsNeeded()
+	{
+		Set<String> quests = new java.util.TreeSet<>();
+		for (Activity activity : activities)
+		{
+			quests.addAll(activity.getQuests());
+		}
+		return quests;
 	}
 
 	/** The collection log counter names the odds refer to, such as "Vorkath kills". */
@@ -142,6 +178,13 @@ public final class LogData
 		double i;
 		double f;
 		List<double[]> d = new ArrayList<>();
+		RawNeeds r;
+	}
+
+	static final class RawNeeds
+	{
+		Map<String, Integer> s;
+		List<String> q;
 	}
 
 	static final class RawOdds

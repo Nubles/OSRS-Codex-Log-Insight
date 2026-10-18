@@ -3,7 +3,6 @@ package com.codex.loginsight.ui;
 import com.codex.loginsight.core.Report;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
-import java.awt.Dimension;
 import java.awt.Graphics;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -34,6 +33,9 @@ public class LogInsightPanel extends PluginPanel
 	private final JPanel searchHolder = new JPanel(new BorderLayout());
 	private final LuckDial dial = new LuckDial(112);
 
+	/** Tabs whose view was built from an older report and is rebuilt when next shown. */
+	private final boolean[] stale = new boolean[TABS.length];
+	private int shown;
 	private Report report = Report.loggedOut();
 	private String playerName;
 	private String filter = "";
@@ -82,9 +84,11 @@ public class LogInsightPanel extends PluginPanel
 		content.add(quarryHolder, TABS[2]);
 		add(content, BorderLayout.CENTER);
 
-		tabs.onChange(tab -> cards.show(content, TABS[tab]));
+		tabs.onChange(this::showTab);
 		quarryFilter.onChange(i -> rebuildQuarry());
-		rebuild();
+		rebuildTab(0);
+		rebuildTab(1);
+		rebuildTab(2);
 	}
 
 	private static JScrollPane scroller()
@@ -94,8 +98,7 @@ public class LogInsightPanel extends PluginPanel
 		scroll.setOpaque(false);
 		scroll.getViewport().setOpaque(false);
 		scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-		scroll.getVerticalScrollBar().setUnitIncrement(16);
-		scroll.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
+		Scrollbars.style(scroll.getVerticalScrollBar());
 		return scroll;
 	}
 
@@ -112,21 +115,48 @@ public class LogInsightPanel extends PluginPanel
 	{
 		openPage = page;
 		tabs.setSelected(1, false);
+		shown = 1;
 		cards.show(content, TABS[1]);
 		rebuildFolios();
 		SwingUtilities.invokeLater(() -> folios.getVerticalScrollBar().setValue(0));
 	}
 
+	/** Switches to a tab, rebuilding it first if a newer report arrived while it was hidden. */
+	public void showTab(int tab)
+	{
+		tabs.setSelected(tab, false);
+		shown = tab;
+		if (stale[tab])
+		{
+			rebuildTab(tab);
+		}
+		cards.show(content, TABS[tab]);
+	}
+
+	/** Only the tab in view is rebuilt for each report; the others wait until they are opened. */
 	private void rebuild()
 	{
 		crest.update(report, playerName);
-		replace(ledger, LedgerView.build(report, dial, icons, this::showPage, () ->
+		java.util.Arrays.fill(stale, true);
+		rebuildTab(shown);
+	}
+
+	private void rebuildTab(int tab)
+	{
+		stale[tab] = false;
+		if (tab == 0)
 		{
-			tabs.setSelected(2, false);
-			cards.show(content, TABS[2]);
-		}, System.currentTimeMillis()));
-		rebuildFolios();
-		rebuildQuarry();
+			replace(ledger, LedgerView.build(report, dial, icons, this::showPage, () -> showTab(2),
+				System.currentTimeMillis()));
+		}
+		else if (tab == 1)
+		{
+			rebuildFolios();
+		}
+		else
+		{
+			rebuildQuarry();
+		}
 	}
 
 	private void rebuildFolios()

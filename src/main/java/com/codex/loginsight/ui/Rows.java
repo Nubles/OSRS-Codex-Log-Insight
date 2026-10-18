@@ -2,6 +2,7 @@ package com.codex.loginsight.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import javax.swing.BoxLayout;
 import javax.swing.JComponent;
@@ -42,6 +43,13 @@ public final class Rows
 
 	public static Card line(JComponent lead, String title, String detail, JComponent trailing, Color accent)
 	{
+		return line(lead, title, detail, null, null, trailing, accent);
+	}
+
+	/** As {@link #line}, with a third line in its own colour, such as a verdict or where to go. */
+	public static Card line(JComponent lead, String title, String detail, String extra, Color extraColor,
+		JComponent trailing, Color accent)
+	{
 		Card card = new Card(new BorderLayout(8, 0));
 		card.setBorder(new EmptyBorder(6, 8, 6, 8));
 		if (accent != null)
@@ -61,24 +69,38 @@ public final class Rows
 		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
 		JLabel name = Ui.label(title, Theme.body(), Theme.TEXT);
 		name.setToolTipText(title);
-		text.add(name);
+		if (trailing != null)
+		{
+			// The tag sits beside the name only, so the lines under it keep the card's full width.
+			JPanel top = new JPanel(new BorderLayout(6, 0));
+			top.setOpaque(false);
+			name.setMinimumSize(new Dimension(10, name.getPreferredSize().height));
+			name.setPreferredSize(new Dimension(10, Math.max(name.getPreferredSize().height, trailing.getPreferredSize().height)));
+			top.add(name, BorderLayout.CENTER);
+			top.add(trailing, BorderLayout.EAST);
+			top.setAlignmentX(Component.LEFT_ALIGNMENT);
+			text.add(top);
+		}
+		else
+		{
+			text.add(name);
+		}
 		if (detail != null && !detail.isEmpty())
 		{
 			JLabel sub = Ui.label(detail, Theme.small(), Theme.TEXT_MUTED);
 			sub.setToolTipText(detail);
 			text.add(sub);
 		}
+		if (extra != null && !extra.isEmpty())
+		{
+			JLabel third = Ui.label(extra, Theme.small(), extraColor == null ? Theme.TEXT_FAINT : extraColor);
+			third.setToolTipText(extra);
+			text.add(third);
+		}
 		// Long names clip with an ellipsis rather than push the value off the card.
 		text.setMinimumSize(new Dimension(10, 10));
 		text.setPreferredSize(new Dimension(10, text.getPreferredSize().height));
 		card.add(text, BorderLayout.CENTER);
-		if (trailing != null)
-		{
-			JPanel holder = new JPanel(new BorderLayout());
-			holder.setOpaque(false);
-			holder.add(trailing, BorderLayout.NORTH);
-			card.add(holder, BorderLayout.EAST);
-		}
 		return card;
 	}
 
