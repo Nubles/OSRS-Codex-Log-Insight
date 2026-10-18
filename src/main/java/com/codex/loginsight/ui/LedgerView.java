@@ -49,11 +49,17 @@ final class LedgerView
 		}
 		stack.add(dialCard);
 
+		// The crest already carries slots, pages and hours; the tiles add what it cannot say.
+		List<Report.Hunt> hunts = new java.util.ArrayList<>();
+		for (Report.Hunt hunt : report.getHunts())
+		{
+			if (hunt.getLockedBy() == null && hunts.size() < 3)
+			{
+				hunts.add(hunt);
+			}
+		}
 		JPanel tiles = new JPanel(new GridLayout(2, 2, 6, 6));
 		tiles.setOpaque(false);
-		tiles.add(new StatTile(Format.count(report.owned()), "Owned", "of " + Format.count(report.total()) + " slots", Theme.GOLD_BRIGHT));
-		tiles.add(new StatTile(report.getPagesComplete() + "/" + report.getPagesTotal(), "Pages done",
-			report.getPagesRead() + " pages read", Theme.TEAL));
 		if (luck != null)
 		{
 			long diff = Math.round(luck.getOwned() - luck.getExpected());
@@ -64,18 +70,35 @@ final class LedgerView
 		{
 			tiles.add(new StatTile("-", "Vs average", "needs kill counts", Theme.TEXT_MUTED));
 		}
-		tiles.add(new StatTile(Format.hours(report.getHoursLeft()), "Hours left",
-			report.isIronRates() ? "at ironman rates" : "at your rates", Theme.EMBER));
-		stack.add(tiles);
-
-		List<Report.Hunt> hunts = new java.util.ArrayList<>();
-		for (Report.Hunt hunt : report.getHunts())
+		if (hunts.isEmpty())
 		{
-			if (hunt.getLockedBy() == null && hunts.size() < 3)
+			tiles.add(new StatTile("-", "Next slot", "nothing rated", Theme.TEXT_MUTED));
+		}
+		else
+		{
+			tiles.add(new StatTile(Format.hours(hunts.get(0).getHoursToNext()), "Next slot",
+				Format.source(hunts.get(0).getName()), Theme.TEAL));
+		}
+		int pets = 0;
+		int petsOwned = 0;
+		java.util.Set<Integer> seen = new java.util.HashSet<>();
+		for (Report.PageReport page : report.getPages())
+		{
+			for (Report.ItemReport item : page.getItems())
 			{
-				hunts.add(hunt);
+				if (item.isPet() && seen.add(item.getItemId()))
+				{
+					pets++;
+					petsOwned += item.isOwned() ? 1 : 0;
+				}
 			}
 		}
+		tiles.add(new StatTile(petsOwned + "/" + pets, "Pets", pets == petsOwned ? "every one" : (pets - petsOwned) + " to go",
+			Theme.VIOLET));
+		tiles.add(new StatTile(report.getPagesRead() + "/" + report.getPagesTotal(), "Pages read",
+			report.getPagesRead() < report.getPagesTotal() ? "open more for luck" : "all kill counts", Theme.GOLD));
+		stack.add(tiles);
+
 		if (!hunts.isEmpty())
 		{
 			stack.add(new SectionHeader("Best next hunts", "all in Quarry"));

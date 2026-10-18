@@ -2,6 +2,7 @@ package com.codex.loginsight.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import javax.swing.BoxLayout;
 import javax.swing.JComponent;
@@ -68,7 +69,22 @@ public final class Rows
 		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
 		JLabel name = Ui.label(title, Theme.body(), Theme.TEXT);
 		name.setToolTipText(title);
-		text.add(name);
+		if (trailing != null)
+		{
+			// The tag sits beside the name only, so the lines under it keep the card's full width.
+			JPanel top = new JPanel(new BorderLayout(6, 0));
+			top.setOpaque(false);
+			name.setMinimumSize(new Dimension(10, name.getPreferredSize().height));
+			name.setPreferredSize(new Dimension(10, Math.max(name.getPreferredSize().height, trailing.getPreferredSize().height)));
+			top.add(name, BorderLayout.CENTER);
+			top.add(trailing, BorderLayout.EAST);
+			top.setAlignmentX(Component.LEFT_ALIGNMENT);
+			text.add(top);
+		}
+		else
+		{
+			text.add(name);
+		}
 		if (detail != null && !detail.isEmpty())
 		{
 			JLabel sub = Ui.label(detail, Theme.small(), Theme.TEXT_MUTED);
@@ -85,13 +101,6 @@ public final class Rows
 		text.setMinimumSize(new Dimension(10, 10));
 		text.setPreferredSize(new Dimension(10, text.getPreferredSize().height));
 		card.add(text, BorderLayout.CENTER);
-		if (trailing != null)
-		{
-			JPanel holder = new JPanel(new BorderLayout());
-			holder.setOpaque(false);
-			holder.add(trailing, BorderLayout.NORTH);
-			card.add(holder, BorderLayout.EAST);
-		}
 		return card;
 	}
 
