@@ -16,6 +16,9 @@ public final class ChatReader
 	private static final Pattern COUNT = Pattern.compile(
 		"Your (?<pre>completion count for |subdued |completed )?(?<name>.+?) (?<post>(?:(?:kill|harvest|lap|completion|success|chest|opened) )?(?:count )?)is: ?(?<count>[0-9,]+)");
 	private static final Pattern CLUES = Pattern.compile("You have completed (?<count>[0-9,]+) (?<tier>beginner|easy|medium|hard|elite|master) Treasure Trails?", Pattern.CASE_INSENSITIVE);
+	private static final Pattern COFFINS = Pattern.compile("You have opened the Grand Hallowed Coffin (?<count>[0-9,]+) times?!");
+	private static final Pattern RIFTS = Pattern.compile("Amount of Rifts you have closed: (?<count>[0-9,]+)\\.", Pattern.CASE_INSENSITIVE);
+	private static final Pattern RUMOURS = Pattern.compile("You have completed (?<count>[0-9,]+) rumours? for the Hunter Guild\\.");
 	private static final Pattern SUFFIX = Pattern.compile(" (kills|completions|completion count|opened|chests opened|kill count|count)$", Pattern.CASE_INSENSITIVE);
 
 	/** Chat names that differ from the counter the collection log shows. */
@@ -45,9 +48,25 @@ public final class ChatReader
 		ALIASES.put("tzkal-zuk", "TzKal-Zuk kills");
 		ALIASES.put("wintertodt", "Wintertodt kills");
 		ALIASES.put("hespori", "Hespori kills");
+		ALIASES.put("grotesque guardians", "Grotesque Guardian kills");
+		ALIASES.put("royal titans", "Royal Titan kills");
+		ALIASES.put("high-level gamble", "High-level Gambles");
+		ALIASES.put("barrows chests", "Barrows Chests opened");
+	}
+
+	/** Counters RuneLite's chat commands save under a name of their own. */
+	private static final Map<String, String> SAVED_AS = new HashMap<>();
+
+	static
+	{
+		SAVED_AS.put("Barrows Chests opened", "barrows chests");
+		SAVED_AS.put("Grand Hallowed Coffins opened", "hallowed sepulchre");
+		SAVED_AS.put("Rifts closed", "guardians of the rift");
+		SAVED_AS.put("Rumours Completed", "hunter rumours");
 	}
 
 	private final Map<String, String> labelsByBase = new HashMap<>();
+	private final java.util.Set<String> labels = new java.util.HashSet<>();
 
 	/** @param labels every counter name the odds use */
 	public ChatReader(List<String> labels)
@@ -55,6 +74,7 @@ public final class ChatReader
 		for (String label : labels)
 		{
 			labelsByBase.put(base(label), label);
+			this.labels.add(label);
 		}
 	}
 
@@ -82,13 +102,21 @@ public final class ChatReader
 	/** A kill count message read as a collection log counter, or null. */
 	public Count count(String message)
 	{
-		String text = Text.removeTags(message);
+		// Some counters arrive with colour shorthand such as @red@ as well as tags.
+		String text = Text.removeTags(message).replaceAll("@[a-z]{2,6}@", "");
 		Matcher clue = CLUES.matcher(text);
 		if (clue.find())
 		{
 			String tier = clue.group("tier");
 			String label = Character.toUpperCase(tier.charAt(0)) + tier.substring(1).toLowerCase(Locale.ENGLISH) + " clues completed";
 			return new Count(label, parse(clue.group("count")));
+		}
+		Count other = fixed(text, COFFINS, "Grand Hallowed Coffins opened");
+		other = other != null ? other : fixed(text, RIFTS, "Rifts closed");
+		other = other != null ? other : fixed(text, RUMOURS, "Rumours Completed");
+		if (other != null)
+		{
+			return other;
 		}
 		Matcher m = COUNT.matcher(text);
 		if (!m.find())
@@ -98,6 +126,40 @@ public final class ChatReader
 		String name = m.group("name").trim();
 		String label = labelFor(name);
 		return label == null ? null : new Count(label, parse(m.group("count")));
+	}
+
+	private Count fixed(String text, Pattern pattern, String label)
+	{
+		if (!labels.contains(label))
+		{
+			return null;
+		}
+		Matcher m = pattern.matcher(text);
+		return m.find() ? new Count(label, parse(m.group("count"))) : null;
+	}
+
+	/**
+	 * Where RuneLite's chat commands may have saved this counter, best guess first. They
+	 * save the name as the chat message gives it, lower case and without colons.
+	 */
+	public static List<String> savedKeys(String label)
+	{
+		List<String> keys = new java.util.ArrayList<>();
+		String saved = SAVED_AS.get(label);
+		if (saved != null)
+		{
+			keys.add(saved);
+		}
+		keys.add(base(label));
+		for (Map.Entry<String, String> alias : ALIASES.entrySet())
+		{
+			String key = alias.getKey().replace(":", "");
+			if (alias.getValue().equals(label) && !keys.contains(key))
+			{
+				keys.add(key);
+			}
+		}
+		return keys;
 	}
 
 	/** The counter a chat name refers to, or null if the log has no such counter. */

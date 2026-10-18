@@ -2,6 +2,7 @@ package com.codex.loginsight.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import java.util.Arrays;
 import org.junit.Test;
 
@@ -9,7 +10,8 @@ public class ChatReaderTest
 {
 	private final ChatReader reader = new ChatReader(Arrays.asList(
 		"Vorkath kills", "Chambers of Xeric completions", "Hard clues completed", "Barrows Chests opened",
-		"Theatre of Blood (Hard) completions", "Corrupted Gauntlet completion count", "Kree'arra kills"));
+		"Theatre of Blood (Hard) completions", "Corrupted Gauntlet completion count", "Kree'arra kills", "Grotesque Guardian kills",
+		"Grand Hallowed Coffins opened", "Rifts closed", "Rumours Completed", "Royal Titan kills"));
 
 	@Test
 	public void readsBossKillCounts()
@@ -31,6 +33,28 @@ public class ChatReaderTest
 		assertEquals("Barrows Chests opened", reader.count("Your Barrows chest count is: 310.").label);
 		assertEquals("Corrupted Gauntlet completion count",
 			reader.count("Your Corrupted Gauntlet completion count is: 44.").label);
+	}
+
+	@Test
+	public void readsPluralBossNamesAndOtherCounters()
+	{
+		assertEquals("Grotesque Guardian kills", reader.count("Your Grotesque Guardians kill count is: 51.").label);
+		assertEquals("Royal Titan kills", reader.count("Your Royal Titans kill count is: 8.").label);
+		ChatReader.Count coffins = reader.count("You have opened the Grand Hallowed Coffin <col=ff0000>1,204</col> times!");
+		assertEquals("Grand Hallowed Coffins opened", coffins.label);
+		assertEquals(1204, coffins.value);
+		assertEquals(330, reader.count("Amount of Rifts you have closed: <col=ff0000>330</col>.").value);
+		assertEquals("Rumours Completed", reader.count("You have completed <col=ef1020>88</col> rumours for the Hunter Guild.").label);
+	}
+
+	@Test
+	public void findsCountsSavedByChatCommands()
+	{
+		// RuneLite saves the name as the message gives it: "Barrows Chests", "Theatre of Blood Hard Mode".
+		assertTrue(ChatReader.savedKeys("Barrows Chests opened").contains("barrows chests"));
+		assertTrue(ChatReader.savedKeys("Theatre of Blood (Hard) completions").contains("theatre of blood hard mode"));
+		assertTrue(ChatReader.savedKeys("Grotesque Guardian kills").contains("grotesque guardians"));
+		assertEquals("vorkath", ChatReader.savedKeys("Vorkath kills").get(0));
 	}
 
 	@Test

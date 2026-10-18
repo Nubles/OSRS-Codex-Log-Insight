@@ -45,6 +45,7 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
@@ -88,6 +89,9 @@ public class CodexLogInsightPlugin extends Plugin
 	private static final int TRANSMIT_SETTLE_TICKS = 3;
 	private static final int SAVE_TICKS = 100;
 	private static final int ANALYSE_GAP_TICKS = 2;
+	/** The chat line and the pop-up can both announce one slot; the second is ignored. */
+	private static final long SAME_SLOT_MS = 10_000;
+	private static final String POPUP_PREFIX = "New item:";
 
 	@Inject
 	private Client client;
@@ -140,6 +144,9 @@ public class CodexLogInsightPlugin extends Plugin
 	private int lastTransmitTick = -1;
 	private int officialOwned = -1;
 	private int officialTotal = -1;
+	private boolean notificationStarted;
+	private String lastSlot;
+	private long lastSlotAt;
 
 	@Provides
 	CodexLogInsightConfig provideConfig(ConfigManager configManager)
@@ -288,6 +295,16 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onScriptPreFired(ScriptPreFired event)
 	{
+		if (event.getScriptId() == ScriptID.NOTIFICATION_START)
+		{
+			notificationStarted = true;
+			return;
+		}
+		if (event.getScriptId() == ScriptID.NOTIFICATION_DELAY)
+		{
+			readNotification();
+			return;
+		}
 		if (event.getScriptId() != COLLECTION_TRANSMIT || progress == null || isAnotherPlayersLog())
 		{
 			return;
@@ -341,8 +358,41 @@ public class CodexLogInsightPlugin extends Plugin
 		String slot = ChatReader.newSlot(message);
 		if (slot != null)
 		{
-			onNewSlot(slot);
+			announced(slot);
 		}
+	}
+
+	/** The game's pop-up for a new slot, for players who turned the chat line off. */
+	private void readNotification()
+	{
+		if (!notificationStarted)
+		{
+			return;
+		}
+		notificationStarted = false;
+		String title = client.getVarcStrValue(VarClientID.NOTIFICATION_TITLE);
+		String body = client.getVarcStrValue(VarClientID.NOTIFICATION_MAIN);
+		if (progress == null || title == null || body == null || !"Collection log".equalsIgnoreCase(title.trim()))
+		{
+			return;
+		}
+		String text = Text.removeTags(body).trim();
+		if (text.startsWith(POPUP_PREFIX))
+		{
+			announced(text.substring(POPUP_PREFIX.length()).trim());
+		}
+	}
+
+	private void announced(String slot)
+	{
+		long now = System.currentTimeMillis();
+		if (slot.isEmpty() || slot.equalsIgnoreCase(lastSlot) && now - lastSlotAt < SAME_SLOT_MS)
+		{
+			return;
+		}
+		lastSlot = slot;
+		lastSlotAt = now;
+		onNewSlot(slot);
 	}
 
 	/** Reads the page open in the collection log: its counters and which slots are owned. */
@@ -590,19 +640,26 @@ public class CodexLogInsightPlugin extends Plugin
 		seedFromChatCommands();
 	}
 
-	/** Fills counters the log has not shown yet from the kill counts RuneLite's chat commands remember. */
+	/**
+	 * Brings counters up to the kill counts RuneLite's chat commands remember, which can be
+	 * newer than the last time a log page was opened. Counts only ever go up.
+	 */
 	private void seedFromChatCommands()
 	{
 		for (String label : data.getLabels())
 		{
-			if (progress.counter(label) != null)
+			Integer known = progress.counter(label);
+			for (String key : ChatReader.savedKeys(label))
 			{
-				continue;
-			}
-			Integer count = configManager.getRSProfileConfiguration("killcount", ChatReader.base(label), Integer.class);
-			if (count != null && count > 0)
-			{
-				progress.setCounter(label, count);
+				Integer count = configManager.getRSProfileConfiguration("killcount", key, Integer.class);
+				if (count != null && count > 0)
+				{
+					if (known == null || count > known)
+					{
+						progress.setCounter(label, count);
+					}
+					break;
+				}
 			}
 		}
 	}
