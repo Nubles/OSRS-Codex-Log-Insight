@@ -12,10 +12,10 @@ It is the third plugin in the **Codex** suite, after [Codex Navigator](https://g
 
 ## What it does
 
-- **Ledger.** Your whole log at a glance: slots owned, pages finished, a luck dial from Parched to Blessed comparing your slots with what an average player would own at your kill counts, and the hours left to finish the log. Below it, the best next hunts, the drops you are driest on, and your recent finds with how lucky each one was.
-- **Folios.** Every log page with its progress, its luck verdict, your kill count and the time to the next slot. Open a page for its own dial, the time to finish it, every missing slot with its drop rate and how dry you are on it, and the slots you already own.
-- **Quarry.** Every activity ranked by the wait for your next new slot, filtered by combat, minigames, other activities or pets. Guaranteed rewards (a reward shop, a fixed number of completions) are counted exactly rather than as a random roll, and multi-step unlocks are chained in order.
-- **New slot plaque.** When a new slot drops, a gilt plaque shows its drop rate, your kill count and how lucky it was. Pets get their own violet plaque. A matching line can go to the chat box too.
+- **Ledger.** Your whole log at a glance: slots owned, pages finished, a luck dial from Parched to Blessed comparing your slots with what an average player would own at your kill counts, and the hours left to finish the log. Tiles show how many slots you are ahead of or behind the average, your soonest next slot, your pets and how many pages' kill counts have been read. Below them, the best next hunts you can do right now, the drops you are driest on (at most two from one page), and your recent finds with the odds they came at and how lucky each one was.
+- **Folios.** Every log page with its progress, its luck verdict, your kill count and the time to the next slot. Open a page for its own dial, the time to finish it, every missing slot with its drop rate, how dry you are on it and where it comes quickest, and the slots you already own.
+- **Quarry.** Every activity ranked by the wait for your next new slot, filtered by combat, minigames, other activities or pets (ranked by the wait for the pet itself). Activities you cannot do yet, by your real skill levels and finished quests, sink to the bottom and say what they need. Guaranteed rewards (a reward shop, a fixed number of completions) are counted exactly rather than as a random roll, rewards bought with points add up, and pieces that only drop in order are chained.
+- **New slot plaque.** When a new slot drops, a gilt plaque shows its drop rate, your kill count and how lucky it was. Pets get their own violet plaque. A matching line can go to the chat box too. It works whether the game announces new slots in chat, with its pop-up, or both.
 - **Your own pace.** Rates start at typical kills per hour for a main or an ironman (picked automatically). As you play, Log Insight times your kill counts, and activities you do often switch to your own pace.
 
 <p align="center">
@@ -25,17 +25,18 @@ It is the third plugin in the **Codex** suite, after [Codex Navigator](https://g
 
 ## Getting started
 
-Open your collection log and press its **Search** button once. Log Insight reads every slot you own from it. Kill counts are read from the log pages you open and from the kill count messages in chat, so open the pages you care about once and the luck numbers fill in.
+Open your collection log and press its **Search** button once. Log Insight reads every slot you own from it. Kill counts are read from the log pages you open, from the kill count messages in chat, and from the counts RuneLite's chat commands have already saved, so open the pages you care about once and the luck numbers fill in.
 
 ## How the numbers work
 
 - **Luck** is a percentile: the share of players with your kill counts who would own fewer of these slots than you, with ties split evenly. Above 85% is Blessed, above 65% Fortunate, 35% to 65% Even, below 35% Dry and below 15% Parched.
-- **Dry** on a single slot is the chance an average player would already have it by your kill count.
-- **Time to the next slot and to finish** race every missing slot of an activity against each other at its kills per hour, so a page with many rare slots is honest about how long the last one takes.
+- **Dry** on a single slot is the way players say it: the share of players who would already have it by your kill count. "80% dry" means 80 in 100 would have it by now.
+- **Time to the next slot and to finish** race every missing slot of an activity against each other at its kills per hour, so a page with many rare slots is honest about how long the last one takes. Pieces that drop in order wait one after another, and rewards bought with points add up.
+- **Drop rates** follow Collection Log Luck's defaults for a typical player (raid points, team share, on-task Jad and Zuk). Where a rate changed during the game's life (a buff), the current rate is used.
 
 ## Rules posture
 
-Log Insight only reads what the game already shows you: your collection log, its page counters and your chat messages. It does not click, change menus, send chat or touch the network. Your progress is saved per account in your RuneLite profile and never leaves your computer.
+Log Insight only reads what the game already shows you: your collection log, its page counters, your chat messages and new slot pop-ups, your skill levels and your quest list. It does not click, change menus, send chat or touch the network. Your progress is saved per account in your RuneLite profile and never leaves your computer.
 
 ## Credits
 
