@@ -74,6 +74,23 @@ SKIP = {'AVG_NIGHTMARE_TEAM_SIZE_KEY', 'AVG_NIGHTMARE_CONTRIBUTION_KEY', 'AVG_ZA
         'Jar of dreams', 'Little nightmare'}
 
 
+# Some items split one counter into stretches with different odds: kills before and after a
+# drop-rate buff, the first Jad or Zuk kill off task, cape sacrifices, Maggot King eggs taken.
+# Collection Log Luck asks the player for the size of each stretch and defaults them so every
+# kill falls in one. Log Insight cannot ask, so it keeps only that roll (by its index in the
+# item's roll list) instead of adding every stretch's odds to every kill.
+SEGMENT_ROLLS_DROPPED = {
+    'KBD_KC_PRE_D_PICK_BUFF_KEY': {0},
+    'SKOTIZO_KC_PRE_BUFF_KEY': {0},
+    'NIGHTMARE_KC_PRE_BUFF_KEY': {0},
+    'PHOSANIS_NIGHTMARE_KC_PRE_BUFF_KEY': {2},
+    'SHELLBANE_GRYPHON_KC_PRE_BUFF_KEY': {0, 1},
+    'NUM_FIRE_CAPES_SACRIFICED_KEY': {0, 2},
+    'NUM_INFERNAL_CAPES_SACRIFICED_KEY': {0, 2},
+    'Maggot marquess': {1},
+}
+
+
 def toa_pet(unique):
     return 9.266e-02 * unique * unique + 2.539e-02 * unique + 1.269e-04
 
@@ -106,8 +123,13 @@ def luck(luck_repo):
         options |= set(re.findall(r'withConfigOption\("([^"]+)"\)', body))
         if options & SKIP:
             continue
+        dropped = set()
+        for option in options:
+            dropped |= SEGMENT_ROLLS_DROPPED.get(option, set())
         rolls = []
-        for r in ROLL.finditer(body):
+        for index, r in enumerate(ROLL.finditer(body)):
+            if index in dropped:
+                continue
             label = labels[r.group(1)]
             p = arithmetic(r.group(2))
             if "Tumeken's guardian" in options and label in TOA_PET:
@@ -120,6 +142,10 @@ def luck(luck_repo):
             rolls.append([label_index[label], float('%.6g' % p), int(r.group(3) or 1)])
         if not rolls:
             continue
+        seen = [r[0] for r in rolls]
+        if len(seen) != len(set(seen)):
+            print(f'warning: {m.group(1)} rolls one counter twice; check it is not split into stretches',
+                  file=sys.stderr)
         entry = {'r': rolls}
         if kind.group(1) == 'GuaranteedOnceBinomialDrop':
             g = re.search(r'\)\s*,\s*(\d+)\s*\)\s*$', body.strip())

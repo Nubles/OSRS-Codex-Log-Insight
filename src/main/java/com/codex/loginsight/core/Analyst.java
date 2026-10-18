@@ -357,40 +357,45 @@ public final class Analyst
 
 	/**
 	 * Walks an activity's table in order. A slot can roll when it is missing and, if it
-	 * only drops after the slot before it, that slot is owned.
+	 * only drops after the slot before it, that slot is owned. Slots earned outright are
+	 * paid for one by one, so their counts add up; rolled slots wait side by side, and a
+	 * run of rolled slots that only drop in order waits one piece after another.
 	 */
 	private Eval evaluate(Activity activity, Set<Integer> owned, java.util.function.IntPredicate include)
 	{
 		Eval eval = new Eval();
 		double chanceSum = 0;
 		double exactNext = Double.POSITIVE_INFINITY;
+		int exactItem = -1;
 		double bestChance = 0;
-		List<Double> chains = new ArrayList<>();
-		List<Double> exactChains = new ArrayList<>();
+		double fixed = 0;
+		List<double[]> runs = new ArrayList<>();
 		boolean previousOwned = false;
-		boolean previousOpen = false;
-		boolean previousExact = false;
-		Set<Integer> counted = new HashSet<>();
+		boolean previousRolledOpen = false;
 		for (Activity.Drop drop : activity.getDrops())
 		{
 			int id = drop.getItemId();
 			boolean has = owned.contains(id);
+			boolean rolledOpen = false;
 			if (!has && include.test(id))
 			{
-				if (counted.add(id))
-				{
-					eval.missing.add(id);
-				}
+				eval.missing.add(id);
 				boolean canRoll = !drop.isSequential() || previousOwned;
-				if (canRoll)
+				double attempts = Math.max(1, drop.getAttempts());
+				if (drop.isExact())
 				{
-					if (drop.isExact())
+					fixed += attempts;
+					if (canRoll && attempts < exactNext)
 					{
-						exactNext = Math.min(exactNext, drop.getAttempts());
+						exactNext = attempts;
+						exactItem = id;
 					}
-					else
+				}
+				else
+				{
+					if (canRoll)
 					{
-						double chance = 1 / Math.max(1, drop.getAttempts());
+						double chance = 1 / attempts;
 						chanceSum += chance;
 						if (chance > bestChance)
 						{
@@ -398,52 +403,41 @@ public final class Analyst
 							eval.nextItem = id;
 						}
 					}
+					if (drop.isSequential() && previousRolledOpen && !runs.isEmpty())
+					{
+						double[] run = runs.get(runs.size() - 1);
+						run[0] += attempts;
+						run[1]++;
+					}
+					else
+					{
+						runs.add(new double[]{attempts, 1});
+					}
+					rolledOpen = true;
 				}
-				List<Double> target = drop.isExact() ? exactChains : chains;
-				if (drop.isSequential() && previousOpen && previousExact == drop.isExact() && !target.isEmpty())
-				{
-					target.set(target.size() - 1, target.get(target.size() - 1) + drop.getAttempts());
-				}
-				else
-				{
-					target.add(drop.getAttempts());
-				}
-				previousOpen = true;
-				previousExact = drop.isExact();
 			}
-			else
-			{
-				previousOpen = false;
-			}
+			previousRolledOpen = rolledOpen;
 			previousOwned = has;
 		}
-		if (Double.isFinite(exactNext) && (eval.nextItem < 0 || exactNext < 1 / chanceSum))
+		if (exactItem >= 0 && (eval.nextItem < 0 || exactNext < 1 / chanceSum))
 		{
-			for (Activity.Drop drop : activity.getDrops())
-			{
-				if (drop.isExact() && drop.getAttempts() == exactNext && eval.missing.contains(drop.getItemId()))
-				{
-					eval.nextItem = drop.getItemId();
-					eval.nextExact = true;
-					bestChance = 1 / Math.max(1, exactNext);
-					break;
-				}
-			}
+			eval.nextItem = exactItem;
+			eval.nextExact = true;
+			bestChance = 1 / exactNext;
 		}
-		double exactAll = 0;
-		for (double c : exactChains)
+		double[] means = new double[runs.size()];
+		int[] stages = new int[runs.size()];
+		for (int i = 0; i < means.length; i++)
 		{
-			exactAll = Math.max(exactAll, c);
-		}
-		double[] rolled = new double[chains.size()];
-		for (int i = 0; i < rolled.length; i++)
-		{
-			rolled[i] = chains.get(i);
+			means[i] = runs.get(i)[0];
+			stages[i] = (int) runs.get(i)[1];
 		}
 		eval.remaining = eval.missing.size();
 		eval.nextChance = bestChance;
 		eval.nextAttempts = eval.remaining == 0 ? Double.POSITIVE_INFINITY : Odds.attemptsToNext(chanceSum, exactNext);
-		eval.allAttempts = eval.remaining == 0 ? 0 : Odds.attemptsToAll(rolled, exactAll);
+		double all = Odds.attemptsToAll(fixed, means, stages);
+		eval.allAttempts = eval.remaining == 0 ? 0
+			: Double.isFinite(eval.nextAttempts) ? Math.max(eval.nextAttempts, all) : all;
 		return eval;
 	}
 

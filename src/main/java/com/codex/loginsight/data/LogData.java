@@ -67,10 +67,23 @@ public final class LogData
 		for (RawActivity a : raw.activities)
 		{
 			List<Activity.Drop> drops = new ArrayList<>();
+			Map<Integer, Integer> positions = new HashMap<>();
 			int index = activities.size();
 			for (double[] d : a.d)
 			{
-				drops.add(new Activity.Drop(index, (int) d[0], d[1], (int) d[2]));
+				Activity.Drop drop = new Activity.Drop(index, (int) d[0], d[1], (int) d[2]);
+				Integer at = positions.putIfAbsent(drop.getItemId(), drops.size());
+				if (at == null)
+				{
+					drops.add(drop);
+				}
+				else if (better(drop, drops.get(at)))
+				{
+					// A second row for the same slot is another way to earn it on the same activity (destroying
+					// Araxxor instead of looting, buying with points instead of rolling). They are alternatives,
+					// not extra rolls, so the slot takes whichever is quicker, in the first row's place.
+					drops.set(at, drop);
+				}
 			}
 			activities.add(new Activity(index, a.n, Activity.Category.of(a.c), a.m, a.i, a.f, drops));
 		}
@@ -90,6 +103,16 @@ public final class LogData
 			pets.add(id);
 		}
 		return new LogData(activities, raw.labels, odds, pets);
+	}
+
+	/** True when this row earns its slot sooner than the other, a fixed count winning ties. */
+	private static boolean better(Activity.Drop drop, Activity.Drop other)
+	{
+		if (drop.getAttempts() != other.getAttempts())
+		{
+			return drop.getAttempts() < other.getAttempts();
+		}
+		return drop.isExact() && !other.isExact();
 	}
 
 	public List<Activity> getActivities()

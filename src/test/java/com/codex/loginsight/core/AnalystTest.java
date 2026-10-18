@@ -148,6 +148,22 @@ public class AnalystTest
 	}
 
 	@Test
+	public void rewardsBoughtWithPointsAddUp()
+	{
+		// Two shop rewards costing 100 and 200 points: the first comes at 100, both only at 300.
+		List<Activity.Drop> drops = Arrays.asList(new Activity.Drop(0, 10, 100, 3), new Activity.Drop(0, 11, 200, 3));
+		Activity shop = new Activity(0, "Earning points", Activity.Category.MINIGAME, 100, 100, 0, drops);
+		LogData shopData = new LogData(Collections.singletonList(shop), Collections.emptyList(), new HashMap<>(),
+			Collections.emptySet());
+		LogStructure shopLog = new LogStructure(Collections.singletonList(new LogStructure.Tab("Minigames",
+			Collections.singletonList(new LogStructure.Page("Minigames", "Shop", Arrays.asList(10, 11))))), new HashMap<>());
+		Report.Hunt hunt = new Analyst(shopData).analyse(shopLog, new Progress(), false, true, -1, -1).getHunts().get(0);
+		assertTrue(hunt.isNextEarned());
+		assertEquals(1.0, hunt.getHoursToNext(), 1e-9);
+		assertEquals(3.0, hunt.getHoursToFinish(), 1e-9);
+	}
+
+	@Test
 	public void officialCountWinsWhenHigher()
 	{
 		Report report = new Analyst(data).analyse(structure, new Progress(), false, true, 300, 1700);
