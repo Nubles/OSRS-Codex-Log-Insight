@@ -24,6 +24,8 @@ public final class Analyst
 	/** Kill count gaps needed before your own pace replaces the typical rate. */
 	static final int PACE_SAMPLES = 15;
 	private static final int DRIEST = 6;
+	/** At most this many of the driest slots come from one page, so one dry casket tier cannot fill the list. */
+	private static final int DRIEST_PER_PAGE = 2;
 	private static final double DRY_SHOWN_BELOW = 0.35;
 
 	private final LogData data;
@@ -258,7 +260,20 @@ public final class Analyst
 			}
 		}
 		dry.sort(Comparator.comparingDouble(Report.ItemReport::getDryChance));
-		return dry.size() > DRIEST ? new ArrayList<>(dry.subList(0, DRIEST)) : dry;
+		List<Report.ItemReport> shown = new ArrayList<>();
+		Map<String, Integer> perPage = new HashMap<>();
+		for (Report.ItemReport item : dry)
+		{
+			if (perPage.merge(String.valueOf(item.getPage()), 1, Integer::sum) <= DRIEST_PER_PAGE)
+			{
+				shown.add(item);
+			}
+			if (shown.size() == DRIEST)
+			{
+				break;
+			}
+		}
+		return shown;
 	}
 
 	private List<Report.Hunt> hunts(LogStructure structure, Set<Integer> owned, Rates rates)

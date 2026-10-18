@@ -89,15 +89,20 @@ final class QuarryView
 		JPanel text = new JPanel();
 		text.setOpaque(false);
 		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
-		JLabel name = Ui.wrapped(Format.activity(hunt.getName()), Theme.body(), Theme.TEXT, 118);
-		text.add(name);
+		text.add(Ui.clamped(Format.source(hunt.getName()), Theme.body(), Theme.TEXT, 118, 2));
+		String detail = Format.detail(hunt.getName());
+		if (detail != null && !detail.isEmpty())
+		{
+			text.add(Ui.clamped(detail, Theme.small(), Theme.GOLD_DIM, 118, 1));
+		}
 		text.add(Ui.label("Next " + Format.about(hunt.getHoursToNext()) + "  ·  " + hunt.getRemaining() + " left",
 			Theme.small(), Theme.TEAL));
 		String next = "";
 		if (hunt.getNextItemName() != null)
 		{
+			long after = Math.round(1 / hunt.getNextChance());
 			next = hunt.getNextItemName() + (hunt.isNextEarned()
-				? " after " + Format.count(Math.round(1 / hunt.getNextChance()))
+				? (after <= 1 ? ", every time" : ", earned in " + Format.count(after))
 				: " " + Format.chance(hunt.getNextChance()));
 		}
 		JLabel nextLabel = Ui.label(next, Theme.small(), Theme.TEXT_MUTED);

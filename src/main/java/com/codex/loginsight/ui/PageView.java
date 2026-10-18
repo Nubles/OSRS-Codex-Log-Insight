@@ -71,7 +71,7 @@ final class PageView
 			JPanel tiles = new JPanel(new GridLayout(1, 2, 6, 6));
 			tiles.setOpaque(false);
 			tiles.add(new StatTile(Format.hours(page.getHoursToNext()), "Next slot",
-				page.getNextSource() == null ? "no rates" : page.getNextSource(), Theme.TEAL));
+				page.getNextSource() == null ? "no rates" : Format.source(page.getNextSource()), Theme.TEAL));
 			String finishNote = page.getUnrated() > 0 ? "+" + page.getUnrated() + " unrated" : "whole page";
 			tiles.add(new StatTile(Format.hours(page.getHoursToFinish()), "To finish", finishNote, Theme.EMBER));
 			stack.add(tiles);
@@ -89,7 +89,7 @@ final class PageView
 			stack.add(new SectionHeader("Still to find", String.valueOf(missing.size())));
 			for (Report.ItemReport item : missing)
 			{
-				stack.add(missingRow(item, icons, false));
+				stack.add(missingRow(item, icons, false, page.getNextSource()));
 			}
 		}
 		if (!owned.isEmpty())
@@ -123,29 +123,38 @@ final class PageView
 		return grid;
 	}
 
-	/** A missing slot: its odds, how dry you are and where it comes fastest. */
+	/** A missing slot: its odds at your count, how dry you are, and where and how soon it comes alone. */
 	static Card missingRow(Report.ItemReport item, ItemIcons icons, boolean withPage)
+	{
+		return missingRow(item, icons, withPage, null);
+	}
+
+	/** @param pageSource the activity the page is mostly hunted at, so its own slots just say "alone" */
+	static Card missingRow(Report.ItemReport item, ItemIcons icons, boolean withPage, String pageSource)
 	{
 		StringBuilder detail = new StringBuilder(Format.chance(item.getChance()));
 		if (item.getCount() >= 0)
 		{
 			detail.append(" at ").append(Format.count(item.getCount())).append(" kc");
 		}
-		else if (item.getSource() != null)
+		String where = null;
+		if (item.getSource() != null && Double.isFinite(item.getHours()))
 		{
-			detail.append("  ·  ").append(Format.about(item.getHours()));
+			where = item.getSource().equals(pageSource)
+				? Format.about(item.getHours()) + " on its own"
+				: Format.about(item.getHours()) + "  ·  " + Format.source(item.getSource());
 		}
 		if (withPage && item.getPage() != null)
 		{
-			detail.append("  ·  ").append(item.getPage());
+			where = item.getPage() + (where == null ? "" : "  ·  " + Format.about(item.getHours()));
 		}
 		Pill dry = null;
 		if (item.getDryChance() >= 0)
 		{
-			dry = new Pill(Format.percent(item.getDryChance()) + " dry", Theme.dry(item.getDryChance()));
+			dry = new Pill(Format.dry(item.getDryChance()), Theme.dry(item.getDryChance()));
 		}
-		Card card = Rows.line(new IconBadge(item.getItemId(), icons, false), item.getName(), detail.toString(), dry,
-			item.getDryChance() >= 0 && item.getDryChance() < 0.2 ? Theme.dry(item.getDryChance()) : null);
+		Card card = Rows.line(new IconBadge(item.getItemId(), icons, false), item.getName(), detail.toString(), where,
+			Theme.TEXT_FAINT, dry, item.getDryChance() >= 0 && item.getDryChance() < 0.2 ? Theme.dry(item.getDryChance()) : null);
 		card.setToolTipText(ItemTile.tooltip(item));
 		return card;
 	}

@@ -60,11 +60,22 @@ public final class Format
 		{
 			return "Always";
 		}
-		if (in < 10)
+		if (in < 10 && Math.abs(in - Math.round(in)) >= 0.05)
 		{
 			return String.format("1/%.1f", in);
 		}
 		return String.format("1/%,d", Math.round(in));
+	}
+
+	/**
+	 * How dry a missing slot is, the way players say it: the share of players who would
+	 * already have it at this kill count. "88% dry" means 88 in 100 would have it by now.
+	 *
+	 * @param stillWaiting the share of players still without it
+	 */
+	public static String dry(double stillWaiting)
+	{
+		return percent(1 - stillWaiting) + " dry";
 	}
 
 	public static String count(long value)
@@ -119,10 +130,43 @@ public final class Format
 		return label.replaceAll("(?i) (kills|completions|completion count|opened|completed)$", "");
 	}
 
+	private static final java.util.regex.Pattern LEAD_VERB =
+		java.util.regex.Pattern.compile("^(?i)(killing|defeating|looting|opening|finishing|completing) (the )?");
+	private static final java.util.Set<String> SMALL_WORDS = new java.util.HashSet<>(java.util.Arrays.asList(
+		"of", "the", "and", "at", "in", "on", "from", "with", "for", "to", "a", "an", "or", "by"));
+
+	/**
+	 * Where a slot comes from, as a short name: "Killing king black dragon" reads "King Black
+	 * Dragon", "Opening hard caskets" reads "Hard Caskets". The bracketed detail is left out.
+	 */
+	public static String source(String name)
+	{
+		String text = LEAD_VERB.matcher(activity(name)).replaceFirst("");
+		StringBuilder out = new StringBuilder();
+		for (String word : text.split(" "))
+		{
+			if (word.isEmpty())
+			{
+				continue;
+			}
+			boolean small = out.length() > 0 && SMALL_WORDS.contains(word.toLowerCase(java.util.Locale.ENGLISH));
+			out.append(out.length() > 0 ? " " : "")
+				.append(small ? word : Character.toUpperCase(word.charAt(0)) + word.substring(1));
+		}
+		return out.length() == 0 ? name : out.toString();
+	}
+
+	/** The bracketed detail of an activity name, such as "on task" or "300", or null. */
+	public static String detail(String name)
+	{
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\(([^)]*)\\)").matcher(name);
+		return m.find() ? m.group(1).trim() : null;
+	}
+
 	/** An activity name for a card title: the parenthetical detail moves to the tooltip. */
 	public static String activity(String name)
 	{
-		String shortName = name.replaceAll("\\s*\\([^)]*\\)", "").trim();
+		String shortName = name.replaceAll("\\s*\\([^)]*\\)", "").replaceAll("\\s+", " ").trim();
 		return shortName.isEmpty() ? name : Character.toUpperCase(shortName.charAt(0)) + shortName.substring(1);
 	}
 }

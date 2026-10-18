@@ -149,6 +149,10 @@ public final class Odds
 			return 1;
 		}
 		double x = t * k / mean;
+		if (k == 1)
+		{
+			return -Math.expm1(-x);
+		}
 		double term = 1;
 		double sum = 1;
 		for (int j = 1; j < k; j++)

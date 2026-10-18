@@ -42,6 +42,13 @@ public final class Rows
 
 	public static Card line(JComponent lead, String title, String detail, JComponent trailing, Color accent)
 	{
+		return line(lead, title, detail, null, null, trailing, accent);
+	}
+
+	/** As {@link #line}, with a third line in its own colour, such as a verdict or where to go. */
+	public static Card line(JComponent lead, String title, String detail, String extra, Color extraColor,
+		JComponent trailing, Color accent)
+	{
 		Card card = new Card(new BorderLayout(8, 0));
 		card.setBorder(new EmptyBorder(6, 8, 6, 8));
 		if (accent != null)
@@ -67,6 +74,12 @@ public final class Rows
 			JLabel sub = Ui.label(detail, Theme.small(), Theme.TEXT_MUTED);
 			sub.setToolTipText(detail);
 			text.add(sub);
+		}
+		if (extra != null && !extra.isEmpty())
+		{
+			JLabel third = Ui.label(extra, Theme.small(), extraColor == null ? Theme.TEXT_FAINT : extraColor);
+			third.setToolTipText(extra);
+			text.add(third);
 		}
 		// Long names clip with an ellipsis rather than push the value off the card.
 		text.setMinimumSize(new Dimension(10, 10));

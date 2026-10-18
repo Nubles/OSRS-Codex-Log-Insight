@@ -4,6 +4,7 @@ import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridLayout;
 import java.util.List;
 import java.util.function.Consumer;
@@ -117,27 +118,27 @@ final class LedgerView
 		return card;
 	}
 
+	/** A find: what, the odds and count it came at, then how lucky it was and when. */
 	private static JComponent findRow(Progress.Find find, ItemIcons icons, long now)
 	{
 		StringBuilder detail = new StringBuilder();
+		if (find.getChance() > 0)
+		{
+			detail.append(Format.chance(find.getChance()));
+		}
 		if (find.getCount() > 0)
 		{
-			detail.append(Format.count(find.getCount())).append(" kc");
+			detail.append(detail.length() > 0 ? " at " : "").append(Format.count(find.getCount())).append(" kc");
 		}
-		if (find.getLuckier() >= 0)
+		if (detail.length() == 0 && find.getPage() != null)
 		{
-			if (detail.length() > 0)
-			{
-				detail.append("  ·  ");
-			}
-			detail.append("luckier than ").append(Math.round(find.getLuckier() * 100)).append("%");
+			detail.append(find.getPage());
 		}
-		if (detail.length() == 0)
-		{
-			detail.append(find.getPage() == null ? "" : find.getPage());
-		}
-		Pill when = new Pill(Format.ago(find.getAt(), now), Theme.TEXT_MUTED);
-		return Rows.line(new IconBadge(find.getItemId(), icons, true), find.getName(), detail.toString(), when,
-			find.getLuckier() >= 0 ? Theme.luck(find.getLuckier()) : Theme.GOLD);
+		String when = Format.ago(find.getAt(), now);
+		boolean known = find.getLuckier() >= 0;
+		String verdict = known ? "Luckier than " + Math.round(find.getLuckier() * 100) + "%  ·  " + when : when;
+		Color color = known ? Theme.luck(find.getLuckier()) : Theme.GOLD;
+		return Rows.line(new IconBadge(find.getItemId(), icons, true), find.getName(), detail.toString(), verdict,
+			known ? color : Theme.TEXT_FAINT, null, color);
 	}
 }
