@@ -1,6 +1,7 @@
 package com.codex.loginsight;
 
 import com.codex.loginsight.core.Analyst;
+import com.codex.loginsight.core.Announcements;
 import com.codex.loginsight.core.ChatReader;
 import com.codex.loginsight.core.LogStructure;
 import com.codex.loginsight.core.Luck;
@@ -93,8 +94,6 @@ public class CodexLogInsightPlugin extends Plugin
 	private static final int TRANSMIT_SETTLE_TICKS = 3;
 	private static final int SAVE_TICKS = 100;
 	private static final int ANALYSE_GAP_TICKS = 2;
-	/** The chat line and the pop-up can both announce one slot; the second is ignored. */
-	private static final long SAME_SLOT_MS = 10_000;
 	private static final String POPUP_PREFIX = "New item:";
 	/** Skill levels and quests are read again this often, to notice what has opened up. */
 	private static final int UNLOCKS_TICKS = 100;
@@ -154,8 +153,8 @@ public class CodexLogInsightPlugin extends Plugin
 	private Unlocks unlocks = Unlocks.UNKNOWN;
 	private int unlocksReadAt = -1;
 	private boolean notificationStarted;
-	private String lastSlot;
-	private long lastSlotAt;
+	/** The chat line and the pop-up can both announce one slot; the second is ignored. */
+	private final Announcements announcements = new Announcements();
 
 	@Provides
 	CodexLogInsightConfig provideConfig(ConfigManager configManager)
@@ -245,6 +244,7 @@ public class CodexLogInsightPlugin extends Plugin
 			officialTotal = -1;
 			unlocks = Unlocks.UNKNOWN;
 			unlocksReadAt = -1;
+			announcements.clear();
 			plaque.clear();
 			publish(Report.loggedOut(), null);
 		}
@@ -388,7 +388,7 @@ public class CodexLogInsightPlugin extends Plugin
 		String slot = ChatReader.newSlot(message);
 		if (slot != null)
 		{
-			announced(slot);
+			announced(slot, Announcements.Channel.CHAT);
 		}
 	}
 
@@ -409,20 +409,17 @@ public class CodexLogInsightPlugin extends Plugin
 		String text = Text.removeTags(body).trim();
 		if (text.startsWith(POPUP_PREFIX))
 		{
-			announced(text.substring(POPUP_PREFIX.length()).trim());
+			announced(text.substring(POPUP_PREFIX.length()).trim(), Announcements.Channel.POPUP);
 		}
 	}
 
-	private void announced(String slot)
+	private void announced(String slot, Announcements.Channel channel)
 	{
-		long now = System.currentTimeMillis();
-		if (slot.isEmpty() || slot.equalsIgnoreCase(lastSlot) && now - lastSlotAt < SAME_SLOT_MS)
+		if (!announcements.fresh(slot, channel, System.currentTimeMillis()))
 		{
 			return;
 		}
-		lastSlot = slot;
-		lastSlotAt = now;
-		onNewSlot(slot);
+		onNewSlot(slot.trim());
 	}
 
 	/** Reads the account's real skill levels and which needed quests are still unfinished. */
