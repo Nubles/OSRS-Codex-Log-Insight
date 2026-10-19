@@ -69,13 +69,65 @@ public final class Format
 
 	/**
 	 * How dry a missing slot is, the way players say it: the share of players who would
-	 * already have it at this kill count. "88% dry" means 88 in 100 would have it by now.
+	 * already have it at this kill count. "88% dry" means 88 in 100 would have it by now; "Overdue" means it is
+	 * guaranteed by a count you have passed.
 	 *
 	 * @param stillWaiting the share of players still without it
 	 */
 	public static String dry(double stillWaiting)
 	{
-		return percent(1 - stillWaiting) + " dry";
+		// Only a slot guaranteed by a count you have passed leaves nobody waiting: "100% dry" beside ">99% dry" rows
+		// read as a figure, where it is a slot that should have come.
+		return stillWaiting == 0 ? "Overdue" : have(stillWaiting) + " dry";
+	}
+
+	/**
+	 * The share of players who would have it by now, from the share still without it. Worked from the share still
+	 * waiting, since one minus a tiny share rounds to exactly 1 in a double and would read as a certain 100%.
+	 */
+	public static String have(double stillWaiting)
+	{
+		if (stillWaiting > 0 && stillWaiting < 0.01)
+		{
+			return ">99%";
+		}
+		return percent(1 - stillWaiting);
+	}
+
+	/**
+	 * An expected number of slots: "0.48", "2.4", "12"; "<0.01" when it rounds to nothing. A figure that rounds to a
+	 * whole number drops its zeros ("9", not "9.0"), so a list reads 74, 39, 11, 9 rather than switching to decimals.
+	 */
+	public static String slots(double slots)
+	{
+		if (Double.isNaN(slots) || slots <= 0)
+		{
+			return "0";
+		}
+		if (slots < 0.01)
+		{
+			return "<0.01";
+		}
+		if (slots < 1)
+		{
+			return trimZeros(String.format(java.util.Locale.ENGLISH, "%.2f", slots));
+		}
+		if (slots < 9.95)
+		{
+			return trimZeros(String.format(java.util.Locale.ENGLISH, "%.1f", slots));
+		}
+		return String.valueOf(Math.round(slots));
+	}
+
+	/** "9.0" to "9", "0.50" to "0.5"; whole numbers and other decimals are left as they are. */
+	private static String trimZeros(String number)
+	{
+		if (number.indexOf('.') < 0)
+		{
+			return number;
+		}
+		String out = number.replaceAll("0+$", "");
+		return out.endsWith(".") ? out.substring(0, out.length() - 1) : out;
 	}
 
 	public static String count(long value)
@@ -99,6 +151,19 @@ public final class Format
 			return ">99%";
 		}
 		return Math.round(share * 100) + "%";
+	}
+
+	/** A stretch of play: "12m", "1h 20m", "6h". */
+	public static String duration(long millis)
+	{
+		long minutes = Math.max(0, millis / 60_000);
+		if (minutes < 60)
+		{
+			return minutes + "m";
+		}
+		long h = minutes / 60;
+		long m = minutes % 60;
+		return m == 0 ? h + "h" : h + "h " + m + "m";
 	}
 
 	/** "just now", "5m ago", "3h ago", "2d ago". */
@@ -166,8 +231,10 @@ public final class Format
 		}
 		String detail = m.group(1).trim();
 		// Tombs of Amascut rows differ only by raid level.
-		return detail.matches("[0-9]+") && name.toLowerCase(java.util.Locale.ENGLISH).contains("amascut")
+		detail = detail.matches("[0-9]+") && name.toLowerCase(java.util.Locale.ENGLISH).contains("amascut")
 			? "raid level " + detail : detail;
+		// A tag under a title starts with a capital, like every other line on the card.
+		return detail.isEmpty() ? detail : Character.toUpperCase(detail.charAt(0)) + detail.substring(1);
 	}
 
 	/** An activity name for a card title: the parenthetical detail moves to the tooltip. */

@@ -17,6 +17,10 @@ import java.util.Set;
 public final class Progress
 {
 	private static final int MAX_FINDS = 40;
+	/** Finest finds kept for the trophy shelf, however long ago they dropped. */
+	static final int TROPHIES = 5;
+	/** The most slots that can be wanted at once: a short list stays a list of goals. */
+	public static final int MAX_WANTED = 6;
 
 	/** Slots known to be owned. Only ever grows; the game never takes a slot back. */
 	private Set<Integer> owned = new HashSet<>();
@@ -32,6 +36,66 @@ public final class Progress
 	private Map<String, Long> pagesRead = new LinkedHashMap<>();
 	/** The counter names each read page shows, in its own order. */
 	private Map<String, List<String>> pageLabels = new HashMap<>();
+	/** Slots you marked as wanted, in the order you marked them. */
+	private List<Integer> wanted = new ArrayList<>();
+	/**
+	 * The rarest finds ever seen, rarest first, kept apart from {@link #finds} so a great drop is not pushed off the
+	 * shelf by forty ordinary ones. Missing from older saves, which start it from the finds they still have.
+	 */
+	private List<Find> trophies;
+
+	/**
+	 * Reads saved progress, keeping every field and entry that reads on its own: one odd value never costs the log.
+	 * Null with nothing saved, or with nothing in it readable; the result says when anything was left out.
+	 */
+	public static SavedJson.Read<Progress> load(com.google.gson.Gson gson, String json)
+	{
+		SavedJson.Read<Progress> read = SavedJson.read(gson, json, Progress.class);
+		Progress value = read.getValue();
+		// More finds or trophies than this version keeps (a newer one may keep more): the repair trims them, so the
+		// saved text is kept aside first.
+		boolean trimmed = value != null && (value.finds != null && value.finds.size() > MAX_FINDS
+			|| value.trophies != null && value.trophies.size() > TROPHIES);
+		return new SavedJson.Read<>(value == null ? null : value.repair(), read.isDamaged() || trimmed);
+	}
+
+	/** Drops what no game could have saved (empty entries, negative counts, a broken pace) and holds every list to its limit. */
+	Progress repair()
+	{
+		owned().removeIf(id -> id == null || id <= 0);
+		counters().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || e.getValue() < 0);
+		finds().removeIf(f -> f == null);
+		while (finds.size() > MAX_FINDS)
+		{
+			finds.remove(finds.size() - 1);
+		}
+		if (trophies != null)
+		{
+			if (trophies.removeIf(f -> f == null) && trophies.isEmpty())
+			{
+				// Nothing readable left on the shelf: it is set again from the finds, as for an older save.
+				trophies = null;
+			}
+			while (trophies != null && trophies.size() > TROPHIES)
+			{
+				trophies.remove(trophies.size() - 1);
+			}
+		}
+		pace().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || !e.getValue().sane());
+		pagesRead().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
+		pageLabels().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
+		pageLabels().values().forEach(list -> list.removeIf(label -> label == null));
+		List<Integer> kept = new ArrayList<>();
+		for (Integer id : wanted())
+		{
+			if (id != null && id > 0 && !owned().contains(id) && !kept.contains(id) && kept.size() < MAX_WANTED)
+			{
+				kept.add(id);
+			}
+		}
+		wanted = kept;
+		return this;
+	}
 
 	public Progress copy()
 	{
@@ -47,6 +111,8 @@ public final class Progress
 		p.fullReadAt = fullReadAt;
 		p.pagesRead = new LinkedHashMap<>(pagesRead());
 		p.pageLabels = new HashMap<>(pageLabels());
+		p.wanted = new ArrayList<>(wanted());
+		p.trophies = new ArrayList<>(trophies());
 		return p;
 	}
 
@@ -79,6 +145,49 @@ public final class Progress
 		return finds;
 	}
 
+	private List<Find> trophies()
+	{
+		if (trophies == null)
+		{
+			List<Find> seeded = new ArrayList<>();
+			for (Find f : finds())
+			{
+				offer(seeded, f);
+			}
+			trophies = seeded;
+		}
+		return trophies;
+	}
+
+	/** Puts a find on the shelf if it is among the rarest; only finds with known odds compete. */
+	private static void offer(List<Find> shelf, Find find)
+	{
+		if (find == null || find.getChance() <= 0)
+		{
+			return;
+		}
+		for (Find f : shelf)
+		{
+			if (f.getItemId() == find.getItemId())
+			{
+				return;
+			}
+		}
+		shelf.add(find);
+		shelf.sort(Progress::rarer);
+		while (shelf.size() > TROPHIES)
+		{
+			shelf.remove(shelf.size() - 1);
+		}
+	}
+
+	/** Rarer odds first; at the same odds, the luckier find (the one fewer players would have had by then). */
+	private static int rarer(Find a, Find b)
+	{
+		int byOdds = Double.compare(a.getChance(), b.getChance());
+		return byOdds != 0 ? byOdds : Double.compare(b.getLuckier(), a.getLuckier());
+	}
+
 	private Map<String, Pace> pace()
 	{
 		if (pace == null)
@@ -106,6 +215,45 @@ public final class Progress
 		return pageLabels;
 	}
 
+	private List<Integer> wanted()
+	{
+		if (wanted == null)
+		{
+			wanted = new ArrayList<>();
+		}
+		return wanted;
+	}
+
+	/** Slots marked as wanted, oldest mark first. */
+	public List<Integer> getWanted()
+	{
+		return Collections.unmodifiableList(wanted());
+	}
+
+	public boolean isWanted(int itemId)
+	{
+		return wanted().contains(itemId);
+	}
+
+	/**
+	 * Marks a missing slot wanted, or unmarks it. An owned slot cannot be wanted, and a full list refuses a new one.
+	 *
+	 * @return true if the list changed
+	 */
+	public boolean toggleWanted(int itemId)
+	{
+		if (wanted().remove((Integer) itemId))
+		{
+			return true;
+		}
+		if (itemId <= 0 || owns(itemId) || wanted().size() >= MAX_WANTED)
+		{
+			return false;
+		}
+		wanted().add(itemId);
+		return true;
+	}
+
 	public boolean owns(int itemId)
 	{
 		return owned().contains(itemId);
@@ -119,6 +267,8 @@ public final class Progress
 	/** @return true if this slot is new */
 	public boolean addOwned(int itemId)
 	{
+		// A slot found is no longer wanted.
+		wanted().remove((Integer) itemId);
 		return owned().add(itemId);
 	}
 
@@ -146,11 +296,18 @@ public final class Progress
 
 	public void addFind(Find find)
 	{
+		offer(trophies(), find);
 		finds().add(0, find);
 		while (finds().size() > MAX_FINDS)
 		{
 			finds().remove(finds().size() - 1);
 		}
+	}
+
+	/** The finest finds, rarest first: at most {@link #TROPHIES}. */
+	public List<Find> getTrophies()
+	{
+		return Collections.unmodifiableList(new ArrayList<>(trophies()));
 	}
 
 	public Pace pace(String label)
@@ -308,6 +465,12 @@ public final class Progress
 		public int getSamples()
 		{
 			return samples;
+		}
+
+		/** False for a saved pace no kills could have given: a negative or endless time per kill, or negative samples. */
+		boolean sane()
+		{
+			return samples >= 0 && lastCount >= 0 && (samples == 0 || secondsPerCount > 0 && Double.isFinite(secondsPerCount));
 		}
 
 		/** Completions per hour, or 0 if not learned yet. */

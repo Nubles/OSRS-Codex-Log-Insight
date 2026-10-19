@@ -40,6 +40,14 @@ public class ItemTile extends JComponent
 		setToolTipText(tooltip(item));
 	}
 
+	/** "Half of players by 2,080 kc, 9 in 10 by 6,907": the counts a grind can be measured against. */
+	static String marks(double chance)
+	{
+		int half = com.codex.loginsight.core.DryWatch.countFor(chance, 0.5);
+		int most = com.codex.loginsight.core.DryWatch.countFor(chance, 0.9);
+		return "Half of players by " + Format.count(half) + " kc, 9 in 10 by " + Format.count(most);
+	}
+
 	static String tooltip(Report.ItemReport item)
 	{
 		StringBuilder sb = new StringBuilder("<html><b>").append(Ui.escape(item.getName())).append("</b>");
@@ -58,7 +66,12 @@ public class ItemTile extends JComponent
 		if (!item.isOwned() && item.getDryChance() >= 0)
 		{
 			sb.append("<br>").append(Format.dry(item.getDryChance())).append(": ")
-				.append(Format.percent(1 - item.getDryChance())).append(" of players would have it by now");
+				.append(item.getDryChance() == 0 ? "it is guaranteed by your count"
+					: Format.have(item.getDryChance()) + " of players would have it by now");
+		}
+		if (!item.isOwned() && item.getChance() > 0 && item.getLabel() != null)
+		{
+			sb.append("<br>").append(marks(item.getChance()));
 		}
 		if (!item.isOwned() && item.getSource() != null)
 		{

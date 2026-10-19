@@ -184,11 +184,36 @@ public class AnalystTest
 		List<Report.Hunt> ranked = analyst.analyse(log, new Progress(), false, true, -1, -1, low).getHunts();
 		assertEquals("Killing cows", ranked.get(0).getName());
 		assertEquals("95 Slayer", ranked.get(1).getLockedBy());
+		// The page's projection hunts the hydra pet where it drops, so it says what the account still needs.
+		Report lowReport = analyst.analyse(log, new Progress(), false, true, -1, -1, low);
+		assertEquals("95 Slayer", lowReport.getPages().get(0).getProjection().getLockedBy());
+		assertNull(analyst.analyse(log, new Progress(), false, true, -1, -1).getPages().get(0).getProjection().getLockedBy());
 
 		Unlocks noQuest = new Unlocks(Collections.singletonMap("SLAYER", 99), Collections.singleton("HEROES_QUEST"));
 		assertEquals("Heroes' Quest", noQuest.missing(hydra));
 		assertNull(new Unlocks(Collections.singletonMap("SLAYER", 99), Collections.emptySet()).missing(hydra));
 		assertNull(Unlocks.UNKNOWN.missing(hydra));
+	}
+
+	@Test
+	public void pageProjectionHuntsAnOpenSourceBeforeALockedFasterOne()
+	{
+		// The hydra slot also comes from cows, slowly: an account that cannot fight hydra still gets a curve it can play.
+		List<Activity.Drop> easy = Arrays.asList(new Activity.Drop(0, 20, 1000, 0), new Activity.Drop(0, 21, 5000, 0));
+		List<Activity.Drop> hard = Collections.singletonList(new Activity.Drop(1, 21, 10, 0));
+		Activity cows = new Activity(0, "Killing cows", Activity.Category.COMBAT, 100, 100, 0, easy);
+		Activity hydra = new Activity(1, "Killing hydra", Activity.Category.COMBAT, 100, 100, 0, hard,
+			Collections.singletonMap("SLAYER", 95), Collections.emptyList());
+		LogData both = new LogData(Arrays.asList(cows, hydra), Collections.emptyList(), new HashMap<>(), Collections.emptySet());
+		LogStructure log = new LogStructure(Collections.singletonList(new LogStructure.Tab("Bosses",
+			Collections.singletonList(new LogStructure.Page("Bosses", "Mixed", Arrays.asList(20, 21))))), new HashMap<>());
+		Analyst analyst = new Analyst(both);
+		Unlocks low = new Unlocks(Collections.singletonMap("SLAYER", 80), Collections.emptySet());
+		Projection open = analyst.analyse(log, new Progress(), false, true, -1, -1, low).getPages().get(0).getProjection();
+		assertNull(open.getLockedBy());
+		assertTrue(open.getMedian() > 10);
+		Projection any = analyst.analyse(log, new Progress(), false, true, -1, -1).getPages().get(0).getProjection();
+		assertTrue(any.getMedian() < open.getMedian());
 	}
 
 	@Test
@@ -198,5 +223,151 @@ public class AnalystTest
 		assertEquals(300, report.owned());
 		assertEquals(1700, report.total());
 		assertTrue(report.needsFullRead());
+	}
+
+	@Test
+	public void eachActivityBecomesAProspectForPlanning()
+	{
+		Report report = new Analyst(data).analyse(structure, new Progress(), false, true, -1, -1);
+		assertEquals(1, report.getProspects().size());
+		Prospect beast = report.getProspects().get(0);
+		assertEquals(5, beast.getRemaining());
+		assertEquals(50, beast.getPerHour(), 1e-9);
+		// The next slot's wait the hunt shows and the prospect's chance of any slot agree.
+		Report.Hunt hunt = report.getHunts().get(0);
+		assertEquals(1 - Math.exp(-1), beast.chanceOfAny(hunt.getHoursToNext()), 0.03);
+		// In a very long stretch every slot turns up.
+		assertEquals(5, beast.expectedSlots(10_000), 1e-3);
+	}
+
+	@Test
+	public void missingPetsArePlannedAtTheirSource()
+	{
+		Progress progress = new Progress();
+		progress.addOwned(HEAD);
+		Report report = new Analyst(data).analyse(structure, progress, false, true, -1, -1);
+		assertEquals(1, report.getPets().size());
+		PetPlan pet = report.getPets().get(0);
+		assertEquals(PET, pet.getItemId());
+		assertEquals("Beast", pet.getPage());
+		assertEquals(Math.log(0.5) / Math.log(1 - 1 / 1000.0) / 50, pet.getMedian(), 1e-6);
+		assertEquals(Math.log(0.1) / Math.log(1 - 1 / 1000.0) / 50, pet.getLikely(), 1e-6);
+		// Half of all players see the pet after about 693 kills, by which the shield, spine and claw are near certain.
+		assertEquals(3, pet.slotsAlongside(), 0.05);
+		progress.addOwned(PET);
+		assertTrue(new Analyst(data).analyse(structure, progress, false, true, -1, -1).getPets().isEmpty());
+	}
+
+	@Test
+	public void aPetIsPlannedWhereTheAccountCanHuntIt()
+	{
+		// The pet drops quicker at hydra, but with 80 Slayer the plan points at cows.
+		List<Activity.Drop> easy = Collections.singletonList(new Activity.Drop(0, 21, 1000, 0));
+		List<Activity.Drop> hard = Collections.singletonList(new Activity.Drop(1, 21, 100, 0));
+		Activity cows = new Activity(0, "Killing cows", Activity.Category.COMBAT, 100, 100, 0, easy);
+		Activity hydra = new Activity(1, "Killing hydra", Activity.Category.COMBAT, 100, 100, 0, hard,
+			Collections.singletonMap("SLAYER", 95), Collections.emptyList());
+		LogData both = new LogData(Arrays.asList(cows, hydra), Collections.emptyList(), new HashMap<>(), Collections.singleton(21));
+		LogStructure log = new LogStructure(Collections.singletonList(new LogStructure.Tab("Bosses",
+			Collections.singletonList(new LogStructure.Page("Bosses", "Mixed", Collections.singletonList(21))))), new HashMap<>());
+		Analyst analyst = new Analyst(both);
+		assertEquals("Killing hydra", analyst.analyse(log, new Progress(), false, true, -1, -1).getPets().get(0).getSource());
+		Unlocks low = new Unlocks(Collections.singletonMap("SLAYER", 80), Collections.emptySet());
+		PetPlan pet = analyst.analyse(log, new Progress(), false, true, -1, -1, low).getPets().get(0);
+		assertEquals("Killing cows", pet.getSource());
+		assertNull(pet.getLockedBy());
+	}
+
+	@Test
+	public void pagesProjectWhenTheyAreLikelyFinished()
+	{
+		Report report = new Analyst(data).analyse(structure, new Progress(), false, true, -1, -1);
+		Report.PageReport page = report.getPages().get(0);
+		Projection projection = page.getProjection();
+		assertNotNull(projection);
+		// The pet at 1 in 1000 sets the pace: the page is done no sooner than the pet alone would be.
+		double pet = Math.log(0.5) / Math.log(1 - 1 / 1000.0) / 50;
+		assertTrue(projection.getMedian() >= pet);
+		assertTrue(projection.getMedian() < pet * 1.3);
+		assertTrue(projection.getLikely() > projection.getMedian());
+		// The mean the page shows lies between the median and the nine-in-ten mark for a right-skewed wait.
+		assertTrue(page.getHoursToFinish() > projection.getMedian());
+		assertTrue(page.getHoursToFinish() < projection.getLikely());
+
+		Progress all = new Progress();
+		for (int id = PET; id <= CLAW; id++)
+		{
+			all.addOwned(id);
+		}
+		assertNull(new Analyst(data).analyse(structure, all, false, true, -1, -1).getPages().get(0).getProjection());
+	}
+
+	// ---- Wanted ----
+
+	@Test
+	public void wantedSlotsAreReportedWithTheirMarksAndLeaveTheListWhenFound()
+	{
+		Progress p = new Progress();
+		p.setCounter("Beast kills", 40);
+		assertTrue(p.toggleWanted(HEAD));
+		assertTrue(p.toggleWanted(PET));
+		Report report = new Analyst(data).analyse(structure, p, false, true, -1, -1);
+		assertEquals(2, report.getWanted().size());
+		Report.ItemReport head = report.getWanted().get(0);
+		assertEquals(HEAD, head.getItemId());
+		assertEquals("Beast", head.getPage());
+		assertTrue(report.isWanted(PET));
+		// 1 in 100: half of players by 69 kills, nine in ten by 230.
+		assertEquals(69, Wanted.countFor(head, 0.5));
+		assertEquals(29, Wanted.moreUntil(head, 0.5));
+		assertEquals(190, Wanted.moreUntil(head, 0.9));
+		// Alone at 50 kills an hour, 100 kills are 2 hours on average: even odds after 2 ln 2 hours.
+		assertEquals(2.0, head.getHours(), 1e-9);
+		assertEquals(2 * Math.log(2), Wanted.evenChanceHours(head), 1e-9);
+		assertEquals(1 - Math.exp(-1), Wanted.chanceWithin(head, 2), 1e-9);
+
+		// Found: off the list, and a slot already owned cannot be wanted.
+		p.addOwned(HEAD);
+		assertEquals(Collections.singletonList(PET), p.getWanted());
+		assertTrue(!p.toggleWanted(HEAD));
+		report = new Analyst(data).analyse(structure, p, false, true, -1, -1);
+		assertEquals(1, report.getWanted().size());
+		// Clicking again takes it off.
+		assertTrue(p.toggleWanted(PET));
+		assertTrue(p.getWanted().isEmpty());
+		// Attaching the session keeps the wanted list.
+		assertEquals(1, new Analyst(data).analyse(structure, copyWanting(PET), false, true, -1, -1).withSession(null).getWanted().size());
+	}
+
+	private static Progress copyWanting(int id)
+	{
+		Progress p = new Progress();
+		p.toggleWanted(id);
+		return p.copy();
+	}
+
+	@Test
+	public void theWantedListIsShortAndOlderSavesReadWithoutIt()
+	{
+		Progress p = new Progress();
+		for (int id = 100; id < 100 + Progress.MAX_WANTED; id++)
+		{
+			assertTrue(p.toggleWanted(id));
+		}
+		assertTrue(!p.toggleWanted(999));
+		assertEquals(Progress.MAX_WANTED, p.getWanted().size());
+		com.google.gson.Gson gson = new com.google.gson.Gson();
+		Progress back = gson.fromJson(gson.toJson(p), Progress.class);
+		assertEquals(p.getWanted(), back.getWanted());
+		Progress old = gson.fromJson("{\"owned\":[1],\"counters\":{}}", Progress.class);
+		assertTrue(old.getWanted().isEmpty());
+		assertTrue(old.toggleWanted(2));
+		// A slot nobody can time still reports what it can.
+		Report.ItemReport unknown = new Report.ItemReport(7, "Mystery", null, false, false, 0, null, -1, -1, null,
+			Double.POSITIVE_INFINITY);
+		assertEquals(-1, Wanted.countFor(unknown, 0.5));
+		assertEquals(-1, Wanted.moreUntil(unknown, 0.5));
+		assertEquals(-1, Wanted.evenChanceHours(unknown), 0);
+		assertEquals(-1, Wanted.chanceWithin(unknown, 1), 0);
 	}
 }

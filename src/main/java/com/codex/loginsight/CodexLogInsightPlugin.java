@@ -1,42 +1,56 @@
 package com.codex.loginsight;
 
 import com.codex.loginsight.core.Analyst;
+import com.codex.loginsight.core.DryWatch;
+import com.codex.loginsight.core.Grind;
 import com.codex.loginsight.core.Announcements;
 import com.codex.loginsight.core.ChatReader;
 import com.codex.loginsight.core.LogStructure;
 import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
+import com.codex.loginsight.core.SavedJson;
+import com.codex.loginsight.core.Session;
+import com.codex.loginsight.core.Setup;
 import com.codex.loginsight.core.Unlocks;
 import com.codex.loginsight.data.Activity;
 import com.codex.loginsight.data.ItemOdds;
 import com.codex.loginsight.data.LogData;
 import com.codex.loginsight.overlay.FindPlaque;
+import com.codex.loginsight.overlay.GrindCard;
 import com.codex.loginsight.ui.Format;
 import com.codex.loginsight.ui.ItemIcons;
 import com.codex.loginsight.ui.LogInsightPanel;
 import com.codex.loginsight.ui.Sigil;
 import com.codex.loginsight.ui.Theme;
+import com.codex.loginsight.ui.ShareActions;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import com.google.inject.Provides;
 import java.awt.Color;
+import java.awt.Toolkit;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.EnumComposition;
+import net.runelite.api.Experience;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
 import net.runelite.api.Quest;
@@ -50,6 +64,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
+import net.runelite.api.events.StatChanged;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.gameval.VarPlayerID;
@@ -73,16 +88,19 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.Text;
+import net.runelite.client.util.Filepath;
 
 @Slf4j
 @PluginDescriptor(
 	name = "Codex Log Insight",
 	description = "Collection log analytics: your luck at your kill counts, time left on each page and the fastest slots to chase",
-	tags = {"collection", "log", "clog", "luck", "dry", "drop", "rate", "pet", "codex"}
+	tags = {"collection", "log", "clog", "luck", "dry", "drop", "rate", "pet", "kc", "codex"}
 )
 public class CodexLogInsightPlugin extends Plugin
 {
 	private static final String PROGRESS_KEY = "progress";
+	/** Added to a key's name to keep aside a saved value that could not be read in full. */
+	private static final String UNREADABLE = "Unreadable";
 	/** The script that sends the client every owned slot when the log's Search is opened. */
 	private static final int COLLECTION_TRANSMIT = 4100;
 	/** Enum of the log's tabs; each tab struct points to its pages, each page to its slots. */
@@ -99,6 +117,16 @@ public class CodexLogInsightPlugin extends Plugin
 	private static final String POPUP_PREFIX = "New item:";
 	/** Skill levels and quests are read again this often, to notice what has opened up. */
 	private static final int UNLOCKS_TICKS = 100;
+	/**
+	 * After a stat changes (the levels sent at login, or a level up) the levels are read again this many ticks on,
+	 * once the burst has passed, rather than waiting a minute with the pets at the wrong odds.
+	 */
+	private static final int UNLOCKS_AFTER_STATS_TICKS = 3;
+	/** Varbits sent at login have all arrived by this many ticks after it; a setting read sooner may be a blank. */
+	private static final int SETTLE_TICKS = 10;
+
+	/** How many items the game has (the highest id plus one), or 0 until the client has its item table. */
+	private volatile int itemCount;
 
 	@Inject
 	private Client client;
@@ -135,8 +163,13 @@ public class CodexLogInsightPlugin extends Plugin
 	private final Set<Integer> harvest = new HashSet<>();
 	private final Map<Integer, Integer> replacements = new HashMap<>();
 
+	/** The tables as bundled, with skilling pets at level 99. */
+	private LogData baseData;
+	/** The tables at this account's levels; what every read uses. */
 	private LogData data;
 	private Analyst analyst;
+	/** The levels {@link #data} was scaled to, only for the skills a rate depends on. */
+	private Map<String, Integer> scaledAt;
 	private ChatReader chat;
 	private LogInsightPanel panel;
 	private NavigationButton navButton;
@@ -154,9 +187,29 @@ public class CodexLogInsightPlugin extends Plugin
 	private final Map<String, Quest> questsNeeded = new HashMap<>();
 	private Unlocks unlocks = Unlocks.UNKNOWN;
 	private int unlocksReadAt = -1;
+	/** The tick a level last changed, or -1; levels are read again shortly after. */
+	private int statsChangedAt = -1;
+	/** Each skill's level as last reported, to tell a level up from experience alone. */
+	private final Map<Skill, Integer> statLevels = new EnumMap<>(Skill.class);
+	/** Whether the last analysis used ironman rates, so a change of account type once varbits arrive is noticed. */
+	private Boolean ironShown;
+	/** The game's new-slot notification setting once settled after login, or {@link Setup#NOTICES_UNKNOWN}. */
+	private int notices = Setup.NOTICES_UNKNOWN;
+	/** The tick of the last login, for {@link #SETTLE_TICKS}; -1 while logged out. */
+	private int loginTick = -1;
+	/** The "notifications are off" chat line is said once a session. */
+	private boolean noticesWarned;
+	/** This play session, from the login that loaded the progress; a world hop keeps it. */
+	private Session session;
 	private boolean notificationStarted;
 	/** The chat line and the pop-up can both announce one slot; the second is ignored. */
 	private final Announcements announcements = new Announcements();
+	/** Kill count changes waiting a few ticks for the same kill's new-slot messages before milestones are checked. */
+	private final DryWatch.Queue milestones = new DryWatch.Queue();
+	private final GrindCard grindCard = new GrindCard();
+	/** The counter the last kill count message moved, and when, for the grind card; null until one moves. */
+	private String grindLabel;
+	private long grindAt;
 
 	@Provides
 	CodexLogInsightConfig provideConfig(ConfigManager configManager)
@@ -167,8 +220,10 @@ public class CodexLogInsightPlugin extends Plugin
 	@Override
 	protected void startUp() throws IOException
 	{
-		data = LogData.load(gson);
+		baseData = LogData.load(gson);
+		data = baseData;
 		analyst = new Analyst(data);
+		scaledAt = null;
 		chat = new ChatReader(data.getLabels());
 		Map<String, Quest> quests = new HashMap<>();
 		for (Quest quest : Quest.values())
@@ -184,13 +239,55 @@ public class CodexLogInsightPlugin extends Plugin
 				questsNeeded.put(name, quest);
 			}
 		}
-		ItemIcons icons = (itemId, onLoaded) ->
+		// Pictures that have been drawn in, held weakly by the very image handed out (the item manager may later hand
+		// out a fresh blank for the same item), so a card can wait for exactly the pictures it will draw.
+		Set<BufferedImage> arrived = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+		ItemIcons icons = new ItemIcons()
 		{
-			AsyncBufferedImage image = itemManager.getImage(itemId);
-			image.onLoaded(onLoaded);
-			return image;
+			@Override
+			public BufferedImage icon(int itemId, Runnable onLoaded)
+			{
+				// A find's id comes from the save: one the game does not have would never draw, and the item manager
+				// would try again for it on every client tick.
+				int known = itemCount;
+				if (itemId <= 0 || known > 0 && itemId >= known)
+				{
+					return null;
+				}
+				AsyncBufferedImage image = itemManager.getImage(itemId);
+				image.onLoaded(() ->
+				{
+					arrived.add(image);
+					if (onLoaded != null)
+					{
+						onLoaded.run();
+					}
+				});
+				return image;
+			}
+
+			@Override
+			public boolean ready(BufferedImage image)
+			{
+				return image != null && arrived.contains(image);
+			}
 		};
 		panel = new LogInsightPanel(icons);
+		panel.setShare(new ShareActions()
+		{
+			@Override
+			public void save(BufferedImage card, String fileName)
+			{
+				saveCard(card, fileName);
+			}
+
+			@Override
+			public void copy(BufferedImage card)
+			{
+				copyCard(card);
+			}
+		}, config::nameOnCard);
+		panel.setOnWant(itemId -> clientThread.invokeLater(() -> toggleWanted(itemId)));
 		navButton = NavigationButton.builder()
 			.tooltip("Codex Log Insight")
 			.icon(Sigil.icon(16))
@@ -199,8 +296,13 @@ public class CodexLogInsightPlugin extends Plugin
 			.build();
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(plaque);
+		overlayManager.add(grindCard);
 		clientThread.invokeLater(() ->
 		{
+			if (client.getGameState().ordinal() >= GameState.LOGIN_SCREEN.ordinal())
+			{
+				itemCount = client.getItemCount();
+			}
 			if (client.getGameState() == GameState.LOGGED_IN)
 			{
 				loadProgress();
@@ -216,16 +318,29 @@ public class CodexLogInsightPlugin extends Plugin
 		clientThread.invokeLater(() ->
 		{
 			save();
+			milestones.clear();
 			progress = null;
 			profile = null;
 		});
 		overlayManager.remove(plaque);
+		overlayManager.remove(grindCard);
+		grindCard.clear();
 		clientToolbar.removeNavigation(navButton);
 		plaque.clear();
 		generation.incrementAndGet();
 		structure = LogStructure.empty();
 		harvest.clear();
 		lastTransmitTick = -1;
+		loginTick = -1;
+		notices = Setup.NOTICES_UNKNOWN;
+		noticesWarned = false;
+		ironShown = null;
+		statsChangedAt = -1;
+		statLevels.clear();
+		if (panel != null)
+		{
+			panel.shutDown();
+		}
 		panel = null;
 	}
 
@@ -255,21 +370,52 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event)
 	{
+		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.LOGGED_IN)
+		{
+			// The item table is loaded by the login screen; read here, on the client thread, for the panel's pictures.
+			itemCount = client.getItemCount();
+		}
 		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.HOPPING)
 		{
 			harvest.clear();
 			lastTransmitTick = -1;
+			// A hop logs in afresh and the varbits arrive again: settings read in between may be blanks.
+			loginTick = -1;
+		}
+		if (event.getGameState() == GameState.LOGGED_IN && loginTick < 0)
+		{
+			loginTick = client.getTickCount();
 		}
 		if (event.getGameState() == GameState.LOGIN_SCREEN)
 		{
+			loginTick = -1;
+			notices = Setup.NOTICES_UNKNOWN;
+			noticesWarned = false;
+			ironShown = null;
+			statsChangedAt = -1;
+			statLevels.clear();
 			save();
 			progress = null;
 			profile = null;
+			session = null;
 			officialOwned = -1;
 			officialTotal = -1;
 			unlocks = Unlocks.UNKNOWN;
 			unlocksReadAt = -1;
+			// The next account's levels are its own; until they are read, pets go back to the bundled odds.
+			if (scaledAt != null)
+			{
+				scaledAt = null;
+				data = baseData;
+				analyst = new Analyst(data);
+			}
 			announcements.clear();
+			milestones.clear();
+			grindLabel = null;
+			// An analysis still running for the account just left must not land after this: it would put that
+			// account's report back in the panel, and its grind card back on screen, while logged out.
+			generation.incrementAndGet();
+			grindCard.clear();
 			plaque.clear();
 			publish(Report.loggedOut(), null);
 		}
@@ -279,6 +425,10 @@ public class CodexLogInsightPlugin extends Plugin
 	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event)
 	{
 		save();
+		// A kill counted on the account before the switch is not this account's milestone.
+		milestones.clear();
+		grindLabel = null;
+		grindCard.clear();
 		progress = null;
 		loadProgress();
 		dirty = true;
@@ -315,6 +465,16 @@ public class CodexLogInsightPlugin extends Plugin
 			buildStructure();
 			dirty |= !structure.isEmpty();
 		}
+		if (!milestones.isEmpty() && progress != null)
+		{
+			for (DryWatch.Pending due : milestones.due(client.getTickCount()))
+			{
+				if (config.dryMilestones() && DryWatch.ownedKnown(progress.getFullReadAt(), officialOwned, progress.getOwned().size()))
+				{
+					announceMilestones(due.getLabel(), due.getBefore(), due.getAfter());
+				}
+			}
+		}
 		if (lastTransmitTick >= 0 && client.getTickCount() - lastTransmitTick > TRANSMIT_SETTLE_TICKS)
 		{
 			finishFullRead();
@@ -329,9 +489,26 @@ public class CodexLogInsightPlugin extends Plugin
 			dirty = true;
 		}
 
-		if (progress != null && (unlocksReadAt < 0 || client.getTickCount() - unlocksReadAt >= UNLOCKS_TICKS))
+		int now = client.getTickCount();
+		boolean statsSettled = statsChangedAt >= 0 && now - statsChangedAt >= UNLOCKS_AFTER_STATS_TICKS;
+		if (progress != null && (unlocksReadAt < 0 || now - unlocksReadAt >= UNLOCKS_TICKS || statsSettled))
 		{
+			statsChangedAt = -1;
 			readUnlocks();
+		}
+		if (loginTick < 0)
+		{
+			// Turned on while already logged in: count from now.
+			loginTick = now;
+		}
+		if (now - loginTick >= SETTLE_TICKS)
+		{
+			watchNotices();
+			// The account type arrives with the varbits at login: an analysis made before it used the wrong rates.
+			if (ironShown != null && ironShown != ironRates())
+			{
+				dirty = true;
+			}
 		}
 
 		ticksSinceAnalysis++;
@@ -402,7 +579,22 @@ public class CodexLogInsightPlugin extends Plugin
 		ChatReader.Count count = chat.count(message);
 		if (count != null && count.value >= 0)
 		{
+			Integer before = progress.counter(count.label);
+			if (session != null)
+			{
+				session.observe(count.label, count.value, true);
+			}
 			progress.setCounter(count.label, count.value);
+			if (before != null && count.value > before)
+			{
+				grindLabel = count.label;
+				grindAt = System.currentTimeMillis();
+			}
+			if (config.dryMilestones() && before != null)
+			{
+				// Checked a few ticks on, once this kill's own "new item" line or pop-up has marked its slot owned.
+				milestones.add(count.label, before, count.value, client.getTickCount());
+			}
 			if (config.learnPace())
 			{
 				progress.paceFor(count.label).record(count.value, System.currentTimeMillis());
@@ -414,6 +606,44 @@ public class CodexLogInsightPlugin extends Plugin
 		if (slot != null)
 		{
 			announced(slot, Announcements.Channel.CHAT);
+		}
+	}
+
+	@Subscribe
+	public void onStatChanged(StatChanged event)
+	{
+		// Only a new level matters (experience moves with every action while skilling, and the read runs quest
+		// scripts); at login every skill arrives at once, so the read waits for the burst to pass.
+		Integer before = statLevels.put(event.getSkill(), event.getLevel());
+		if (before == null || before != event.getLevel())
+		{
+			statsChangedAt = client.getTickCount();
+		}
+	}
+
+	/**
+	 * Notices when the game is set to announce no new slots, which leaves Log Insight blind to finds: the Ledger says
+	 * so, and one chat line says it once a session.
+	 */
+	private void watchNotices()
+	{
+		int setting = client.getVarbitValue(VarbitID.OPTION_COLLECTION_NEW_ITEM);
+		if (setting != notices)
+		{
+			notices = setting;
+			dirty = true;
+		}
+		if (setting == 0 && !noticesWarned && progress != null && config.chatLine())
+		{
+			noticesWarned = true;
+			chatMessageManager.queue(QueuedMessage.builder()
+				.type(ChatMessageType.CONSOLE)
+				.runeLiteFormattedMessage(new ChatMessageBuilder()
+					.append(ChatColorType.HIGHLIGHT).append("Log Insight: ")
+					.append(ChatColorType.NORMAL).append("the game is set to announce no new collection log slots, so finds"
+						+ " go unseen. Turn on new addition notifications in the game's settings.")
+					.build())
+				.build());
 		}
 	}
 
@@ -452,10 +682,16 @@ public class CodexLogInsightPlugin extends Plugin
 	{
 		unlocksReadAt = client.getTickCount();
 		Map<String, Integer> levels = new HashMap<>();
+		Set<String> maxed = new HashSet<>();
 		for (Skill skill : Skill.values())
 		{
 			levels.put(skill.name(), client.getRealSkillLevel(skill));
+			if (client.getSkillExperience(skill) >= Experience.MAX_SKILL_XP)
+			{
+				maxed.add(skill.name());
+			}
 		}
+		rescale(levels, maxed);
 		Set<String> unfinished = new HashSet<>();
 		for (Map.Entry<String, Quest> quest : questsNeeded.entrySet())
 		{
@@ -470,6 +706,26 @@ public class CodexLogInsightPlugin extends Plugin
 			unlocks = read;
 			dirty = true;
 		}
+	}
+
+	/** Puts skilling pets at this account's levels; only a change in one of their skills builds new tables. */
+	private void rescale(Map<String, Integer> levels, Set<String> maxed)
+	{
+		Map<String, Integer> key = new HashMap<>();
+		for (String skill : baseData.scaledSkills())
+		{
+			Integer level = levels.get(skill);
+			// A 200M skill is keyed apart from a 99 one: its pet is fifteen times likelier.
+			key.put(skill, level == null ? 0 : maxed.contains(skill) ? level + 1000 : level);
+		}
+		if (key.equals(scaledAt))
+		{
+			return;
+		}
+		scaledAt = key;
+		data = baseData.atLevels(levels, maxed);
+		analyst = new Analyst(data);
+		dirty = true;
 	}
 
 	/** Reads the page open in the collection log: its counters and which slots are owned. */
@@ -497,6 +753,10 @@ public class CodexLogInsightPlugin extends Plugin
 			if (counter != null)
 			{
 				labels.add(counter.label);
+				if (session != null)
+				{
+					session.observe(counter.label, counter.value, false);
+				}
 				progress.setCounter(counter.label, counter.value);
 			}
 		}
@@ -575,6 +835,7 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 		List<LogStructure.Page> pages = itemId > 0 ? structure.pagesOf(itemId) : java.util.Collections.emptyList();
 		String page = pages.isEmpty() ? null : pages.get(0).getName();
+		boolean wasWanted = itemId > 0 && progress.isWanted(itemId);
 		if (itemId > 0)
 		{
 			progress.addOwned(itemId);
@@ -589,7 +850,8 @@ public class CodexLogInsightPlugin extends Plugin
 		if (config.showPlaque())
 		{
 			plaque.show(new FindPlaque.View(name, page, odd, verdict, color, itemId > 0 && data.isPet(itemId),
-				itemId > 0 ? itemManager.getImage(itemId) : null, System.currentTimeMillis(), config.plaqueSeconds() * 1000L));
+				itemId > 0 ? itemManager.getImage(itemId) : null, System.currentTimeMillis(), config.plaqueSeconds() * 1000L,
+				wasWanted));
 		}
 		if (config.chatLine() && (chance > 0 || verdict != null))
 		{
@@ -604,12 +866,56 @@ public class CodexLogInsightPlugin extends Plugin
 			{
 				line.append(". ").append(ChatColorType.HIGHLIGHT).append(verdict).append(ChatColorType.NORMAL);
 			}
-			line.append(".");
+			line.append(wasWanted ? ". Off your wanted list." : ".");
 			chatMessageManager.queue(QueuedMessage.builder()
 				.type(ChatMessageType.CONSOLE)
 				.runeLiteFormattedMessage(line.build())
 				.build());
 		}
+	}
+
+	/** Marks a slot wanted or not, from a click in the panel, and shows the change at the next tick. */
+	private void toggleWanted(int itemId)
+	{
+		if (progress == null || !progress.toggleWanted(itemId))
+		{
+			return;
+		}
+		changed();
+		// A click deserves an answer now, not after the usual pause between analyses.
+		ticksSinceAnalysis = ANALYSE_GAP_TICKS;
+	}
+
+	/** One chat line when a kill takes you past a dry milestone on a slot you are still missing. */
+	private void announceMilestones(String label, int before, int after)
+	{
+		List<DryWatch.Milestone> passed = DryWatch.passed(data, progress.getOwned(), progress.getCounters(), label, before, after);
+		if (passed.isEmpty())
+		{
+			return;
+		}
+		DryWatch.Milestone top = passed.get(0);
+		String name = structure.name(top.getItemId());
+		if (name == null || name.isEmpty())
+		{
+			return;
+		}
+		ChatMessageBuilder line = new ChatMessageBuilder()
+			.append(ChatColorType.HIGHLIGHT).append("Log Insight: ")
+			.append(ChatColorType.NORMAL).append(Format.count(after) + " " + Format.counterName(label) + " kc. ")
+			.append(capitalise(top.players()) + " would have ")
+			.append(ChatColorType.HIGHLIGHT).append(name)
+			.append(ChatColorType.NORMAL).append((passed.size() > 1 ? " and " + (passed.size() - 1) + " more" : "")
+				+ " by now (" + Format.chance(top.getChance()) + ").");
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.CONSOLE)
+			.runeLiteFormattedMessage(line.build())
+			.build());
+	}
+
+	private static String capitalise(String text)
+	{
+		return text.isEmpty() ? text : Character.toUpperCase(text.charAt(0)) + text.substring(1);
 	}
 
 	private void changed()
@@ -700,21 +1006,19 @@ public class CodexLogInsightPlugin extends Plugin
 			return;
 		}
 		profile = key;
-		Progress loaded = null;
 		String json = configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, PROGRESS_KEY);
-		if (json != null && !json.isEmpty())
+		SavedJson.Read<Progress> read = Progress.load(gson, json);
+		if (read.isDamaged() && json != null
+			&& !json.equals(configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, PROGRESS_KEY + UNREADABLE)))
 		{
-			try
-			{
-				loaded = gson.fromJson(json, Progress.class);
-			}
-			catch (JsonParseException e)
-			{
-				log.warn("Could not read saved collection log progress, starting fresh", e);
-			}
+			// Kept aside before the next save writes over it, so damaged or newer-version progress is never lost.
+			log.warn("Could not read all of the saved collection log progress; the saved text is kept as {}", PROGRESS_KEY + UNREADABLE);
+			configManager.setConfiguration(CodexLogInsightConfig.GROUP, key, PROGRESS_KEY + UNREADABLE, json);
 		}
+		Progress loaded = read.getValue();
 		progress = loaded == null ? new Progress() : loaded;
 		seedFromChatCommands();
+		session = new Session(progress.getOwned(), System.currentTimeMillis());
 	}
 
 	/**
@@ -764,6 +1068,8 @@ public class CodexLogInsightPlugin extends Plugin
 		Progress snapshot = progress.copy();
 		LogStructure shape = structure;
 		boolean iron = ironRates();
+		ironShown = iron;
+		int setting = notices;
 		boolean pace = config.learnPace();
 		Unlocks can = unlocks;
 		int owned = officialOwned;
@@ -771,13 +1077,20 @@ public class CodexLogInsightPlugin extends Plugin
 		Player player = client.getLocalPlayer();
 		String name = player == null ? null : player.getName();
 		int ticket = generation.incrementAndGet();
+		Analyst reader = analyst;
+		// Read here, on the client thread that updates the session, rather than beside the analysis.
+		Session.Summary summary = session == null ? null : session.read(data, snapshot, System.currentTimeMillis());
+		String grindOn = config.grindCard() ? grindLabel : null;
+		long grindSince = grindAt;
 		executor.execute(() ->
 		{
 			try
 			{
-				Report report = analyst.analyse(shape, snapshot, iron, pace, owned, total, can);
+				Report report = reader.analyse(shape, snapshot, iron, pace, owned, total, can).withSession(summary)
+					.withNotices(setting);
 				if (ticket == generation.get())
 				{
+					grindCard.setGrind(Grind.of(report, grindOn, grindSince));
 					publish(report, name);
 				}
 			}
@@ -794,6 +1107,72 @@ public class CodexLogInsightPlugin extends Plugin
 		if (target != null)
 		{
 			SwingUtilities.invokeLater(() -> target.update(report, name));
+		}
+	}
+
+	/** Asks where to save the finest finds card (on the Swing thread), then writes it off that thread. */
+	private void saveCard(BufferedImage card, String fileName)
+	{
+		LogInsightPanel view = panel;
+		if (view == null)
+		{
+			return;
+		}
+		List<Filepath> chosen = new Filepath.Chooser()
+			.setIsSave()
+			.setAcceptsFiles()
+			.setDialogTitle("Save finest finds card")
+			.addExtensionFilter("PNG image", "png")
+			.setDefaultExtension("png")
+			.setFileName(fileName)
+			.showDialog(view);
+		if (chosen == null || chosen.isEmpty())
+		{
+			return;
+		}
+		Filepath target = chosen.get(0);
+		executor.execute(() ->
+		{
+			String note;
+			try (OutputStream out = target.openOutputStream())
+			{
+				ImageIO.write(card, "png", out);
+				note = "Saved as " + target.getFileName() + ".";
+			}
+			catch (IOException e)
+			{
+				log.warn("Could not save the finest finds card", e);
+				note = "The card could not be saved: " + e.getMessage();
+			}
+			String shown = note;
+			SwingUtilities.invokeLater(() ->
+			{
+				LogInsightPanel p = panel;
+				if (p != null)
+				{
+					p.shareNote(shown);
+				}
+			});
+		});
+	}
+
+	/** Puts the finest finds card on the clipboard; called on the Swing thread. */
+	private void copyCard(BufferedImage card)
+	{
+		String note;
+		try
+		{
+			Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new ImageTransfer(ImageTransfer.opaque(card)), null);
+			note = "Copied. Paste it anywhere you share pictures.";
+		}
+		catch (IllegalStateException e)
+		{
+			note = "The clipboard is busy, try again in a moment.";
+		}
+		LogInsightPanel p = panel;
+		if (p != null)
+		{
+			p.shareNote(note);
 		}
 	}
 }

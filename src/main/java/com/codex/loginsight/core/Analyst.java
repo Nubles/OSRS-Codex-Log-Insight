@@ -32,7 +32,14 @@ public final class Analyst
 	/** The counter each activity advances, when its slots agree on one. */
 	private final Map<Integer, String> activityLabels = new HashMap<>();
 	private static final int MAX_CACHED = 20_000;
+	/**
+	 * Curves are kilobytes each and a new own pace misses for every page it touches, so they get a much
+	 * smaller budget than evaluations: about ten full reports' worth.
+	 */
+	private static final int MAX_CURVES = 2_500;
 	private final Map<String, Eval> evaluations = new java.util.concurrent.ConcurrentHashMap<>();
+	/** Page curves by the evaluations and rates they came from; null values are kept too, for pages with none. */
+	private final Map<List<Object>, Projection> projections = java.util.Collections.synchronizedMap(new HashMap<>());
 
 	public Analyst(LogData data)
 	{
@@ -81,7 +88,7 @@ public final class Analyst
 		{
 			for (LogStructure.Page page : tab.getPages())
 			{
-				Report.PageReport report = page(structure, page, progress, rates);
+				Report.PageReport report = page(structure, page, progress, rates, unlocks);
 				pages.add(report);
 				if (report.isComplete())
 				{
@@ -108,11 +115,25 @@ public final class Analyst
 		Finish finish = finish(missing, owned, rates);
 		Luck luck = luck(unique, owned, counters);
 		List<Report.ItemReport> driest = driest(structure, missing, progress, rates);
-		List<Report.Hunt> hunts = hunts(structure, owned, rates, unlocks);
+		List<Prospect> prospects = new ArrayList<>();
+		List<Report.Hunt> hunts = hunts(structure, owned, rates, unlocks, prospects);
+		List<PetPlan> pets = pets(structure, unique, owned, rates, unlocks);
 
-		return new Report(true, !structure.isEmpty(), officialOwned, officialTotal, knownOwned, unique.size(),
+		Report report = new Report(true, !structure.isEmpty(), officialOwned, officialTotal, knownOwned, unique.size(),
 			progress.getFullReadAt(), progress.pagesReadCount(), pages.size(), complete, luck, finish.hours,
-			finish.unrated, iron, pages, hunts, driest, progress.getFinds());
+			finish.unrated, iron, pages, hunts, driest, progress.getFinds(), prospects, pets);
+		List<Report.ItemReport> wanted = new ArrayList<>();
+		for (int id : progress.getWanted())
+		{
+			if (!owned.contains(id) && unique.contains(id))
+			{
+				List<LogStructure.Page> where = structure.pagesOf(id);
+				wanted.add(item(structure, id, where.isEmpty() ? null : where.get(0).getName(), progress, rates));
+			}
+		}
+		report.setWanted(wanted);
+		report.setTrophies(progress.getTrophies());
+		return report;
 	}
 
 	/** Builds the report for one slot, for the panel and for the drop plaque. */
@@ -121,7 +142,8 @@ public final class Analyst
 		return item(structure, itemId, page, progress, new Rates(progress, iron, true));
 	}
 
-	private Report.PageReport page(LogStructure structure, LogStructure.Page page, Progress progress, Rates rates)
+	private Report.PageReport page(LogStructure structure, LogStructure.Page page, Progress progress, Rates rates,
+		Unlocks unlocks)
 	{
 		Set<Integer> owned = progress.getOwned();
 		Map<String, Integer> counters = progress.getCounters();
@@ -179,7 +201,7 @@ public final class Analyst
 		Luck luck = luck(page.getItems(), owned, counters);
 		return new Report.PageReport(page.getTab(), page.getName(), ownedCount, page.getItems().size(), lines,
 			count == null ? -1 : count, mainLabel, luck, finish.hours, next.hours, next.source, finish.unrated,
-			progress.isPageRead(page.getName()), items);
+			progress.isPageRead(page.getName()), items, projection(structure, missing, owned, rates, unlocks));
 	}
 
 	private Report.ItemReport item(LogStructure structure, int id, String page, Progress progress, Rates rates)
@@ -287,7 +309,8 @@ public final class Analyst
 		return shown;
 	}
 
-	private List<Report.Hunt> hunts(LogStructure structure, Set<Integer> owned, Rates rates, Unlocks unlocks)
+	private List<Report.Hunt> hunts(LogStructure structure, Set<Integer> owned, Rates rates, Unlocks unlocks,
+		List<Prospect> prospects)
 	{
 		Set<Integer> inLog = new HashSet<>();
 		for (LogStructure.Tab tab : structure.getTabs())
@@ -328,11 +351,171 @@ public final class Analyst
 				eval.nextItem, eval.nextItem < 0 ? null : structure.name(eval.nextItem), eval.nextChance, eval.nextExact, perHour,
 				rates.isOwnPace(activity), pet, eval.missing, petHours, petItem, petItem < 0 ? null : structure.name(petItem),
 				unlocks.missing(activity)));
+			prospects.add(prospect(structure, activity, eval, rates, unlocks.missing(activity)));
 		}
 		// What can be done now comes first, each part ranked by the wait for a new slot.
 		hunts.sort(Comparator.comparing((Report.Hunt h) -> h.getLockedBy() != null)
 			.thenComparingDouble(Report.Hunt::getHoursToNext));
 		return hunts;
+	}
+
+	/**
+	 * Every missing pet as a hunt at its quickest source the account can do, or its quickest
+	 * source at all when it can do none yet. Pets it can hunt now come first, quickest first.
+	 */
+	private List<PetPlan> pets(LogStructure structure, Set<Integer> unique, Set<Integer> owned, Rates rates, Unlocks unlocks)
+	{
+		List<PetPlan> plans = new ArrayList<>();
+		for (int id : unique)
+		{
+			if (!data.isPet(id) || owned.contains(id))
+			{
+				continue;
+			}
+			Activity.Drop best = null;
+			boolean bestOpen = false;
+			double bestHours = Double.POSITIVE_INFINITY;
+			for (Activity.Drop drop : data.dropsOf(id))
+			{
+				Activity activity = data.activity(drop.getActivityIndex());
+				double hours = rates.hoursFor(activity, drop.getAttempts());
+				boolean open = unlocks.missing(activity) == null;
+				if (Double.isFinite(hours) && (best == null || open && !bestOpen || open == bestOpen && hours < bestHours))
+				{
+					best = drop;
+					bestOpen = open;
+					bestHours = hours;
+				}
+			}
+			if (best == null)
+			{
+				continue;
+			}
+			Activity activity = data.activity(best.getActivityIndex());
+			String locked = unlocks.missing(activity);
+			double attempts = Math.max(1, best.getAttempts());
+			Prospect hunt = new Prospect(activity.getName(), activity.getCategory(), rates.perHour(activity),
+				activity.getSetupHours(), rates.isOwnPace(activity), locked, id, structure.name(id),
+				best.isExact() ? new double[0] : new double[]{attempts}, best.isExact() ? new int[0] : new int[]{1},
+				best.isExact() ? new double[]{attempts} : new double[0], java.util.Collections.singletonList(id));
+			Eval rest = evaluate(activity, owned, other -> other != id && unique.contains(other));
+			Prospect alongside = prospect(structure, activity, rest, rates, locked);
+			List<LogStructure.Page> pages = structure.pagesOf(id);
+			plans.add(new PetPlan(id, structure.name(id), pages.isEmpty() ? null : pages.get(0).getName(), hunt, alongside,
+				1 / attempts, levelUp(best, unlocks)));
+		}
+		plans.sort(Comparator.comparing((PetPlan p) -> p.getLockedBy() != null).thenComparingDouble(PetPlan::getMedian));
+		return plans;
+	}
+
+	/**
+	 * For a skilling pet, what more of its skill would do for the odds: the chance at 99, or once there, at 200M
+	 * experience. Null for any other pet, and when the account's level is not known.
+	 */
+	static PetPlan.LevelUp levelUp(Activity.Drop drop, Unlocks unlocks)
+	{
+		Integer level = drop.isLevelScaled() ? unlocks.level(drop.getScaleSkill()) : null;
+		if (level == null || level <= 0)
+		{
+			return null;
+		}
+		double base = drop.getScaleBase();
+		boolean maxed = level >= 99 && Math.abs(drop.getAttempts() - Activity.Drop.petAttempts(base, 99, true)) < 1e-6;
+		if (maxed)
+		{
+			return null;
+		}
+		boolean at99 = level >= 99;
+		return new PetPlan.LevelUp(drop.getScaleSkill(), Math.min(99, level), at99,
+			1 / Activity.Drop.petAttempts(base, 99, at99));
+	}
+
+	/** When these missing slots of one page are likely all owned, each hunted at its fastest source in turn. */
+	private Projection projection(LogStructure structure, List<Integer> missing, Set<Integer> owned, Rates rates,
+		Unlocks unlocks)
+	{
+		if (missing.isEmpty())
+		{
+			return null;
+		}
+		Map<Integer, Set<Integer>> byActivity = new LinkedHashMap<>();
+		int unrated = 0;
+		for (int id : missing)
+		{
+			Activity.Drop fastest = fastestOpen(id, rates, unlocks);
+			if (fastest == null)
+			{
+				unrated++;
+				continue;
+			}
+			byActivity.computeIfAbsent(fastest.getActivityIndex(), k -> new HashSet<>()).add(id);
+		}
+		// Evaluations are shared between reports for the same shape, so the same evaluations at the same rates
+		// give the same curve: a new kill count reuses it, and only a new slot or a new pace works it out again.
+		List<Object> key = new ArrayList<>();
+		key.add(unrated);
+		List<Activity> activities = new ArrayList<>();
+		List<Eval> evals = new ArrayList<>();
+		for (Map.Entry<Integer, Set<Integer>> e : byActivity.entrySet())
+		{
+			Activity activity = data.activity(e.getKey());
+			Eval eval = evaluate(activity, owned, e.getValue()::contains);
+			activities.add(activity);
+			evals.add(eval);
+			key.add(eval);
+			key.add(rates.perHour(activity));
+			key.add(String.valueOf(unlocks.missing(activity)));
+		}
+		Projection cached = projections.get(key);
+		if (cached != null || projections.containsKey(key))
+		{
+			return cached;
+		}
+		List<Prospect> parts = new ArrayList<>();
+		for (int i = 0; i < activities.size(); i++)
+		{
+			parts.add(prospect(structure, activities.get(i), evals.get(i), rates, unlocks.missing(activities.get(i))));
+		}
+		Projection projection = Projection.of(parts, unrated);
+		if (projections.size() > MAX_CURVES)
+		{
+			projections.clear();
+		}
+		projections.put(key, projection);
+		return projection;
+	}
+
+	/**
+	 * The quickest source of a slot that the account can do now, or its quickest source at all when it can do
+	 * none yet, so a page is only shown as locked when every way to finish it is.
+	 */
+	private Activity.Drop fastestOpen(int itemId, Rates rates, Unlocks unlocks)
+	{
+		Activity.Drop fastest = rates.fastest(itemId);
+		if (fastest == null || unlocks.missing(data.activity(fastest.getActivityIndex())) == null)
+		{
+			return fastest;
+		}
+		Activity.Drop best = null;
+		double bestHours = Double.POSITIVE_INFINITY;
+		for (Activity.Drop drop : data.dropsOf(itemId))
+		{
+			Activity activity = data.activity(drop.getActivityIndex());
+			double hours = rates.hoursFor(activity, drop.getAttempts());
+			if (hours < bestHours && unlocks.missing(activity) == null)
+			{
+				bestHours = hours;
+				best = drop;
+			}
+		}
+		return best == null ? fastest : best;
+	}
+
+	private Prospect prospect(LogStructure structure, Activity activity, Eval eval, Rates rates, String lockedBy)
+	{
+		return new Prospect(activity.getName(), activity.getCategory(), rates.perHour(activity), activity.getSetupHours(),
+			rates.isOwnPace(activity), lockedBy, eval.nextItem, eval.nextItem < 0 ? null : structure.name(eval.nextItem),
+			eval.means, eval.stages, eval.exact, eval.missing);
 	}
 
 	/** Hours to finish these slots, each hunted at its fastest source. */
@@ -423,7 +606,9 @@ public final class Analyst
 		Eval eval = compute(activity, owned, include);
 		if (evaluations.size() > MAX_CACHED)
 		{
+			// Curves hold on to evaluations by identity, so they go with them.
 			evaluations.clear();
+			projections.clear();
 		}
 		evaluations.put(cacheKey, eval);
 		return eval;
@@ -437,6 +622,7 @@ public final class Analyst
 		int exactItem = -1;
 		double bestChance = 0;
 		double fixed = 0;
+		List<Double> exactCosts = new ArrayList<>();
 		List<double[]> runs = new ArrayList<>();
 		boolean previousOwned = false;
 		boolean previousRolledOpen = false;
@@ -453,6 +639,7 @@ public final class Analyst
 				if (drop.isExact())
 				{
 					fixed += attempts;
+					exactCosts.add(attempts);
 					if (canRoll && attempts < exactNext)
 					{
 						exactNext = attempts;
@@ -499,6 +686,13 @@ public final class Analyst
 		{
 			means[i] = runs.get(i)[0];
 			stages[i] = (int) runs.get(i)[1];
+		}
+		eval.means = means;
+		eval.stages = stages;
+		eval.exact = new double[exactCosts.size()];
+		for (int i = 0; i < eval.exact.length; i++)
+		{
+			eval.exact[i] = exactCosts.get(i);
 		}
 		eval.remaining = eval.missing.size();
 		eval.nextChance = bestChance;
@@ -592,6 +786,9 @@ public final class Analyst
 		double nextChance;
 		double nextAttempts;
 		double allAttempts;
+		double[] means = new double[0];
+		int[] stages = new int[0];
+		double[] exact = new double[0];
 	}
 
 	private static final class Finish

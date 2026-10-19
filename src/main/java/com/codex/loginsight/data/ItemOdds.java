@@ -82,7 +82,8 @@ public final class ItemOdds
 		{
 			return 0;
 		}
-		return Math.exp(logMiss);
+		// Never exactly 0 unless guaranteed: a dry streak of hundreds of thousands of kills underflows a double.
+		return Math.max(Double.MIN_VALUE, Math.exp(logMiss));
 	}
 
 	@Getter

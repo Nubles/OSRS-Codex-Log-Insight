@@ -31,12 +31,36 @@ public final class Report
 	private final List<Hunt> hunts;
 	private final List<ItemReport> driest;
 	private final List<Progress.Find> finds;
+	/** Every activity with slots left that can be timed, for planning a stretch of play. */
+	private final List<Prospect> prospects;
+	/** Every missing pet as a hunt, quickest first. */
+	private final List<PetPlan> pets;
+	/** This play session, or null when logged out. Set once, before the report is handed to the panel. */
+	private Session.Summary session;
+	/** The slots you marked as wanted and still miss, in the order marked. */
+	private List<ItemReport> wanted = Collections.emptyList();
+	/** The game's new-slot notification setting, as {@link Setup#of} reads it. Set once, like the session. */
+	private int notices = Setup.NOTICES_UNKNOWN;
+	/** The finest finds for the trophy shelf, rarest first. Set once, like the wanted list. */
+	private List<Progress.Find> trophies = Collections.emptyList();
 
 	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
 		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
 		int unratedMissing, boolean ironRates, List<PageReport> pages, List<Hunt> hunts, List<ItemReport> driest,
 		List<Progress.Find> finds)
 	{
+		this(loggedIn, structureLoaded, officialOwned, officialTotal, knownOwned, totalSlots, fullReadAt, pagesRead,
+			pagesTotal, pagesComplete, luck, hoursLeft, unratedMissing, ironRates, pages, hunts, driest, finds,
+			Collections.emptyList(), Collections.emptyList());
+	}
+
+	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
+		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
+		int unratedMissing, boolean ironRates, List<PageReport> pages, List<Hunt> hunts, List<ItemReport> driest,
+		List<Progress.Find> finds, List<Prospect> prospects, List<PetPlan> pets)
+	{
+		this.prospects = Collections.unmodifiableList(prospects);
+		this.pets = Collections.unmodifiableList(pets);
 		this.loggedIn = loggedIn;
 		this.structureLoaded = structureLoaded;
 		this.officialOwned = officialOwned;
@@ -55,6 +79,63 @@ public final class Report
 		this.hunts = Collections.unmodifiableList(hunts);
 		this.driest = Collections.unmodifiableList(driest);
 		this.finds = Collections.unmodifiableList(finds);
+	}
+
+	/** This report with the session's summary attached. */
+	public Report withSession(Session.Summary summary)
+	{
+		Report copy = new Report(loggedIn, structureLoaded, officialOwned, officialTotal, knownOwned, totalSlots, fullReadAt,
+			pagesRead, pagesTotal, pagesComplete, luck, hoursLeft, unratedMissing, ironRates, pages, hunts, driest, finds,
+			prospects, pets);
+		copy.session = summary;
+		copy.wanted = wanted;
+		copy.notices = notices;
+		copy.trophies = trophies;
+		return copy;
+	}
+
+	/** Records the game's new-slot notification setting; called once before the report is handed to the panel. */
+	public Report withNotices(int setting)
+	{
+		notices = setting;
+		return this;
+	}
+
+	/** What is left to set up, for the Ledger's first card. */
+	public Setup setup()
+	{
+		return Setup.of(this, notices);
+	}
+
+	/** Sets the wanted slots; called once by the analyst before the report is handed on. */
+	void setWanted(List<ItemReport> wanted)
+	{
+		this.wanted = Collections.unmodifiableList(wanted);
+	}
+
+	/** Sets the trophy shelf; called once by the analyst before the report is handed on. */
+	void setTrophies(List<Progress.Find> trophies)
+	{
+		this.trophies = Collections.unmodifiableList(trophies);
+	}
+
+	/** The rarest finds ever seen, rarest first. */
+	public List<Progress.Find> getTrophies()
+	{
+		return trophies;
+	}
+
+	/** True when this slot is on the wanted list. */
+	public boolean isWanted(int itemId)
+	{
+		for (ItemReport item : wanted)
+		{
+			if (item.getItemId() == itemId)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static Report loggedOut()
@@ -143,11 +224,22 @@ public final class Report
 		private final int unrated;
 		private final boolean read;
 		private final List<ItemReport> items;
+		/** When the page is likely to be finished, or null when it is or cannot be projected. */
+		private final Projection projection;
 
 		public PageReport(String tab, String name, int owned, int total, List<String> counters, int count,
 			String countLabel, Luck luck, double hoursToFinish, double hoursToNext, String nextSource, int unrated,
 			boolean read, List<ItemReport> items)
 		{
+			this(tab, name, owned, total, counters, count, countLabel, luck, hoursToFinish, hoursToNext, nextSource, unrated,
+				read, items, null);
+		}
+
+		public PageReport(String tab, String name, int owned, int total, List<String> counters, int count,
+			String countLabel, Luck luck, double hoursToFinish, double hoursToNext, String nextSource, int unrated,
+			boolean read, List<ItemReport> items, Projection projection)
+		{
+			this.projection = projection;
 			this.tab = tab;
 			this.name = name;
 			this.owned = owned;
