@@ -167,6 +167,8 @@ public class CodexLogInsightPlugin extends Plugin
 	private boolean notificationStarted;
 	/** The chat line and the pop-up can both announce one slot; the second is ignored. */
 	private final Announcements announcements = new Announcements();
+	/** Kill count changes waiting a few ticks for the same kill's new-slot messages before milestones are checked. */
+	private final DryWatch.Queue milestones = new DryWatch.Queue();
 
 	@Provides
 	CodexLogInsightConfig provideConfig(ConfigManager configManager)
@@ -228,6 +230,7 @@ public class CodexLogInsightPlugin extends Plugin
 		clientThread.invokeLater(() ->
 		{
 			save();
+			milestones.clear();
 			progress = null;
 			profile = null;
 		});
@@ -290,6 +293,7 @@ public class CodexLogInsightPlugin extends Plugin
 				analyst = new Analyst(data);
 			}
 			announcements.clear();
+			milestones.clear();
 			plaque.clear();
 			publish(Report.loggedOut(), null);
 		}
@@ -299,6 +303,8 @@ public class CodexLogInsightPlugin extends Plugin
 	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event)
 	{
 		save();
+		// A kill counted on the account before the switch is not this account's milestone.
+		milestones.clear();
 		progress = null;
 		loadProgress();
 		dirty = true;
@@ -334,6 +340,16 @@ public class CodexLogInsightPlugin extends Plugin
 		{
 			buildStructure();
 			dirty |= !structure.isEmpty();
+		}
+		if (!milestones.isEmpty() && progress != null)
+		{
+			for (DryWatch.Pending due : milestones.due(client.getTickCount()))
+			{
+				if (config.dryMilestones() && DryWatch.ownedKnown(progress.getFullReadAt(), officialOwned, progress.getOwned().size()))
+				{
+					announceMilestones(due.getLabel(), due.getBefore(), due.getAfter());
+				}
+			}
 		}
 		if (lastTransmitTick >= 0 && client.getTickCount() - lastTransmitTick > TRANSMIT_SETTLE_TICKS)
 		{
@@ -428,10 +444,10 @@ public class CodexLogInsightPlugin extends Plugin
 				session.observe(count.label, count.value, true);
 			}
 			progress.setCounter(count.label, count.value);
-			if (config.dryMilestones() && before != null
-				&& DryWatch.ownedKnown(progress.getFullReadAt(), officialOwned, progress.getOwned().size()))
+			if (config.dryMilestones() && before != null)
 			{
-				announceMilestones(count.label, before, count.value);
+				// Checked a few ticks on, once this kill's own "new item" line or pop-up has marked its slot owned.
+				milestones.add(count.label, before, count.value, client.getTickCount());
 			}
 			if (config.learnPace())
 			{

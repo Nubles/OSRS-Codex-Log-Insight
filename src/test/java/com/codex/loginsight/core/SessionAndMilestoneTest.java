@@ -177,6 +177,51 @@ public class SessionAndMilestoneTest
 	}
 
 	@Test
+	public void theKillThatDropsTheSlotIsNotCalledDryOnIt()
+	{
+		LogData data = data();
+		Progress p = progress(0);
+		DryWatch.Queue queue = new DryWatch.Queue();
+		// Kill 230 drops the head. The kill count line comes first, the "new item" line just after.
+		queue.add("Beast kills", 229, 230, 1_000);
+		// Checked at once (the old way) the head would still look missing.
+		assertEquals(1, DryWatch.passed(data, p.getOwned(), p.getCounters(), "Beast kills", 229, 230).size());
+		assertTrue(queue.due(1_000).isEmpty());
+		p.addOwned(HEAD);
+		assertTrue(queue.due(1_000 + DryWatch.SETTLE_TICKS - 1).isEmpty());
+		List<DryWatch.Pending> due = queue.due(1_000 + DryWatch.SETTLE_TICKS);
+		assertEquals(1, due.size());
+		assertTrue(queue.isEmpty());
+		DryWatch.Pending kill = due.get(0);
+		// By the time it is checked the slot is owned, so nothing is said about it.
+		assertTrue(DryWatch.passed(data, p.getOwned(), p.getCounters(), kill.getLabel(), kill.getBefore(), kill.getAfter()).isEmpty());
+
+		// Without a drop, the same kill still gets its line, just a moment later.
+		Progress dry = progress(0);
+		queue.add("Beast kills", 229, 230, 2_000);
+		DryWatch.Pending late = queue.due(2_000 + DryWatch.SETTLE_TICKS).get(0);
+		assertEquals(1, DryWatch.passed(data, dry.getOwned(), dry.getCounters(), late.getLabel(), late.getBefore(), late.getAfter()).size());
+	}
+
+	@Test
+	public void quickKillsOfOneCounterAreCheckedTogether()
+	{
+		DryWatch.Queue queue = new DryWatch.Queue();
+		queue.add("Beast kills", 228, 229, 10);
+		queue.add("Beast kills", 229, 230, 11);
+		queue.add("Other kills", 5, 6, 11);
+		assertTrue(queue.due(10 + DryWatch.SETTLE_TICKS).isEmpty());
+		List<DryWatch.Pending> due = queue.due(11 + DryWatch.SETTLE_TICKS);
+		assertEquals(2, due.size());
+		// One check across both kills: 228 to 230 still passes 230 once.
+		assertEquals(228, due.get(0).getBefore());
+		assertEquals(230, due.get(0).getAfter());
+		// A tick count that starts again (a new login) settles what waited rather than holding it for ever.
+		queue.add("Beast kills", 300, 301, 50_000);
+		assertEquals(1, queue.due(5).size());
+	}
+
+	@Test
 	public void milestonesWaitUntilTheLogHasBeenRead()
 	{
 		// Never searched: every slot would look missing.

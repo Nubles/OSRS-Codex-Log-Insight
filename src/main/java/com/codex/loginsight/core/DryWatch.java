@@ -20,8 +20,85 @@ public final class DryWatch
 	/** Shares of players who would own the slot by now, in order. */
 	static final double[] MILESTONES = {0.9, 0.99};
 
+	/**
+	 * Ticks a milestone waits before it is checked. On the kill that drops a new slot the game may send the kill
+	 * count before the "New item added to your collection log" line, or the pop-up a moment later; checked at once,
+	 * the chat would call you dry on the very slot you just got.
+	 */
+	public static final int SETTLE_TICKS = 3;
+
 	private DryWatch()
 	{
+	}
+
+	/** A kill count change waiting for the new-slot messages of the same kill before its milestones are checked. */
+	@Getter
+	public static final class Pending
+	{
+		private final String label;
+		private final int before;
+		private int after;
+		private int dueTick;
+
+		Pending(String label, int before, int after, int dueTick)
+		{
+			this.label = label;
+			this.before = before;
+			this.after = after;
+			this.dueTick = dueTick;
+		}
+	}
+
+	/**
+	 * Holds kill count changes until the messages of the same kill have arrived. Two changes of one counter before
+	 * the first is due become one (the earlier "before", the later "after"), so a fast kill does not say a
+	 * milestone twice or skip one.
+	 */
+	public static final class Queue
+	{
+		private final List<Pending> pending = new ArrayList<>();
+
+		/** Notes a counter moving from {@code before} to {@code after} at game tick {@code tick}. */
+		public void add(String label, int before, int after, int tick)
+		{
+			for (Pending p : pending)
+			{
+				if (p.label.equals(label))
+				{
+					p.after = after;
+					p.dueTick = tick + SETTLE_TICKS;
+					return;
+				}
+			}
+			pending.add(new Pending(label, before, after, tick + SETTLE_TICKS));
+		}
+
+		/** The changes whose messages have settled by game tick {@code tick}, taken out of the queue. */
+		public List<Pending> due(int tick)
+		{
+			List<Pending> out = new ArrayList<>();
+			pending.removeIf(p ->
+			{
+				// A tick count that went backwards is a new login: whatever waited is settled too.
+				if (tick >= p.dueTick || tick < p.dueTick - SETTLE_TICKS)
+				{
+					out.add(p);
+					return true;
+				}
+				return false;
+			});
+			return out;
+		}
+
+		public void clear()
+		{
+			pending.clear();
+		}
+
+		public boolean isEmpty()
+		{
+			return pending.isEmpty();
+		}
 	}
 
 	/** One slot passing a milestone. */
