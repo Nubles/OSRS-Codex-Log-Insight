@@ -4,6 +4,7 @@ import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
 import com.codex.loginsight.core.Session;
+import com.codex.loginsight.core.Setup;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
@@ -31,11 +32,10 @@ final class LedgerView
 			return stack;
 		}
 
-		if (report.needsFullRead())
+		Setup setup = report.setup();
+		if (!setup.isDone())
 		{
-			stack.add(callout("Read your whole log",
-				"Open your collection log and press its Search button once. Log Insight reads every slot you own from it, "
-					+ "and each page you open also refreshes that page's kill counts."));
+			stack.add(setupCard(setup, openPage));
 		}
 
 		Card dialCard = new Card(new BorderLayout());
@@ -287,14 +287,85 @@ final class LedgerView
 		return row;
 	}
 
-	static Card callout(String title, String text)
+	/**
+	 * The three things that make the numbers trustworthy, each ticked off as it is done: the whole log read, the
+	 * game announcing new slots, and kill counts on the pages you have finds on. Gone once all three are done.
+	 */
+	static Card setupCard(Setup setup, Consumer<String> openPage)
 	{
-		Card card = new Card(new BorderLayout(0, 3));
+		Card card = new Card(new BorderLayout(0, 4));
 		card.accent(Theme.GOLD).highlighted(true);
 		card.setBorder(new EmptyBorder(7, 10, 8, 10));
-		card.add(Ui.label(title, Theme.body(), Theme.GOLD_BRIGHT), BorderLayout.NORTH);
-		card.add(Ui.wrapped(text, Theme.small(), Theme.TEXT, 170), BorderLayout.CENTER);
+		card.add(Ui.label("Getting your log ready", Theme.body(), Theme.GOLD_BRIGHT), BorderLayout.NORTH);
+		StackPanel steps = new StackPanel(5, 0);
+		steps.add(step(setup.isLogRead() ? Mark.Kind.GOOD : Mark.Kind.WARN, "Whole log read",
+			setup.isLogRead() ? null : "Open your collection log and press its Search button once."));
+		if (setup.noticesKnown())
+		{
+			steps.add(step(setup.noticesOff() ? Mark.Kind.BAD : Mark.Kind.GOOD, "New slots announced",
+				setup.noticesOff() ? "The game announces none, so finds go unseen. Turn on the collection log's new"
+					+ " addition notification (chat or pop-up) in the game's settings." : null));
+		}
+		boolean counted = setup.getToOpenTotal() == 0;
+		steps.add(step(counted ? Mark.Kind.GOOD : Mark.Kind.NOTE, "Kill counts on " + setup.getPagesCounted() + " of "
+			+ setup.getPagesCountable() + " pages", counted ? null : "Open these once to count your finds there:"));
+		for (Report.PageReport page : setup.getToOpen())
+		{
+			// The name gives way before the count does: "Fishing from the Reward Pool" is wider than the card.
+			JPanel link = new JPanel(new BorderLayout(6, 0));
+			link.setOpaque(false);
+			JComponent name = Ui.label(page.getName(), Theme.small(), Theme.GOLD);
+			name.setMinimumSize(new java.awt.Dimension(10, name.getPreferredSize().height));
+			link.add(name, BorderLayout.CENTER);
+			link.add(Ui.label(page.getOwned() + (page.getOwned() == 1 ? " slot" : " slots"), Theme.small(), Theme.TEXT_MUTED),
+				BorderLayout.EAST);
+			link.setToolTipText("Open " + page.getName());
+			link.setBorder(new EmptyBorder(0, 18, 0, 0));
+			link.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+			link.addMouseListener(new java.awt.event.MouseAdapter()
+			{
+				@Override
+				public void mouseReleased(java.awt.event.MouseEvent e)
+				{
+					openPage.accept(page.getName());
+				}
+			});
+			steps.add(link);
+		}
+		int more = setup.getToOpenTotal() - setup.getToOpen().size();
+		if (more > 0)
+		{
+			JComponent rest = Ui.label("and " + more + " more", Theme.small(), Theme.TEXT_FAINT);
+			rest.setBorder(new EmptyBorder(0, 18, 0, 0));
+			steps.add(rest);
+		}
+		card.add(steps, BorderLayout.CENTER);
 		return card;
+	}
+
+	/** One setup step: its mark, what it is, and what to do while it is not done. */
+	private static JComponent step(Mark.Kind kind, String title, String todo)
+	{
+		JPanel row = new JPanel(new BorderLayout(6, 0));
+		row.setOpaque(false);
+		JPanel markHolder = new JPanel(new BorderLayout());
+		markHolder.setOpaque(false);
+		markHolder.add(new Mark(kind, 12), BorderLayout.NORTH);
+		row.add(markHolder, BorderLayout.WEST);
+		JPanel text = new JPanel();
+		text.setOpaque(false);
+		text.setLayout(new javax.swing.BoxLayout(text, javax.swing.BoxLayout.Y_AXIS));
+		JComponent head = Ui.label(title, Theme.small(), kind == Mark.Kind.GOOD ? Theme.TEXT_MUTED : Theme.TEXT);
+		head.setAlignmentX(0f);
+		text.add(head);
+		if (todo != null)
+		{
+			JComponent body = Ui.wrapped(todo, Theme.small(), Theme.TEXT_MUTED, 152);
+			body.setAlignmentX(0f);
+			text.add(body);
+		}
+		row.add(text, BorderLayout.CENTER);
+		return row;
 	}
 
 	/** A find: what, the odds and count it came at, then how lucky it was and when. */

@@ -39,6 +39,8 @@ public final class Report
 	private Session.Summary session;
 	/** The slots you marked as wanted and still miss, in the order marked. */
 	private List<ItemReport> wanted = Collections.emptyList();
+	/** The game's new-slot notification setting, as {@link Setup#of} reads it. Set once, like the session. */
+	private int notices = Setup.NOTICES_UNKNOWN;
 
 	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
 		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
@@ -85,7 +87,21 @@ public final class Report
 			prospects, pets);
 		copy.session = summary;
 		copy.wanted = wanted;
+		copy.notices = notices;
 		return copy;
+	}
+
+	/** Records the game's new-slot notification setting; called once before the report is handed to the panel. */
+	public Report withNotices(int setting)
+	{
+		notices = setting;
+		return this;
+	}
+
+	/** What is left to set up, for the Ledger's first card. */
+	public Setup setup()
+	{
+		return Setup.of(this, notices);
 	}
 
 	/** Sets the wanted slots; called once by the analyst before the report is handed on. */

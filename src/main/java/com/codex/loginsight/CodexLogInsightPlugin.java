@@ -10,6 +10,7 @@ import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
 import com.codex.loginsight.core.Session;
+import com.codex.loginsight.core.Setup;
 import com.codex.loginsight.core.Unlocks;
 import com.codex.loginsight.data.Activity;
 import com.codex.loginsight.data.ItemOdds;
@@ -27,6 +28,7 @@ import com.google.inject.Provides;
 import java.awt.Color;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -55,6 +57,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
+import net.runelite.api.events.StatChanged;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.gameval.VarPlayerID;
@@ -104,6 +107,13 @@ public class CodexLogInsightPlugin extends Plugin
 	private static final String POPUP_PREFIX = "New item:";
 	/** Skill levels and quests are read again this often, to notice what has opened up. */
 	private static final int UNLOCKS_TICKS = 100;
+	/**
+	 * After a stat changes (the levels sent at login, or a level up) the levels are read again this many ticks on,
+	 * once the burst has passed, rather than waiting a minute with the pets at the wrong odds.
+	 */
+	private static final int UNLOCKS_AFTER_STATS_TICKS = 3;
+	/** Varbits sent at login have all arrived by this many ticks after it; a setting read sooner may be a blank. */
+	private static final int SETTLE_TICKS = 10;
 
 	@Inject
 	private Client client;
@@ -164,6 +174,18 @@ public class CodexLogInsightPlugin extends Plugin
 	private final Map<String, Quest> questsNeeded = new HashMap<>();
 	private Unlocks unlocks = Unlocks.UNKNOWN;
 	private int unlocksReadAt = -1;
+	/** The tick a level last changed, or -1; levels are read again shortly after. */
+	private int statsChangedAt = -1;
+	/** Each skill's level as last reported, to tell a level up from experience alone. */
+	private final Map<Skill, Integer> statLevels = new EnumMap<>(Skill.class);
+	/** Whether the last analysis used ironman rates, so a change of account type once varbits arrive is noticed. */
+	private Boolean ironShown;
+	/** The game's new-slot notification setting once settled after login, or {@link Setup#NOTICES_UNKNOWN}. */
+	private int notices = Setup.NOTICES_UNKNOWN;
+	/** The tick of the last login, for {@link #SETTLE_TICKS}; -1 while logged out. */
+	private int loginTick = -1;
+	/** The "notifications are off" chat line is said once a session. */
+	private boolean noticesWarned;
 	/** This play session, from the login that loaded the progress; a world hop keeps it. */
 	private Session session;
 	private boolean notificationStarted;
@@ -251,6 +273,12 @@ public class CodexLogInsightPlugin extends Plugin
 		structure = LogStructure.empty();
 		harvest.clear();
 		lastTransmitTick = -1;
+		loginTick = -1;
+		notices = Setup.NOTICES_UNKNOWN;
+		noticesWarned = false;
+		ironShown = null;
+		statsChangedAt = -1;
+		statLevels.clear();
 		panel = null;
 	}
 
@@ -285,8 +313,18 @@ public class CodexLogInsightPlugin extends Plugin
 			harvest.clear();
 			lastTransmitTick = -1;
 		}
+		if (event.getGameState() == GameState.LOGGED_IN && loginTick < 0)
+		{
+			loginTick = client.getTickCount();
+		}
 		if (event.getGameState() == GameState.LOGIN_SCREEN)
 		{
+			loginTick = -1;
+			notices = Setup.NOTICES_UNKNOWN;
+			noticesWarned = false;
+			ironShown = null;
+			statsChangedAt = -1;
+			statLevels.clear();
 			save();
 			progress = null;
 			profile = null;
@@ -382,9 +420,26 @@ public class CodexLogInsightPlugin extends Plugin
 			dirty = true;
 		}
 
-		if (progress != null && (unlocksReadAt < 0 || client.getTickCount() - unlocksReadAt >= UNLOCKS_TICKS))
+		int now = client.getTickCount();
+		boolean statsSettled = statsChangedAt >= 0 && now - statsChangedAt >= UNLOCKS_AFTER_STATS_TICKS;
+		if (progress != null && (unlocksReadAt < 0 || now - unlocksReadAt >= UNLOCKS_TICKS || statsSettled))
 		{
+			statsChangedAt = -1;
 			readUnlocks();
+		}
+		if (loginTick < 0)
+		{
+			// Turned on while already logged in: count from now.
+			loginTick = now;
+		}
+		if (now - loginTick >= SETTLE_TICKS)
+		{
+			watchNotices();
+		}
+		// The account type arrives with the varbits at login: an analysis made before it used the wrong rates.
+		if (ironShown != null && ironShown != ironRates())
+		{
+			dirty = true;
 		}
 
 		ticksSinceAnalysis++;
@@ -482,6 +537,44 @@ public class CodexLogInsightPlugin extends Plugin
 		if (slot != null)
 		{
 			announced(slot, Announcements.Channel.CHAT);
+		}
+	}
+
+	@Subscribe
+	public void onStatChanged(StatChanged event)
+	{
+		// Only a new level matters (experience moves with every action while skilling, and the read runs quest
+		// scripts); at login every skill arrives at once, so the read waits for the burst to pass.
+		Integer before = statLevels.put(event.getSkill(), event.getLevel());
+		if (before == null || before != event.getLevel())
+		{
+			statsChangedAt = client.getTickCount();
+		}
+	}
+
+	/**
+	 * Notices when the game is set to announce no new slots, which leaves Log Insight blind to finds: the Ledger says
+	 * so, and one chat line says it once a session.
+	 */
+	private void watchNotices()
+	{
+		int setting = client.getVarbitValue(VarbitID.OPTION_COLLECTION_NEW_ITEM);
+		if (setting != notices)
+		{
+			notices = setting;
+			dirty = true;
+		}
+		if (setting == 0 && !noticesWarned && progress != null && config.chatLine())
+		{
+			noticesWarned = true;
+			chatMessageManager.queue(QueuedMessage.builder()
+				.type(ChatMessageType.CONSOLE)
+				.runeLiteFormattedMessage(new ChatMessageBuilder()
+					.append(ChatColorType.HIGHLIGHT).append("Log Insight: ")
+					.append(ChatColorType.NORMAL).append("the game is set to announce no new collection log slots, so finds"
+						+ " go unseen. Turn on new addition notifications in the game's settings.")
+					.build())
+				.build());
 		}
 	}
 
@@ -909,6 +1002,8 @@ public class CodexLogInsightPlugin extends Plugin
 		Progress snapshot = progress.copy();
 		LogStructure shape = structure;
 		boolean iron = ironRates();
+		ironShown = iron;
+		int setting = notices;
 		boolean pace = config.learnPace();
 		Unlocks can = unlocks;
 		int owned = officialOwned;
@@ -925,7 +1020,8 @@ public class CodexLogInsightPlugin extends Plugin
 		{
 			try
 			{
-				Report report = reader.analyse(shape, snapshot, iron, pace, owned, total, can).withSession(summary);
+				Report report = reader.analyse(shape, snapshot, iron, pace, owned, total, can).withSession(summary)
+					.withNotices(setting);
 				if (ticket == generation.get())
 				{
 					grindCard.setGrind(Grind.of(report, grindOn, grindSince));
