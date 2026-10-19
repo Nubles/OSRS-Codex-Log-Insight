@@ -222,6 +222,27 @@ public class SessionAndMilestoneTest
 	}
 
 	@Test
+	public void aCounterThatNeverRestsIsStillCheckedInGoodTime()
+	{
+		// A count every other tick for a minute: waiting for a quiet moment would wait for ever.
+		DryWatch.Queue queue = new DryWatch.Queue();
+		int checked = 0;
+		for (int tick = 0; tick < 100; tick++)
+		{
+			if (tick % 2 == 0)
+			{
+				queue.add("Fast kills", tick / 2, tick / 2 + 1, tick);
+			}
+			for (DryWatch.Pending p : queue.due(tick))
+			{
+				checked++;
+				assertTrue("checked by " + tick, tick <= 3 * DryWatch.SETTLE_TICKS + (p.getBefore() * 2));
+			}
+		}
+		assertTrue("checked " + checked + " times", checked >= 100 / (3 * DryWatch.SETTLE_TICKS) - 1);
+	}
+
+	@Test
 	public void milestonesWaitUntilTheLogHasBeenRead()
 	{
 		// Never searched: every slot would look missing.

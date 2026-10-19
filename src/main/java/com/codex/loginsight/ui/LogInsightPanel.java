@@ -212,7 +212,7 @@ public class LogInsightPanel extends PluginPanel
 			{
 				openPage = null;
 				rebuildFolios();
-			}, report::isWanted, onWant));
+			}, report::isWanted, onWant, report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED));
 		}
 		else
 		{

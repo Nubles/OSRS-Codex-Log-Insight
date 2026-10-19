@@ -39,6 +39,8 @@ public final class DryWatch
 		private final int before;
 		private int after;
 		private int dueTick;
+		/** The latest it may wait: a counter that keeps moving is still checked, three settles after its first move. */
+		private final int lastTick;
 
 		Pending(String label, int before, int after, int dueTick)
 		{
@@ -46,6 +48,7 @@ public final class DryWatch
 			this.before = before;
 			this.after = after;
 			this.dueTick = dueTick;
+			this.lastTick = dueTick + 2 * SETTLE_TICKS;
 		}
 	}
 
@@ -66,7 +69,7 @@ public final class DryWatch
 				if (p.label.equals(label))
 				{
 					p.after = after;
-					p.dueTick = tick + SETTLE_TICKS;
+					p.dueTick = Math.min(p.lastTick, tick + SETTLE_TICKS);
 					return;
 				}
 			}
@@ -80,7 +83,7 @@ public final class DryWatch
 			pending.removeIf(p ->
 			{
 				// A tick count that went backwards is a new login: whatever waited is settled too.
-				if (tick >= p.dueTick || tick < p.dueTick - SETTLE_TICKS)
+				if (tick >= p.dueTick || tick < p.lastTick - 3 * SETTLE_TICKS)
 				{
 					out.add(p);
 					return true;

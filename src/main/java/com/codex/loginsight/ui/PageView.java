@@ -34,6 +34,13 @@ final class PageView
 	 */
 	static StackPanel build(Report.PageReport page, ItemIcons icons, Runnable back, IntPredicate wanted, IntConsumer onWant)
 	{
+		return build(page, icons, back, wanted, onWant, false);
+	}
+
+	/** @param full the wanted list is full: slots not on it say so rather than taking a click that does nothing */
+	static StackPanel build(Report.PageReport page, ItemIcons icons, Runnable back, IntPredicate wanted, IntConsumer onWant,
+		boolean full)
+	{
 		StackPanel stack = new StackPanel(6, 8);
 		JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 		top.setOpaque(false);
@@ -102,7 +109,8 @@ final class PageView
 		if (!missing.isEmpty())
 		{
 			missing.sort(Comparator.comparingDouble(PageView::dryOrder));
-			stack.add(new SectionHeader("Still to find", onWant == null ? String.valueOf(missing.size()) : "click to want"));
+			stack.add(new SectionHeader("Still to find", onWant == null ? String.valueOf(missing.size())
+				: full ? "wanted list full" : "click to want"));
 			for (Report.ItemReport item : missing)
 			{
 				boolean isWanted = wanted.test(item.getItemId());
@@ -113,9 +121,10 @@ final class PageView
 				}
 				else if (onWant != null)
 				{
-					row.setToolTipText("<html>Click to add it to your wanted list.<br>" + stripHtml(row.getToolTipText()) + "</html>");
+					row.setToolTipText("<html>" + (full ? "Your wanted list is full. Take a slot off it to add this one."
+						: "Click to add it to your wanted list.") + "<br>" + stripHtml(row.getToolTipText()) + "</html>");
 				}
-				if (onWant != null)
+				if (onWant != null && (isWanted || !full))
 				{
 					row.onClick(() -> onWant.accept(item.getItemId()));
 				}
