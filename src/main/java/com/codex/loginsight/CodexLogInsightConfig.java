@@ -40,16 +40,30 @@ public interface CodexLogInsightConfig extends Config
 	String finds = "finds";
 
 	@ConfigSection(
-		name = "Estimates",
-		description = "How Log Insight estimates time",
+		name = "While you grind",
+		description = "What Log Insight shows while you add kill counts",
 		position = 1
 	)
+	String grind = "grind";
+
+	@ConfigSection(
+		name = "Estimates",
+		description = "How Log Insight estimates time",
+		position = 2
+	)
 	String estimates = "estimates";
+
+	@ConfigSection(
+		name = "Cards",
+		description = "What goes on the finest finds card you save or copy",
+		position = 3
+	)
+	String cards = "cards";
 
 	@ConfigItem(
 		keyName = "showPlaque",
 		name = "Show plaque",
-		description = "Show a plaque in the game view with the slot's odds and how lucky it was",
+		description = "Shows a plaque in the game view with the new slot's odds and how lucky it was",
 		position = 1,
 		section = finds
 	)
@@ -63,7 +77,7 @@ public interface CodexLogInsightConfig extends Config
 	@ConfigItem(
 		keyName = "plaqueSeconds",
 		name = "Plaque time",
-		description = "How long the plaque stays up",
+		description = "How long the new slot plaque stays up",
 		position = 2,
 		section = finds
 	)
@@ -75,7 +89,7 @@ public interface CodexLogInsightConfig extends Config
 	@ConfigItem(
 		keyName = "chatLine",
 		name = "Luck in chat",
-		description = "Add a line to the chat box saying how lucky each new slot was",
+		description = "Adds a line to your chatbox saying how lucky each new slot was",
 		position = 3,
 		section = finds
 	)
@@ -87,9 +101,9 @@ public interface CodexLogInsightConfig extends Config
 	@ConfigItem(
 		keyName = "dryMilestones",
 		name = "Dry milestones in chat",
-		description = "Add a line to the chat box when a kill takes you past the count by which 9 in 10, then 99 in 100, players would have a slot you are missing",
-		position = 4,
-		section = finds
+		description = "Adds a chatbox line when a kill takes you past the count by which 9 in 10, then 99 in 100, players would have a missing slot",
+		position = 2,
+		section = grind
 	)
 	default boolean dryMilestones()
 	{
@@ -99,9 +113,9 @@ public interface CodexLogInsightConfig extends Config
 	@ConfigItem(
 		keyName = "grindCard",
 		name = "Grind card",
-		description = "While you add kill counts to a page, show a small card in the game view with the count, the wait for the page's next slot and the slot most worth watching. It hides five minutes after the last kill count",
-		position = 5,
-		section = finds
+		description = "While you add kill counts to a page, shows a small card with the count and the wait for its next slot; it hides five minutes after your last kill",
+		position = 1,
+		section = grind
 	)
 	default boolean grindCard()
 	{
@@ -112,8 +126,8 @@ public interface CodexLogInsightConfig extends Config
 		keyName = "nameOnCard",
 		name = "Name on cards",
 		description = "Write your character's name on the finest finds card; turn off to share it without it",
-		position = 6,
-		section = finds
+		position = 1,
+		section = cards
 	)
 	default boolean nameOnCard()
 	{
@@ -122,8 +136,8 @@ public interface CodexLogInsightConfig extends Config
 
 	@ConfigItem(
 		keyName = "rates",
-		name = "Rates",
-		description = "Typical kills per hour for a normal account or an ironman",
+		name = "Kill rates",
+		description = "Which typical kills per hour to estimate with: a normal account's or an ironman's",
 		position = 1,
 		section = estimates
 	)
@@ -135,7 +149,7 @@ public interface CodexLogInsightConfig extends Config
 	@ConfigItem(
 		keyName = "learnPace",
 		name = "Learn my pace",
-		description = "Time your kill counts and use your own pace once Log Insight has seen enough of them",
+		description = "Times your kill counts and uses your own pace once Log Insight has seen enough of them",
 		position = 2,
 		section = estimates
 	)

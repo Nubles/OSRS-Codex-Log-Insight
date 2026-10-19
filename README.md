@@ -2,13 +2,14 @@
 
 **Collection log analytics.** Codex Log Insight reads your collection log and answers the questions the log itself never does: how lucky or dry you really are at your kill counts, how long each page has left, and which activities will give you a new slot the soonest.
 
-It is the third plugin in the **Codex** suite, after [Codex Navigator](https://github.com/Nubles/OSRS-Codex-Navigator) and [Codex Guardian](https://github.com/Nubles/OSRS-Codex-Guardian), and shares their look: warm ink, aged gold and the game's own fonts.
+Part of the **Codex** suite of RuneLite plugins, which share one look: warm ink, aged gold and the game's own fonts.
 
 <p align="center">
   <img src="docs/screenshots/ledger.png" width="225" alt="Ledger">
   <img src="docs/screenshots/page.png" width="225" alt="A log page">
   <img src="docs/screenshots/quarry.png" width="225" alt="Quarry">
   <img src="docs/screenshots/plan.png" width="225" alt="Plan">
+  <img src="docs/screenshots/folios.png" width="225" alt="Folios">
 </p>
 
 ## What it does
@@ -45,15 +46,28 @@ Until everything is in place, the Ledger opens with **Getting your log ready**: 
 ## How the numbers work
 
 - **Luck** is a percentile: the share of players with your kill counts who would own fewer of these slots than you, with ties split evenly. Above 85% is Blessed, above 65% Fortunate, 35% to 65% Even, below 35% Dry and below 15% Parched.
-- **Dry** on a single slot is the way players say it: the share of players who would already have it by your kill count. "80% dry" means 80 in 100 would have it by now.
+- **Dry** on a single slot is the way players say it: the share of players who would already have it by your kill count. "80% dry" means 80 in 100 would have it by now. A slot the game guarantees by a count you have passed (Vorkath's head by the 50th kill, say) reads **Overdue**.
 - **Plans and green log curves** use the same odds as a distribution rather than an average: how many slots a stretch of play gives on average, and the hours by which half (50%) and nine in ten (90%) players would be done. Slots you would get from points or a fixed number of completions are counted from zero, so progress you already have towards them only makes things quicker.
 - **Time to the next slot and to finish** race every missing slot of an activity against each other at its kills per hour, so a page with many rare slots is honest about how long the last one takes. Pieces that drop in order wait one after another, and rewards bought with points add up.
 - **Skilling pets** use the OSRS Wiki's base chance for the action Log Adviser lists (seed stalls for Rocky, for example) at your real level. Until your levels are read they are shown at level 99.
 - **Drop rates** follow Collection Log Luck's defaults for a typical player (raid points, team share, on-task Jad and Zuk). Where a rate changed during the game's life (a buff), the current rate is used.
 
-## Rules posture
+## Settings that matter
 
-Log Insight only reads what the game already shows you: your collection log, its page counters, your chat messages and new slot pop-ups, your skill levels and your quest list. It does not click, change menus, send chat or touch the network. Your progress is saved per account in your RuneLite profile and never leaves your computer.
+| Setting | Default | What it does |
+| --- | --- | --- |
+| Show plaque | On | The plaque in the game view when a new slot drops, with its odds and how lucky it was. |
+| Plaque time | 8 s | How long that plaque stays up. |
+| Luck in chat | On | A chatbox line saying how lucky each new slot was. |
+| Grind card | On | The small card while you add kill counts to a page. |
+| Dry milestones in chat | On | A chatbox line when you pass the count by which 9 in 10, then 99 in 100, players would have a missing slot. |
+| Kill rates | Match my account | Typical kills per hour for a normal account or an ironman. |
+| Learn my pace | On | Uses your own kills per hour once Log Insight has timed enough of them. |
+| Name on cards | On | Your character's name on the finest finds card. |
+
+## Privacy and rules
+
+Log Insight only reads what the game already shows you: your collection log, its page counters, your chat messages and new slot pop-ups, your skill levels and your quest list, plus the kill counts RuneLite's own chat commands have saved. It does not click, change menus, send chat or touch the network. Your progress is saved per account in your RuneLite profile and never leaves your computer. If that save is ever damaged, Log Insight keeps every part it can read and keeps the saved text aside (as `progressUnreadable`) rather than writing over it. It needs no other Codex plugin.
 
 ## Credits
 

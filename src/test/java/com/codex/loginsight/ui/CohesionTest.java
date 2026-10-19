@@ -29,8 +29,8 @@ public class CohesionTest
 		assertEquals(1.0, 1 - stillWaiting, 0);
 		assertEquals(">99% dry", Format.dry(stillWaiting));
 		assertEquals(">99%", Format.have(stillWaiting));
-		// A guaranteed drop past its guarantee is certain.
-		assertEquals("100% dry", Format.dry(0));
+		// A guaranteed drop past its guarantee is overdue, not a figure beside the ">99% dry" rows.
+		assertEquals("Overdue", Format.dry(0));
 	}
 
 	@Test

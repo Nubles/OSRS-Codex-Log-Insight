@@ -69,13 +69,16 @@ public final class Format
 
 	/**
 	 * How dry a missing slot is, the way players say it: the share of players who would
-	 * already have it at this kill count. "88% dry" means 88 in 100 would have it by now.
+	 * already have it at this kill count. "88% dry" means 88 in 100 would have it by now; "Overdue" means it is
+	 * guaranteed by a count you have passed.
 	 *
 	 * @param stillWaiting the share of players still without it
 	 */
 	public static String dry(double stillWaiting)
 	{
-		return have(stillWaiting) + " dry";
+		// Only a slot guaranteed by a count you have passed leaves nobody waiting: "100% dry" beside ">99% dry" rows
+		// read as a figure, where it is a slot that should have come.
+		return stillWaiting == 0 ? "Overdue" : have(stillWaiting) + " dry";
 	}
 
 	/**

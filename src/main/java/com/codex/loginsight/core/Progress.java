@@ -44,6 +44,54 @@ public final class Progress
 	 */
 	private List<Find> trophies;
 
+	/**
+	 * Reads saved progress, keeping every field and entry that reads on its own: one odd value never costs the log.
+	 * Null with nothing saved, or with nothing in it readable; the result says when anything was left out.
+	 */
+	public static SavedJson.Read<Progress> load(com.google.gson.Gson gson, String json)
+	{
+		SavedJson.Read<Progress> read = SavedJson.read(gson, json, Progress.class);
+		return new SavedJson.Read<>(read.getValue() == null ? null : read.getValue().repair(), read.isDamaged());
+	}
+
+	/** Drops what no game could have saved (empty entries, negative counts, a broken pace) and holds every list to its limit. */
+	Progress repair()
+	{
+		owned().removeIf(id -> id == null || id <= 0);
+		counters().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || e.getValue() < 0);
+		finds().removeIf(f -> f == null);
+		while (finds.size() > MAX_FINDS)
+		{
+			finds.remove(finds.size() - 1);
+		}
+		if (trophies != null)
+		{
+			if (trophies.removeIf(f -> f == null) && trophies.isEmpty())
+			{
+				// Nothing readable left on the shelf: it is set again from the finds, as for an older save.
+				trophies = null;
+			}
+			while (trophies != null && trophies.size() > TROPHIES)
+			{
+				trophies.remove(trophies.size() - 1);
+			}
+		}
+		pace().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || !e.getValue().sane());
+		pagesRead().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
+		pageLabels().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
+		pageLabels().values().forEach(list -> list.removeIf(label -> label == null));
+		List<Integer> kept = new ArrayList<>();
+		for (Integer id : wanted())
+		{
+			if (id != null && id > 0 && !owned().contains(id) && !kept.contains(id) && kept.size() < MAX_WANTED)
+			{
+				kept.add(id);
+			}
+		}
+		wanted = kept;
+		return this;
+	}
+
 	public Progress copy()
 	{
 		Progress p = new Progress();
@@ -412,6 +460,12 @@ public final class Progress
 		public int getSamples()
 		{
 			return samples;
+		}
+
+		/** False for a saved pace no kills could have given: a negative or endless time per kill, or negative samples. */
+		boolean sane()
+		{
+			return samples >= 0 && lastCount >= 0 && (samples == 0 || secondsPerCount > 0 && Double.isFinite(secondsPerCount));
 		}
 
 		/** Completions per hour, or 0 if not learned yet. */

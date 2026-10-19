@@ -66,7 +66,8 @@ public class ItemTile extends JComponent
 		if (!item.isOwned() && item.getDryChance() >= 0)
 		{
 			sb.append("<br>").append(Format.dry(item.getDryChance())).append(": ")
-				.append(Format.have(item.getDryChance())).append(" of players would have it by now");
+				.append(item.getDryChance() == 0 ? "it is guaranteed by your count"
+					: Format.have(item.getDryChance()) + " of players would have it by now");
 		}
 		if (!item.isOwned() && item.getChance() > 0 && item.getLabel() != null)
 		{

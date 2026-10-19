@@ -9,6 +9,7 @@ import com.codex.loginsight.core.LogStructure;
 import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
+import com.codex.loginsight.core.SavedJson;
 import com.codex.loginsight.core.Session;
 import com.codex.loginsight.core.Setup;
 import com.codex.loginsight.core.Unlocks;
@@ -24,7 +25,6 @@ import com.codex.loginsight.ui.Sigil;
 import com.codex.loginsight.ui.Theme;
 import com.codex.loginsight.ui.ShareActions;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.Toolkit;
@@ -94,11 +94,13 @@ import net.runelite.client.util.Filepath;
 @PluginDescriptor(
 	name = "Codex Log Insight",
 	description = "Collection log analytics: your luck at your kill counts, time left on each page and the fastest slots to chase",
-	tags = {"collection", "log", "clog", "luck", "dry", "drop", "rate", "pet", "codex"}
+	tags = {"collection", "log", "clog", "luck", "dry", "drop", "rate", "pet", "kc", "codex"}
 )
 public class CodexLogInsightPlugin extends Plugin
 {
 	private static final String PROGRESS_KEY = "progress";
+	/** Added to a key's name to keep aside a saved value that could not be read in full. */
+	private static final String UNREADABLE = "Unreadable";
 	/** The script that sends the client every owned slot when the log's Search is opened. */
 	private static final int COLLECTION_TRANSMIT = 4100;
 	/** Enum of the log's tabs; each tab struct points to its pages, each page to its slots. */
@@ -985,19 +987,16 @@ public class CodexLogInsightPlugin extends Plugin
 			return;
 		}
 		profile = key;
-		Progress loaded = null;
 		String json = configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, PROGRESS_KEY);
-		if (json != null && !json.isEmpty())
+		SavedJson.Read<Progress> read = Progress.load(gson, json);
+		if (read.isDamaged() && json != null
+			&& !json.equals(configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, PROGRESS_KEY + UNREADABLE)))
 		{
-			try
-			{
-				loaded = gson.fromJson(json, Progress.class);
-			}
-			catch (JsonParseException e)
-			{
-				log.warn("Could not read saved collection log progress, starting fresh", e);
-			}
+			// Kept aside before the next save writes over it, so damaged or newer-version progress is never lost.
+			log.warn("Could not read all of the saved collection log progress; the saved text is kept as {}", PROGRESS_KEY + UNREADABLE);
+			configManager.setConfiguration(CodexLogInsightConfig.GROUP, key, PROGRESS_KEY + UNREADABLE, json);
 		}
+		Progress loaded = read.getValue();
 		progress = loaded == null ? new Progress() : loaded;
 		seedFromChatCommands();
 		session = new Session(progress.getOwned(), System.currentTimeMillis());
