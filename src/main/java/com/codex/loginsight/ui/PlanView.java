@@ -44,6 +44,11 @@ final class PlanView
 			stack.add(Rows.note("Log in to plan your next stretch of collection logging.", WIDTH));
 			return stack;
 		}
+		if (!report.isStructureLoaded())
+		{
+			stack.add(Rows.note("Log Insight is still reading the collection log's pages from the game.", WIDTH));
+			return stack;
+		}
 		double hours = HOURS[Math.max(0, Math.min(HOURS.length - 1, horizon))];
 		String span = HORIZONS[Math.max(0, Math.min(HORIZONS.length - 1, horizon))];
 
