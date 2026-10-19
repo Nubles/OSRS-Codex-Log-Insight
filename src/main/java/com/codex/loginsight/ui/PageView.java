@@ -1,5 +1,6 @@
 package com.codex.loginsight.ui;
 
+import com.codex.loginsight.core.Projection;
 import com.codex.loginsight.core.Report;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
@@ -75,6 +76,10 @@ final class PageView
 			String finishNote = page.getUnrated() > 0 ? "+" + page.getUnrated() + " unrated" : "whole page";
 			tiles.add(new StatTile(Format.hours(page.getHoursToFinish()), "To finish", finishNote, Theme.EMBER));
 			stack.add(tiles);
+			if (page.getProjection() != null)
+			{
+				stack.add(projection(page.getProjection()));
+			}
 		}
 
 		List<Report.ItemReport> missing = new ArrayList<>();
@@ -98,6 +103,28 @@ final class PageView
 			stack.add(grid(owned, icons));
 		}
 		return stack;
+	}
+
+	/** The green log curve: the chance the page is done against hours, with the half and nine-in-ten marks. */
+	static Card projection(Projection projection)
+	{
+		Card card = new Card(new BorderLayout(0, 4));
+		card.setBorder(new EmptyBorder(7, 9, 7, 9));
+		JPanel head = new JPanel(new BorderLayout(6, 0));
+		head.setOpaque(false);
+		head.add(Ui.label("GREEN LOG", Theme.small(), Theme.TEXT_MUTED), BorderLayout.WEST);
+		head.add(Ui.label("chance done", Theme.small(), Theme.TEXT_FAINT), BorderLayout.EAST);
+		card.add(head, BorderLayout.NORTH);
+		card.add(new ProjectionChart(projection), BorderLayout.CENTER);
+		String text = "Half of players finish by " + Format.hours(projection.getMedian()) + ", nine in ten by "
+			+ Format.hours(projection.getLikely()) + " at your rates.";
+		if (projection.getUnrated() > 0)
+		{
+			text += " " + projection.getUnrated() + (projection.getUnrated() == 1 ? " slot has" : " slots have")
+				+ " no rates and " + (projection.getUnrated() == 1 ? "is" : "are") + " not counted.";
+		}
+		card.add(Ui.wrapped(text, Theme.small(), Theme.TEXT_MUTED, 168), BorderLayout.SOUTH);
+		return card;
 	}
 
 	/** Missing slots with a known dry chance first, driest at the top. */

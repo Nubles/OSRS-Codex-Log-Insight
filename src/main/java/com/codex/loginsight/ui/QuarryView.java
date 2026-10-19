@@ -164,7 +164,7 @@ final class QuarryView
 	}
 
 	/** A small gilt medallion with the rank number. */
-	private static final class Rank extends JComponent
+	static final class Rank extends JComponent
 	{
 		private final int rank;
 		private final boolean locked;

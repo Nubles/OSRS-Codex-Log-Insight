@@ -184,6 +184,10 @@ public class AnalystTest
 		List<Report.Hunt> ranked = analyst.analyse(log, new Progress(), false, true, -1, -1, low).getHunts();
 		assertEquals("Killing cows", ranked.get(0).getName());
 		assertEquals("95 Slayer", ranked.get(1).getLockedBy());
+		// The page's projection hunts the hydra pet where it drops, so it says what the account still needs.
+		Report lowReport = analyst.analyse(log, new Progress(), false, true, -1, -1, low);
+		assertEquals("95 Slayer", lowReport.getPages().get(0).getProjection().getLockedBy());
+		assertNull(analyst.analyse(log, new Progress(), false, true, -1, -1).getPages().get(0).getProjection().getLockedBy());
 
 		Unlocks noQuest = new Unlocks(Collections.singletonMap("SLAYER", 99), Collections.singleton("HEROES_QUEST"));
 		assertEquals("Heroes' Quest", noQuest.missing(hydra));
@@ -198,5 +202,82 @@ public class AnalystTest
 		assertEquals(300, report.owned());
 		assertEquals(1700, report.total());
 		assertTrue(report.needsFullRead());
+	}
+
+	@Test
+	public void eachActivityBecomesAProspectForPlanning()
+	{
+		Report report = new Analyst(data).analyse(structure, new Progress(), false, true, -1, -1);
+		assertEquals(1, report.getProspects().size());
+		Prospect beast = report.getProspects().get(0);
+		assertEquals(5, beast.getRemaining());
+		assertEquals(50, beast.getPerHour(), 1e-9);
+		// The next slot's wait the hunt shows and the prospect's chance of any slot agree.
+		Report.Hunt hunt = report.getHunts().get(0);
+		assertEquals(1 - Math.exp(-1), beast.chanceOfAny(hunt.getHoursToNext()), 0.03);
+		// In a very long stretch every slot turns up.
+		assertEquals(5, beast.expectedSlots(10_000), 1e-3);
+	}
+
+	@Test
+	public void missingPetsArePlannedAtTheirSource()
+	{
+		Progress progress = new Progress();
+		progress.addOwned(HEAD);
+		Report report = new Analyst(data).analyse(structure, progress, false, true, -1, -1);
+		assertEquals(1, report.getPets().size());
+		PetPlan pet = report.getPets().get(0);
+		assertEquals(PET, pet.getItemId());
+		assertEquals("Beast", pet.getPage());
+		assertEquals(Math.log(0.5) / Math.log(1 - 1 / 1000.0) / 50, pet.getMedian(), 1e-6);
+		assertEquals(Math.log(0.1) / Math.log(1 - 1 / 1000.0) / 50, pet.getLikely(), 1e-6);
+		// Half of all players see the pet after about 693 kills, by which the shield, spine and claw are near certain.
+		assertEquals(3, pet.slotsAlongside(), 0.05);
+		progress.addOwned(PET);
+		assertTrue(new Analyst(data).analyse(structure, progress, false, true, -1, -1).getPets().isEmpty());
+	}
+
+	@Test
+	public void aPetIsPlannedWhereTheAccountCanHuntIt()
+	{
+		// The pet drops quicker at hydra, but with 80 Slayer the plan points at cows.
+		List<Activity.Drop> easy = Collections.singletonList(new Activity.Drop(0, 21, 1000, 0));
+		List<Activity.Drop> hard = Collections.singletonList(new Activity.Drop(1, 21, 100, 0));
+		Activity cows = new Activity(0, "Killing cows", Activity.Category.COMBAT, 100, 100, 0, easy);
+		Activity hydra = new Activity(1, "Killing hydra", Activity.Category.COMBAT, 100, 100, 0, hard,
+			Collections.singletonMap("SLAYER", 95), Collections.emptyList());
+		LogData both = new LogData(Arrays.asList(cows, hydra), Collections.emptyList(), new HashMap<>(), Collections.singleton(21));
+		LogStructure log = new LogStructure(Collections.singletonList(new LogStructure.Tab("Bosses",
+			Collections.singletonList(new LogStructure.Page("Bosses", "Mixed", Collections.singletonList(21))))), new HashMap<>());
+		Analyst analyst = new Analyst(both);
+		assertEquals("Killing hydra", analyst.analyse(log, new Progress(), false, true, -1, -1).getPets().get(0).getSource());
+		Unlocks low = new Unlocks(Collections.singletonMap("SLAYER", 80), Collections.emptySet());
+		PetPlan pet = analyst.analyse(log, new Progress(), false, true, -1, -1, low).getPets().get(0);
+		assertEquals("Killing cows", pet.getSource());
+		assertNull(pet.getLockedBy());
+	}
+
+	@Test
+	public void pagesProjectWhenTheyAreLikelyFinished()
+	{
+		Report report = new Analyst(data).analyse(structure, new Progress(), false, true, -1, -1);
+		Report.PageReport page = report.getPages().get(0);
+		Projection projection = page.getProjection();
+		assertNotNull(projection);
+		// The pet at 1 in 1000 sets the pace: the page is done no sooner than the pet alone would be.
+		double pet = Math.log(0.5) / Math.log(1 - 1 / 1000.0) / 50;
+		assertTrue(projection.getMedian() >= pet);
+		assertTrue(projection.getMedian() < pet * 1.3);
+		assertTrue(projection.getLikely() > projection.getMedian());
+		// The mean the page shows lies between the median and the nine-in-ten mark for a right-skewed wait.
+		assertTrue(page.getHoursToFinish() > projection.getMedian());
+		assertTrue(page.getHoursToFinish() < projection.getLikely());
+
+		Progress all = new Progress();
+		for (int id = PET; id <= CLAW; id++)
+		{
+			all.addOwned(id);
+		}
+		assertNull(new Analyst(data).analyse(structure, all, false, true, -1, -1).getPages().get(0).getProjection());
 	}
 }

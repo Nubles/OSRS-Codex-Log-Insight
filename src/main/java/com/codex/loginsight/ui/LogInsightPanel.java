@@ -18,17 +18,19 @@ import net.runelite.client.ui.PluginPanel;
  */
 public class LogInsightPanel extends PluginPanel
 {
-	private static final String[] TABS = {"ledger", "folios", "quarry"};
+	private static final String[] TABS = {"ledger", "folios", "quarry", "plan"};
 
 	private final ItemIcons icons;
 	private final Crest crest = new Crest();
-	private final Segmented tabs = new Segmented(true, "Ledger", "Folios", "Quarry");
+	private final Segmented tabs = new Segmented(true, "Ledger", "Folios", "Quarry", "Plan");
 	private final Segmented quarryFilter = new Segmented(false, QuarryView.FILTERS);
+	private final Segmented horizon = new Segmented(false, PlanView.HORIZONS);
 	private final CardLayout cards = new CardLayout();
 	private final JPanel content = new JPanel(cards);
 	private final JScrollPane ledger = scroller();
 	private final JScrollPane folios = scroller();
 	private final JScrollPane quarry = scroller();
+	private final JScrollPane plan = scroller();
 	private final JPanel folioHolder = new JPanel(new BorderLayout());
 	private final JPanel searchHolder = new JPanel(new BorderLayout());
 	private final LuckDial dial = new LuckDial(112);
@@ -78,17 +80,30 @@ public class LogInsightPanel extends PluginPanel
 		quarryHolder.add(filterHolder, BorderLayout.NORTH);
 		quarryHolder.add(quarry, BorderLayout.CENTER);
 
+		JPanel planHolder = new JPanel(new BorderLayout());
+		planHolder.setOpaque(false);
+		JPanel horizonHolder = new JPanel(new BorderLayout());
+		horizonHolder.setOpaque(false);
+		horizonHolder.setBorder(new EmptyBorder(6, 8, 0, 8));
+		horizonHolder.add(horizon, BorderLayout.CENTER);
+		planHolder.add(horizonHolder, BorderLayout.NORTH);
+		planHolder.add(plan, BorderLayout.CENTER);
+		horizon.setSelected(1, false);
+
 		content.setOpaque(false);
 		content.add(ledger, TABS[0]);
 		content.add(folioHolder, TABS[1]);
 		content.add(quarryHolder, TABS[2]);
+		content.add(planHolder, TABS[3]);
 		add(content, BorderLayout.CENTER);
 
 		tabs.onChange(this::showTab);
 		quarryFilter.onChange(i -> rebuildQuarry());
-		rebuildTab(0);
-		rebuildTab(1);
-		rebuildTab(2);
+		horizon.onChange(i -> rebuildPlan());
+		for (int tab = 0; tab < TABS.length; tab++)
+		{
+			rebuildTab(tab);
+		}
 	}
 
 	private static JScrollPane scroller()
@@ -153,10 +168,19 @@ public class LogInsightPanel extends PluginPanel
 		{
 			rebuildFolios();
 		}
-		else
+		else if (tab == 2)
 		{
 			rebuildQuarry();
 		}
+		else
+		{
+			rebuildPlan();
+		}
+	}
+
+	private void rebuildPlan()
+	{
+		replace(plan, PlanView.build(report, horizon.getSelected(), icons, this::showPage));
 	}
 
 	private void rebuildFolios()

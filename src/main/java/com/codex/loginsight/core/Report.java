@@ -31,12 +31,28 @@ public final class Report
 	private final List<Hunt> hunts;
 	private final List<ItemReport> driest;
 	private final List<Progress.Find> finds;
+	/** Every activity with slots left that can be timed, for planning a stretch of play. */
+	private final List<Prospect> prospects;
+	/** Every missing pet as a hunt, quickest first. */
+	private final List<PetPlan> pets;
 
 	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
 		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
 		int unratedMissing, boolean ironRates, List<PageReport> pages, List<Hunt> hunts, List<ItemReport> driest,
 		List<Progress.Find> finds)
 	{
+		this(loggedIn, structureLoaded, officialOwned, officialTotal, knownOwned, totalSlots, fullReadAt, pagesRead,
+			pagesTotal, pagesComplete, luck, hoursLeft, unratedMissing, ironRates, pages, hunts, driest, finds,
+			Collections.emptyList(), Collections.emptyList());
+	}
+
+	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
+		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
+		int unratedMissing, boolean ironRates, List<PageReport> pages, List<Hunt> hunts, List<ItemReport> driest,
+		List<Progress.Find> finds, List<Prospect> prospects, List<PetPlan> pets)
+	{
+		this.prospects = Collections.unmodifiableList(prospects);
+		this.pets = Collections.unmodifiableList(pets);
 		this.loggedIn = loggedIn;
 		this.structureLoaded = structureLoaded;
 		this.officialOwned = officialOwned;
@@ -143,11 +159,22 @@ public final class Report
 		private final int unrated;
 		private final boolean read;
 		private final List<ItemReport> items;
+		/** When the page is likely to be finished, or null when it is or cannot be projected. */
+		private final Projection projection;
 
 		public PageReport(String tab, String name, int owned, int total, List<String> counters, int count,
 			String countLabel, Luck luck, double hoursToFinish, double hoursToNext, String nextSource, int unrated,
 			boolean read, List<ItemReport> items)
 		{
+			this(tab, name, owned, total, counters, count, countLabel, luck, hoursToFinish, hoursToNext, nextSource, unrated,
+				read, items, null);
+		}
+
+		public PageReport(String tab, String name, int owned, int total, List<String> counters, int count,
+			String countLabel, Luck luck, double hoursToFinish, double hoursToNext, String nextSource, int unrated,
+			boolean read, List<ItemReport> items, Projection projection)
+		{
+			this.projection = projection;
 			this.tab = tab;
 			this.name = name;
 			this.owned = owned;

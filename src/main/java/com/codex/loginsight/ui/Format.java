@@ -78,6 +78,28 @@ public final class Format
 		return percent(1 - stillWaiting) + " dry";
 	}
 
+	/** An expected number of slots: "0.48", "2.4", "12"; "<0.01" when it rounds to nothing. */
+	public static String slots(double slots)
+	{
+		if (Double.isNaN(slots) || slots <= 0)
+		{
+			return "0";
+		}
+		if (slots < 0.01)
+		{
+			return "<0.01";
+		}
+		if (slots < 1)
+		{
+			return String.format(java.util.Locale.ENGLISH, "%.2f", slots);
+		}
+		if (slots < 9.95)
+		{
+			return String.format(java.util.Locale.ENGLISH, "%.1f", slots);
+		}
+		return String.valueOf(Math.round(slots));
+	}
+
 	public static String count(long value)
 	{
 		return String.format("%,d", value);
