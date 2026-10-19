@@ -32,6 +32,11 @@ public final class Analyst
 	/** The counter each activity advances, when its slots agree on one. */
 	private final Map<Integer, String> activityLabels = new HashMap<>();
 	private static final int MAX_CACHED = 20_000;
+	/**
+	 * Curves are kilobytes each and a new own pace misses for every page it touches, so they get a much
+	 * smaller budget than evaluations: about ten full reports' worth.
+	 */
+	private static final int MAX_CURVES = 2_500;
 	private final Map<String, Eval> evaluations = new java.util.concurrent.ConcurrentHashMap<>();
 	/** Page curves by the evaluations and rates they came from; null values are kept too, for pages with none. */
 	private final Map<List<Object>, Projection> projections = java.util.Collections.synchronizedMap(new HashMap<>());
@@ -403,7 +408,7 @@ public final class Analyst
 		int unrated = 0;
 		for (int id : missing)
 		{
-			Activity.Drop fastest = rates.fastest(id);
+			Activity.Drop fastest = fastestOpen(id, rates, unlocks);
 			if (fastest == null)
 			{
 				unrated++;
@@ -438,12 +443,38 @@ public final class Analyst
 			parts.add(prospect(structure, activities.get(i), evals.get(i), rates, unlocks.missing(activities.get(i))));
 		}
 		Projection projection = Projection.of(parts, unrated);
-		if (projections.size() > MAX_CACHED)
+		if (projections.size() > MAX_CURVES)
 		{
 			projections.clear();
 		}
 		projections.put(key, projection);
 		return projection;
+	}
+
+	/**
+	 * The quickest source of a slot that the account can do now, or its quickest source at all when it can do
+	 * none yet, so a page is only shown as locked when every way to finish it is.
+	 */
+	private Activity.Drop fastestOpen(int itemId, Rates rates, Unlocks unlocks)
+	{
+		Activity.Drop fastest = rates.fastest(itemId);
+		if (fastest == null || unlocks.missing(data.activity(fastest.getActivityIndex())) == null)
+		{
+			return fastest;
+		}
+		Activity.Drop best = null;
+		double bestHours = Double.POSITIVE_INFINITY;
+		for (Activity.Drop drop : data.dropsOf(itemId))
+		{
+			Activity activity = data.activity(drop.getActivityIndex());
+			double hours = rates.hoursFor(activity, drop.getAttempts());
+			if (hours < bestHours && unlocks.missing(activity) == null)
+			{
+				bestHours = hours;
+				best = drop;
+			}
+		}
+		return best == null ? fastest : best;
 	}
 
 	private Prospect prospect(LogStructure structure, Activity activity, Eval eval, Rates rates, String lockedBy)

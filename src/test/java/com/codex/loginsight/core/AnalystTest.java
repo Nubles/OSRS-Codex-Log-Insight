@@ -196,6 +196,27 @@ public class AnalystTest
 	}
 
 	@Test
+	public void pageProjectionHuntsAnOpenSourceBeforeALockedFasterOne()
+	{
+		// The hydra slot also comes from cows, slowly: an account that cannot fight hydra still gets a curve it can play.
+		List<Activity.Drop> easy = Arrays.asList(new Activity.Drop(0, 20, 1000, 0), new Activity.Drop(0, 21, 5000, 0));
+		List<Activity.Drop> hard = Collections.singletonList(new Activity.Drop(1, 21, 10, 0));
+		Activity cows = new Activity(0, "Killing cows", Activity.Category.COMBAT, 100, 100, 0, easy);
+		Activity hydra = new Activity(1, "Killing hydra", Activity.Category.COMBAT, 100, 100, 0, hard,
+			Collections.singletonMap("SLAYER", 95), Collections.emptyList());
+		LogData both = new LogData(Arrays.asList(cows, hydra), Collections.emptyList(), new HashMap<>(), Collections.emptySet());
+		LogStructure log = new LogStructure(Collections.singletonList(new LogStructure.Tab("Bosses",
+			Collections.singletonList(new LogStructure.Page("Bosses", "Mixed", Arrays.asList(20, 21))))), new HashMap<>());
+		Analyst analyst = new Analyst(both);
+		Unlocks low = new Unlocks(Collections.singletonMap("SLAYER", 80), Collections.emptySet());
+		Projection open = analyst.analyse(log, new Progress(), false, true, -1, -1, low).getPages().get(0).getProjection();
+		assertNull(open.getLockedBy());
+		assertTrue(open.getMedian() > 10);
+		Projection any = analyst.analyse(log, new Progress(), false, true, -1, -1).getPages().get(0).getProjection();
+		assertTrue(any.getMedian() < open.getMedian());
+	}
+
+	@Test
 	public void officialCountWinsWhenHigher()
 	{
 		Report report = new Analyst(data).analyse(structure, new Progress(), false, true, 300, 1700);
