@@ -67,6 +67,9 @@ public class Crest extends JPanel
 			title.setText("Log Insight");
 			slots.setText("Log in to read your log");
 			ring.setProgress(0, false, true);
+			// Logged out the log is unknown, not empty: no "0% logged".
+			ring.setCentre("-");
+			ring.setCaption("log in");
 			pages.set("-", 0, Theme.TEXT);
 			luck.set("-", -1, Theme.TEXT);
 			left.set("-", -1, Theme.TEXT);
@@ -74,6 +77,8 @@ public class Crest extends JPanel
 			repaint();
 			return;
 		}
+		ring.setCentre(null);
+		ring.setCaption("logged");
 		int owned = report.owned();
 		int total = report.total();
 		title.setText(playerName == null ? "Log Insight" : playerName);

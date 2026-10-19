@@ -123,12 +123,25 @@ public class LuckDial extends JComponent
 
 		int y = Math.round(cy + small.getHeight() + 4);
 		String verdict = known ? luck.verdict().getLabel() : "Not read yet";
-		String line = known ? "Luckier than " + luck.luckierThan() + "% of players" : "Open log pages to learn your kill counts";
+		String line = known ? luckLine(luck.luckierThan()) : "Open log pages to learn your kill counts";
 		g.setFont(Theme.title());
 		ProgressRing.drawShadowed(g, verdict, Math.round(cx - bold.stringWidth(verdict) / 2f), y + bold.getAscent(),
 			known ? Theme.luck(luck.verdict()) : Theme.TEXT_MUTED);
 		g.setFont(Theme.small());
 		ProgressRing.drawShadowed(g, line, Math.round(cx - small.stringWidth(line) / 2f), y + bold.getHeight() + small.getAscent(), Theme.TEXT_MUTED);
 		g.dispose();
+	}
+
+	/**
+	 * "Luckier than 68% of players", or for the unlucky half "Drier than 90% of players": never "luckier than 0%",
+	 * which reads as a mistake. The figure stays between 1 and 99, since no read is ever certain.
+	 */
+	static String luckLine(int luckierThan)
+	{
+		if (luckierThan >= 50)
+		{
+			return "Luckier than " + Math.min(99, luckierThan) + "% of players";
+		}
+		return "Drier than " + Math.min(99, Math.max(1, 100 - luckierThan)) + "% of players";
 	}
 }

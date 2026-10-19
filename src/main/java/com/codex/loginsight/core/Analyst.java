@@ -132,6 +132,7 @@ public final class Analyst
 			}
 		}
 		report.setWanted(wanted);
+		report.setTrophies(progress.getTrophies());
 		return report;
 	}
 

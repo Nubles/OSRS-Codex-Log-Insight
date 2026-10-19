@@ -28,7 +28,7 @@ final class LedgerView
 		StackPanel stack = new StackPanel(6, 8);
 		if (!report.isLoggedIn())
 		{
-			stack.add(Rows.note("Log in and Log Insight will read your collection log.", WIDTH));
+			stack.add(welcome());
 			return stack;
 		}
 
@@ -97,8 +97,15 @@ final class LedgerView
 		tiles.add(new StatTile(petsOwned + "/" + pets, "Pets", pets == petsOwned ? "every one" : (pets - petsOwned) + " to go",
 			Theme.VIOLET));
 		tiles.add(new StatTile(report.getPagesRead() + "/" + report.getPagesTotal(), "Pages read",
-			report.getPagesRead() < report.getPagesTotal() ? "open more for luck" : "all kill counts", Theme.GOLD));
+			report.getPagesRead() < report.getPagesTotal() ? "open for luck" : "all kill counts", Theme.GOLD));
 		stack.add(tiles);
+
+		// The finest drops on a podium: the card worth a screenshot.
+		if (!report.getTrophies().isEmpty())
+		{
+			stack.add(new SectionHeader("Finest finds", "rarest seen"));
+			stack.add(new TrophyShelf(report.getTrophies(), icons));
+		}
 
 		if (!report.getWanted().isEmpty())
 		{
@@ -158,6 +165,30 @@ final class LedgerView
 			}
 		}
 		return stack;
+	}
+
+	/** Logged out: what the Ledger opens on, so the page promises something rather than sitting blank. */
+	private static Card welcome()
+	{
+		Card card = new Card(new BorderLayout()).highlighted(true);
+		card.setBorder(new EmptyBorder(10, 12, 12, 12));
+		JPanel text = new JPanel();
+		text.setOpaque(false);
+		text.setLayout(new javax.swing.BoxLayout(text, javax.swing.BoxLayout.Y_AXIS));
+		JComponent head = Ui.label("YOUR LOG, READ", Theme.small(), Theme.GOLD);
+		head.setAlignmentX(0f);
+		text.add(head);
+		JComponent body = Ui.wrapped("Log in and Log Insight reads your collection log: how lucky you have been, the slots "
+			+ "quickest to get next, and your finest finds on a podium.", Theme.body(), Theme.TEXT, WIDTH - 12);
+		body.setAlignmentX(0f);
+		text.add(body);
+		JComponent note = Ui.wrapped("It only reads what your client shows. Nothing leaves your computer.", Theme.small(),
+			Theme.TEXT_MUTED, WIDTH - 12);
+		note.setBorder(new EmptyBorder(6, 0, 0, 0));
+		note.setAlignmentX(0f);
+		text.add(note);
+		card.add(text, BorderLayout.CENTER);
+		return card;
 	}
 
 	/** Kill counts added since logging in, the slots they gave, and how that compares with an average player. */

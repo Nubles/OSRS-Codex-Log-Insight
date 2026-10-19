@@ -19,6 +19,8 @@ public class ProgressRing extends JComponent
 	private final Animator animator = new Animator(this);
 	private String caption;
 	private boolean complete;
+	/** When set, the ring shows this instead of a percentage: "-" while nothing is known. */
+	private String centre;
 
 	public ProgressRing(int diameter, float thickness)
 	{
@@ -35,6 +37,13 @@ public class ProgressRing extends JComponent
 	{
 		this.complete = complete;
 		animator.set(Math.max(0, Math.min(1, progress)), animate);
+	}
+
+	/** Text in place of the percentage, or null to show the percentage again. */
+	public void setCentre(String text)
+	{
+		centre = text;
+		repaint();
 	}
 
 	/** A small line under the percentage, for rings large enough to hold it. */
@@ -84,7 +93,7 @@ public class ProgressRing extends JComponent
 		g.draw(new Ellipse2D.Float(0.5f, 0.5f, diameter - 1, diameter - 1));
 
 		g.setFont(diameter >= 48 ? Theme.title() : Theme.small());
-		String text = Math.round(value * 100) + "%";
+		String text = centre != null ? centre : Math.round(value * 100) + "%";
 		FontMetrics fm = g.getFontMetrics();
 		if (complete)
 		{

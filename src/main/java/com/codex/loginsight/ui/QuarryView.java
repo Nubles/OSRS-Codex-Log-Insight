@@ -135,13 +135,14 @@ final class QuarryView
 			long after = Math.round(1 / hunt.getNextChance());
 			next = hunt.getNextItemName() + (hunt.isNextEarned()
 				? (after <= 1 ? ", every time" : ", earned in " + Format.count(after))
-				: " " + Format.chance(hunt.getNextChance()));
+				: "Always".equals(Format.chance(hunt.getNextChance())) ? ", every time" : " " + Format.chance(hunt.getNextChance()));
 		}
 		if (pets && hunt.getPetName() != null)
 		{
 			next = hunt.getPetName();
 		}
-		JLabel nextLabel = Ui.label(next, Theme.small(), Theme.TEXT_MUTED);
+		// Two lines rather than a cut: "Hallowed mark, every time" is the point of the row.
+		JLabel nextLabel = Ui.clamped(next, Theme.small(), Theme.TEXT_MUTED, 118, 2);
 		nextLabel.setToolTipText(next);
 		text.add(nextLabel);
 		text.add(Ui.label("All " + hunt.getRemaining() + " " + Format.about(hunt.getHoursToFinish())

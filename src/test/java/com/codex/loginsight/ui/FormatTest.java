@@ -31,7 +31,7 @@ public class FormatTest
 		assertEquals("Hard Caskets", Format.source("Opening hard caskets"));
 		assertEquals("Tombs of Amascut Reward Chests", Format.source("Tombs of amascut reward chests (300)"));
 		assertEquals("Leviathan", Format.source("Killing the leviathan"));
-		assertEquals("raid level 300", Format.detail("Tombs of amascut reward chests (300)"));
+		assertEquals("Raid level 300", Format.detail("Tombs of amascut reward chests (300)"));
 		assertNull(Format.detail("Killing vorkath"));
 	}
 
@@ -43,5 +43,26 @@ public class FormatTest
 		assertEquals("3h 12m", Format.hours(3.2));
 		assertEquals("2,616h", Format.hours(2616.08));
 		assertEquals("-", Format.hours(Double.POSITIVE_INFINITY));
+	}
+
+	@Test
+	public void luckLineNeverSaysLuckierThanNobody()
+	{
+		assertEquals("Luckier than 68% of players", LuckDial.luckLine(68));
+		assertEquals("Luckier than 99% of players", LuckDial.luckLine(100));
+		assertEquals("Drier than 99% of players", LuckDial.luckLine(0));
+		assertEquals("Drier than 70% of players", LuckDial.luckLine(30));
+	}
+
+	@Test
+	public void trophyPodiumAndStanding()
+	{
+		org.junit.Assert.assertArrayEquals(new int[]{1, 0, 2}, TrophyShelf.order(3));
+		org.junit.Assert.assertArrayEquals(new int[]{0, 1}, TrophyShelf.order(2));
+		assertEquals("top 3%", TrophyShelf.standing(0.97));
+		assertEquals("top 1%", TrophyShelf.standing(0.999));
+		assertNull(TrophyShelf.standing(0.3));
+		assertNull(TrophyShelf.standing(-1));
+		assertEquals("Hallowed sepulchre", Format.detail("Looting (hallowed sepulchre)"));
 	}
 }

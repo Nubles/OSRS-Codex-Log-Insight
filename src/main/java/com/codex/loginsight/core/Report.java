@@ -41,6 +41,8 @@ public final class Report
 	private List<ItemReport> wanted = Collections.emptyList();
 	/** The game's new-slot notification setting, as {@link Setup#of} reads it. Set once, like the session. */
 	private int notices = Setup.NOTICES_UNKNOWN;
+	/** The finest finds for the trophy shelf, rarest first. Set once, like the wanted list. */
+	private List<Progress.Find> trophies = Collections.emptyList();
 
 	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
 		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
@@ -88,6 +90,7 @@ public final class Report
 		copy.session = summary;
 		copy.wanted = wanted;
 		copy.notices = notices;
+		copy.trophies = trophies;
 		return copy;
 	}
 
@@ -108,6 +111,18 @@ public final class Report
 	void setWanted(List<ItemReport> wanted)
 	{
 		this.wanted = Collections.unmodifiableList(wanted);
+	}
+
+	/** Sets the trophy shelf; called once by the analyst before the report is handed on. */
+	void setTrophies(List<Progress.Find> trophies)
+	{
+		this.trophies = Collections.unmodifiableList(trophies);
+	}
+
+	/** The rarest finds ever seen, rarest first. */
+	public List<Progress.Find> getTrophies()
+	{
+		return trophies;
 	}
 
 	/** True when this slot is on the wanted list. */

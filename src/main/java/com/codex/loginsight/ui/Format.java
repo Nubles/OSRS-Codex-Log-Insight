@@ -201,8 +201,10 @@ public final class Format
 		}
 		String detail = m.group(1).trim();
 		// Tombs of Amascut rows differ only by raid level.
-		return detail.matches("[0-9]+") && name.toLowerCase(java.util.Locale.ENGLISH).contains("amascut")
+		detail = detail.matches("[0-9]+") && name.toLowerCase(java.util.Locale.ENGLISH).contains("amascut")
 			? "raid level " + detail : detail;
+		// A tag under a title starts with a capital, like every other line on the card.
+		return detail.isEmpty() ? detail : Character.toUpperCase(detail.charAt(0)) + detail.substring(1);
 	}
 
 	/** An activity name for a card title: the parenthetical detail moves to the tooltip. */

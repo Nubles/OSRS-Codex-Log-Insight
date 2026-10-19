@@ -17,6 +17,8 @@ import java.util.Set;
 public final class Progress
 {
 	private static final int MAX_FINDS = 40;
+	/** Finest finds kept for the trophy shelf, however long ago they dropped. */
+	static final int TROPHIES = 5;
 	/** The most slots that can be wanted at once: a short list stays a list of goals. */
 	public static final int MAX_WANTED = 6;
 
@@ -36,6 +38,11 @@ public final class Progress
 	private Map<String, List<String>> pageLabels = new HashMap<>();
 	/** Slots you marked as wanted, in the order you marked them. */
 	private List<Integer> wanted = new ArrayList<>();
+	/**
+	 * The rarest finds ever seen, rarest first, kept apart from {@link #finds} so a great drop is not pushed off the
+	 * shelf by forty ordinary ones. Missing from older saves, which start it from the finds they still have.
+	 */
+	private List<Find> trophies;
 
 	public Progress copy()
 	{
@@ -52,6 +59,7 @@ public final class Progress
 		p.pagesRead = new LinkedHashMap<>(pagesRead());
 		p.pageLabels = new HashMap<>(pageLabels());
 		p.wanted = new ArrayList<>(wanted());
+		p.trophies = new ArrayList<>(trophies());
 		return p;
 	}
 
@@ -82,6 +90,49 @@ public final class Progress
 			finds = new ArrayList<>();
 		}
 		return finds;
+	}
+
+	private List<Find> trophies()
+	{
+		if (trophies == null)
+		{
+			List<Find> seeded = new ArrayList<>();
+			for (Find f : finds())
+			{
+				offer(seeded, f);
+			}
+			trophies = seeded;
+		}
+		return trophies;
+	}
+
+	/** Puts a find on the shelf if it is among the rarest; only finds with known odds compete. */
+	private static void offer(List<Find> shelf, Find find)
+	{
+		if (find == null || find.getChance() <= 0)
+		{
+			return;
+		}
+		for (Find f : shelf)
+		{
+			if (f.getItemId() == find.getItemId())
+			{
+				return;
+			}
+		}
+		shelf.add(find);
+		shelf.sort(Progress::rarer);
+		while (shelf.size() > TROPHIES)
+		{
+			shelf.remove(shelf.size() - 1);
+		}
+	}
+
+	/** Rarer odds first; at the same odds, the luckier find (the one fewer players would have had by then). */
+	private static int rarer(Find a, Find b)
+	{
+		int byOdds = Double.compare(a.getChance(), b.getChance());
+		return byOdds != 0 ? byOdds : Double.compare(b.getLuckier(), a.getLuckier());
 	}
 
 	private Map<String, Pace> pace()
@@ -192,11 +243,18 @@ public final class Progress
 
 	public void addFind(Find find)
 	{
+		offer(trophies(), find);
 		finds().add(0, find);
 		while (finds().size() > MAX_FINDS)
 		{
 			finds().remove(finds().size() - 1);
 		}
+	}
+
+	/** The finest finds, rarest first: at most {@link #TROPHIES}. */
+	public List<Find> getTrophies()
+	{
+		return Collections.unmodifiableList(new ArrayList<>(trophies()));
 	}
 
 	public Pace pace(String label)
