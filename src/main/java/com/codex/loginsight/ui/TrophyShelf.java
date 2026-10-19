@@ -29,26 +29,32 @@ final class TrophyShelf extends JComponent
 	private static final int[] PLINTH = {30, 21, 14};
 	private static final Color[] MEDAL = {Theme.GOLD_BRIGHT, new Color(196, 198, 202), new Color(196, 132, 84)};
 
+	/** Each find below the podium, fourth and fifth, gets a slim row. */
+	static final int ROW = 20;
+
 	private final List<Progress.Find> finds;
 	private final BufferedImage[] images;
+	/** The finds after the podium's three. */
+	private final List<Progress.Find> rest;
+	private final BufferedImage[] restImages;
 
 	TrophyShelf(List<Progress.Find> trophies, ItemIcons icons)
 	{
 		finds = new ArrayList<>(trophies.subList(0, Math.min(3, trophies.size())));
-		images = new BufferedImage[finds.size()];
-		for (int i = 0; i < finds.size(); i++)
-		{
-			int id = finds.get(i).getItemId();
-			images[i] = icons == null || id <= 0 ? null : icons.icon(id, this::repaint);
-		}
+		rest = new ArrayList<>(trophies.subList(finds.size(), trophies.size()));
+		images = images(finds, icons);
+		restImages = images(rest, icons);
 		setOpaque(false);
-		setPreferredSize(new Dimension(10, HEIGHT));
-		setMinimumSize(new Dimension(10, HEIGHT));
-		setMaximumSize(new Dimension(Integer.MAX_VALUE, HEIGHT));
+		int h = height(rest.size());
+		setPreferredSize(new Dimension(10, h));
+		setMinimumSize(new Dimension(10, h));
+		setMaximumSize(new Dimension(Integer.MAX_VALUE, h));
 		StringBuilder tip = new StringBuilder("<html>The rarest drops Log Insight has seen you get:");
-		for (int i = 0; i < finds.size(); i++)
+		List<Progress.Find> all = new ArrayList<>(finds);
+		all.addAll(rest);
+		for (int i = 0; i < all.size(); i++)
 		{
-			Progress.Find f = finds.get(i);
+			Progress.Find f = all.get(i);
 			tip.append("<br>").append(i + 1).append(". ").append(Ui.escape(f.getName())).append(", ").append(Format.chance(f.getChance()));
 			if (f.getCount() > 0)
 			{
@@ -60,6 +66,23 @@ final class TrophyShelf extends JComponent
 			}
 		}
 		setToolTipText(tip.append("</html>").toString());
+	}
+
+	private BufferedImage[] images(List<Progress.Find> list, ItemIcons icons)
+	{
+		BufferedImage[] out = new BufferedImage[list.size()];
+		for (int i = 0; i < list.size(); i++)
+		{
+			int id = list.get(i).getItemId();
+			out[i] = icons == null || id <= 0 ? null : icons.icon(id, this::repaint);
+		}
+		return out;
+	}
+
+	/** The card's height: the podium, and a row for each find after it. */
+	static int height(int rest)
+	{
+		return rest == 0 ? HEIGHT : HEIGHT + 8 + rest * ROW;
 	}
 
 	/** Which find stands in each column, left to right: the rarest in the middle once there are three. */
@@ -189,7 +212,43 @@ final class TrophyShelf extends JComponent
 				text(g, small, standing, cx - sm.stringWidth(standing) / 2, ty, Theme.luck(find.getLuckier()));
 			}
 		}
+		paintRest(g, w, sm, bm);
 		g.dispose();
+	}
+
+	/** Fourth and fifth on slim rows under the podium: rank, picture, name and odds. */
+	private void paintRest(Graphics2D g, int w, FontMetrics sm, FontMetrics bm)
+	{
+		if (rest.isEmpty())
+		{
+			return;
+		}
+		int y = HEIGHT + 1;
+		g.setPaint(new GradientPaint(14, 0, Theme.alpha(Theme.GOLD, 0), w / 2f, 0, Theme.alpha(Theme.GOLD, 90), true));
+		g.drawLine(14, y, w - 14, y);
+		for (int i = 0; i < rest.size(); i++)
+		{
+			Progress.Find find = rest.get(i);
+			int top = y + 3 + i * ROW;
+			int mid = top + ROW / 2;
+			String rank = String.valueOf(i + 4);
+			text(g, Theme.small(), rank, 14 - sm.stringWidth(rank) / 2 + 2, mid + sm.getAscent() / 2 - 1, Theme.TEXT_FAINT);
+			BufferedImage img = restImages[i];
+			if (img != null)
+			{
+				int iw = Math.min(img.getWidth(), 36);
+				int ih = Math.min(img.getHeight(), 32);
+				double scale = Math.min(22.0 / iw, 18.0 / ih);
+				int dw = (int) Math.round(iw * scale);
+				int dh = (int) Math.round(ih * scale);
+				g.drawImage(img, 34 - dw / 2, mid - dh / 2, dw, dh, null);
+			}
+			String odds = Format.chance(find.getChance());
+			int oddsX = w - 12 - sm.stringWidth(odds);
+			text(g, Theme.small(), odds, oddsX, mid + sm.getAscent() / 2 - 1, Theme.GOLD);
+			String name = clip(find.getName(), bm, oddsX - 50 - 6);
+			text(g, Theme.body(), name, 50, mid + bm.getAscent() / 2 - 1, Theme.TEXT);
+		}
 	}
 
 	/** A four-pointed glint for the rarest. */
