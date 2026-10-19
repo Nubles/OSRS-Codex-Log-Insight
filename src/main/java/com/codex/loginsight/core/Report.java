@@ -37,6 +37,8 @@ public final class Report
 	private final List<PetPlan> pets;
 	/** This play session, or null when logged out. Set once, before the report is handed to the panel. */
 	private Session.Summary session;
+	/** The slots you marked as wanted and still miss, in the order marked. */
+	private List<ItemReport> wanted = Collections.emptyList();
 
 	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
 		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
@@ -82,7 +84,27 @@ public final class Report
 			pagesRead, pagesTotal, pagesComplete, luck, hoursLeft, unratedMissing, ironRates, pages, hunts, driest, finds,
 			prospects, pets);
 		copy.session = summary;
+		copy.wanted = wanted;
 		return copy;
+	}
+
+	/** Sets the wanted slots; called once by the analyst before the report is handed on. */
+	void setWanted(List<ItemReport> wanted)
+	{
+		this.wanted = Collections.unmodifiableList(wanted);
+	}
+
+	/** True when this slot is on the wanted list. */
+	public boolean isWanted(int itemId)
+	{
+		for (ItemReport item : wanted)
+		{
+			if (item.getItemId() == itemId)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static Report loggedOut()

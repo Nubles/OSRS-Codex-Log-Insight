@@ -41,10 +41,19 @@ public class FindPlaque extends Overlay
 		final BufferedImage icon;
 		final long shownAt;
 		final long durationMs;
+		/** The slot was on the wanted list: the plaque says the hunt is over. */
+		final boolean wanted;
 
 		public View(String name, String page, String odds, String verdict, Color color, boolean pet, BufferedImage icon,
 			long shownAt, long durationMs)
 		{
+			this(name, page, odds, verdict, color, pet, icon, shownAt, durationMs, false);
+		}
+
+		public View(String name, String page, String odds, String verdict, Color color, boolean pet, BufferedImage icon,
+			long shownAt, long durationMs, boolean wanted)
+		{
+			this.wanted = wanted;
 			this.name = name;
 			this.page = page;
 			this.odds = odds;
@@ -134,7 +143,7 @@ public class FindPlaque extends Overlay
 		int width = WIDTH - x - PAD;
 		int y = PAD + Math.max(0, (Math.max(ICON, textHeight) - textHeight) / 2);
 		g.setFont(Theme.small());
-		shadow(g, v.pet ? "A NEW COMPANION" : "NEW LOG SLOT", x, y + small.getAscent(), tint);
+		shadow(g, v.wanted ? "WANTED, AND FOUND" : v.pet ? "A NEW COMPANION" : "NEW LOG SLOT", x, y + small.getAscent(), tint);
 		y += small.getHeight();
 		g.setFont(Theme.title());
 		shadow(g, clip(v.name, bold, width), x, y + bold.getAscent(), Theme.GOLD_BRIGHT);

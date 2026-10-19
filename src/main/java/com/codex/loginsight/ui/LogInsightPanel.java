@@ -42,6 +42,8 @@ public class LogInsightPanel extends PluginPanel
 	private String playerName;
 	private String filter = "";
 	private String openPage;
+	/** Marks a slot wanted or not; set by the plugin. */
+	private java.util.function.IntConsumer onWant;
 
 	public LogInsightPanel(ItemIcons icons)
 	{
@@ -115,6 +117,12 @@ public class LogInsightPanel extends PluginPanel
 		scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		Scrollbars.style(scroll.getVerticalScrollBar());
 		return scroll;
+	}
+
+	/** Lets missing slots on a page be clicked onto the wanted list; {@code onWant} runs on the Swing thread. */
+	public void setOnWant(java.util.function.IntConsumer onWant)
+	{
+		this.onWant = onWant;
 	}
 
 	/** Called on the Swing thread with each new report. */
@@ -204,7 +212,7 @@ public class LogInsightPanel extends PluginPanel
 			{
 				openPage = null;
 				rebuildFolios();
-			}));
+			}, report::isWanted, onWant));
 		}
 		else
 		{

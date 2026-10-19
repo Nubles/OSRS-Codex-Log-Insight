@@ -301,4 +301,73 @@ public class AnalystTest
 		}
 		assertNull(new Analyst(data).analyse(structure, all, false, true, -1, -1).getPages().get(0).getProjection());
 	}
+
+	// ---- Wanted ----
+
+	@Test
+	public void wantedSlotsAreReportedWithTheirMarksAndLeaveTheListWhenFound()
+	{
+		Progress p = new Progress();
+		p.setCounter("Beast kills", 40);
+		assertTrue(p.toggleWanted(HEAD));
+		assertTrue(p.toggleWanted(PET));
+		Report report = new Analyst(data).analyse(structure, p, false, true, -1, -1);
+		assertEquals(2, report.getWanted().size());
+		Report.ItemReport head = report.getWanted().get(0);
+		assertEquals(HEAD, head.getItemId());
+		assertEquals("Beast", head.getPage());
+		assertTrue(report.isWanted(PET));
+		// 1 in 100: half of players by 69 kills, nine in ten by 230.
+		assertEquals(69, Wanted.countFor(head, 0.5));
+		assertEquals(29, Wanted.moreUntil(head, 0.5));
+		assertEquals(190, Wanted.moreUntil(head, 0.9));
+		// Alone at 50 kills an hour, 100 kills are 2 hours on average: even odds after 2 ln 2 hours.
+		assertEquals(2.0, head.getHours(), 1e-9);
+		assertEquals(2 * Math.log(2), Wanted.evenChanceHours(head), 1e-9);
+		assertEquals(1 - Math.exp(-1), Wanted.chanceWithin(head, 2), 1e-9);
+
+		// Found: off the list, and a slot already owned cannot be wanted.
+		p.addOwned(HEAD);
+		assertEquals(Collections.singletonList(PET), p.getWanted());
+		assertTrue(!p.toggleWanted(HEAD));
+		report = new Analyst(data).analyse(structure, p, false, true, -1, -1);
+		assertEquals(1, report.getWanted().size());
+		// Clicking again takes it off.
+		assertTrue(p.toggleWanted(PET));
+		assertTrue(p.getWanted().isEmpty());
+		// Attaching the session keeps the wanted list.
+		assertEquals(1, new Analyst(data).analyse(structure, copyWanting(PET), false, true, -1, -1).withSession(null).getWanted().size());
+	}
+
+	private static Progress copyWanting(int id)
+	{
+		Progress p = new Progress();
+		p.toggleWanted(id);
+		return p.copy();
+	}
+
+	@Test
+	public void theWantedListIsShortAndOlderSavesReadWithoutIt()
+	{
+		Progress p = new Progress();
+		for (int id = 100; id < 100 + Progress.MAX_WANTED; id++)
+		{
+			assertTrue(p.toggleWanted(id));
+		}
+		assertTrue(!p.toggleWanted(999));
+		assertEquals(Progress.MAX_WANTED, p.getWanted().size());
+		com.google.gson.Gson gson = new com.google.gson.Gson();
+		Progress back = gson.fromJson(gson.toJson(p), Progress.class);
+		assertEquals(p.getWanted(), back.getWanted());
+		Progress old = gson.fromJson("{\"owned\":[1],\"counters\":{}}", Progress.class);
+		assertTrue(old.getWanted().isEmpty());
+		assertTrue(old.toggleWanted(2));
+		// A slot nobody can time still reports what it can.
+		Report.ItemReport unknown = new Report.ItemReport(7, "Mystery", null, false, false, 0, null, -1, -1, null,
+			Double.POSITIVE_INFINITY);
+		assertEquals(-1, Wanted.countFor(unknown, 0.5));
+		assertEquals(-1, Wanted.moreUntil(unknown, 0.5));
+		assertEquals(-1, Wanted.evenChanceHours(unknown), 0);
+		assertEquals(-1, Wanted.chanceWithin(unknown, 1), 0);
+	}
 }

@@ -97,6 +97,18 @@ public interface CodexLogInsightConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "grindCard",
+		name = "Grind card",
+		description = "While you add kill counts to a page, show a small card in the game view with the count, the wait for the page's next slot and the slot most worth watching. It hides five minutes after the last kill count",
+		position = 5,
+		section = finds
+	)
+	default boolean grindCard()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "rates",
 		name = "Rates",
 		description = "Typical kills per hour for a normal account or an ironman",

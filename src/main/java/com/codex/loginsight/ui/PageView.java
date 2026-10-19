@@ -8,6 +8,8 @@ import java.awt.GridLayout;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.IntConsumer;
+import java.util.function.IntPredicate;
 import javax.swing.BoxLayout;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
@@ -22,6 +24,15 @@ final class PageView
 	}
 
 	static StackPanel build(Report.PageReport page, ItemIcons icons, Runnable back)
+	{
+		return build(page, icons, back, id -> false, null);
+	}
+
+	/**
+	 * @param wanted whether a slot is on the wanted list
+	 * @param onWant marks a missing slot wanted or not when its row is clicked, or null to leave rows inert
+	 */
+	static StackPanel build(Report.PageReport page, ItemIcons icons, Runnable back, IntPredicate wanted, IntConsumer onWant)
 	{
 		StackPanel stack = new StackPanel(6, 8);
 		JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
@@ -91,10 +102,24 @@ final class PageView
 		if (!missing.isEmpty())
 		{
 			missing.sort(Comparator.comparingDouble(PageView::dryOrder));
-			stack.add(new SectionHeader("Still to find", String.valueOf(missing.size())));
+			stack.add(new SectionHeader("Still to find", onWant == null ? String.valueOf(missing.size()) : "click to want"));
 			for (Report.ItemReport item : missing)
 			{
-				stack.add(missingRow(item, icons, false, page.getNextSource()));
+				boolean isWanted = wanted.test(item.getItemId());
+				Card row = missingRow(item, icons, false, page.getNextSource(), isWanted);
+				if (isWanted)
+				{
+					row.setToolTipText("<html>On your wanted list. Click to take it off.<br>" + stripHtml(row.getToolTipText()) + "</html>");
+				}
+				else if (onWant != null)
+				{
+					row.setToolTipText("<html>Click to add it to your wanted list.<br>" + stripHtml(row.getToolTipText()) + "</html>");
+				}
+				if (onWant != null)
+				{
+					row.onClick(() -> onWant.accept(item.getItemId()));
+				}
+				stack.add(row);
 			}
 		}
 		if (!owned.isEmpty())
@@ -125,6 +150,11 @@ final class PageView
 		}
 		card.add(Ui.wrapped(text, Theme.small(), Theme.TEXT_MUTED, 168), BorderLayout.SOUTH);
 		return card;
+	}
+
+	private static String stripHtml(String tip)
+	{
+		return tip == null ? "" : tip.replace("<html>", "").replace("</html>", "");
 	}
 
 	/** Missing slots with a known dry chance first, driest at the top. */
@@ -159,6 +189,12 @@ final class PageView
 	/** @param pageSource the activity the page is mostly hunted at, so its own slots just say "alone" */
 	static Card missingRow(Report.ItemReport item, ItemIcons icons, boolean withPage, String pageSource)
 	{
+		return missingRow(item, icons, withPage, pageSource, false);
+	}
+
+	/** @param wanted the slot is on the wanted list: the card is gilt and its last line says so */
+	static Card missingRow(Report.ItemReport item, ItemIcons icons, boolean withPage, String pageSource, boolean wanted)
+	{
 		StringBuilder detail = new StringBuilder(Format.chance(item.getChance()));
 		if (item.getCount() >= 0)
 		{
@@ -180,8 +216,17 @@ final class PageView
 		{
 			dry = new Pill(Format.dry(item.getDryChance()), Theme.dry(item.getDryChance()));
 		}
+		if (wanted)
+		{
+			where = "Wanted" + (where == null ? "" : "  ·  " + where);
+		}
 		Card card = Rows.line(new IconBadge(item.getItemId(), icons, false), item.getName(), detail.toString(), where,
-			Theme.TEXT_FAINT, dry, item.getDryChance() >= 0 && item.getDryChance() < 0.2 ? Theme.dry(item.getDryChance()) : null);
+			wanted ? Theme.GOLD : Theme.TEXT_FAINT, dry,
+			wanted ? Theme.GOLD : item.getDryChance() >= 0 && item.getDryChance() < 0.2 ? Theme.dry(item.getDryChance()) : null);
+		if (wanted)
+		{
+			card.highlighted(true);
+		}
 		card.setToolTipText(ItemTile.tooltip(item));
 		return card;
 	}

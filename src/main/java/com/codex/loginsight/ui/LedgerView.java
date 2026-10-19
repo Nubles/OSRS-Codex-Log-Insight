@@ -100,6 +100,20 @@ final class LedgerView
 			report.getPagesRead() < report.getPagesTotal() ? "open more for luck" : "all kill counts", Theme.GOLD));
 		stack.add(tiles);
 
+		if (!report.getWanted().isEmpty())
+		{
+			stack.add(new SectionHeader("Wanted", report.getWanted().size() + " of " + Progress.MAX_WANTED));
+			for (Report.ItemReport item : report.getWanted())
+			{
+				Card card = wantedCard(item, icons);
+				if (item.getPage() != null)
+				{
+					card.onClick(() -> openPage.accept(item.getPage()));
+				}
+				stack.add(card);
+			}
+		}
+
 		Session.Summary session = report.getSession();
 		if (session != null)
 		{
@@ -189,6 +203,76 @@ final class LedgerView
 				+ " of them; you found " + luck.getOwned() + ".</html>");
 		}
 		return card;
+	}
+
+	/**
+	 * A slot you are after: how dry you are on it, the counts by which half and nine in ten of players have it, and
+	 * the play after which the odds of it are even.
+	 */
+	static Card wantedCard(Report.ItemReport item, ItemIcons icons)
+	{
+		StringBuilder odds = new StringBuilder(Format.chance(item.getChance()));
+		if (item.getCount() >= 0)
+		{
+			odds.append(" at ").append(Format.count(item.getCount())).append(" kc");
+		}
+		Pill dry = item.getDryChance() >= 0 ? new Pill(Format.dry(item.getDryChance()), Theme.dry(item.getDryChance())) : null;
+		Card card = Rows.line(new IconBadge(item.getItemId(), icons, false), item.getName(), odds.toString(), dry, Theme.GOLD);
+		card.highlighted(true);
+		JPanel more = new JPanel();
+		more.setOpaque(false);
+		more.setLayout(new javax.swing.BoxLayout(more, javax.swing.BoxLayout.Y_AXIS));
+		more.setBorder(new EmptyBorder(5, 0, 0, 0));
+		if (item.getDryChance() >= 0)
+		{
+			more.add(new DryBar(item.getDryChance()));
+			more.add(javax.swing.Box.createVerticalStrut(3));
+		}
+		String marks = marks(item);
+		if (marks != null)
+		{
+			more.add(left(Ui.label(marks, Theme.small(), Theme.TEXT_MUTED)));
+		}
+		double even = com.codex.loginsight.core.Wanted.evenChanceHours(item);
+		if (even > 0 && item.getSource() != null)
+		{
+			more.add(left(Ui.label("50% chance within " + Format.hours(even) + "  ·  " + Format.source(item.getSource()),
+				Theme.small(), Theme.TEAL)));
+		}
+		else if (item.getSource() == null)
+		{
+			more.add(left(Ui.label("No timed source yet", Theme.small(), Theme.TEXT_FAINT)));
+		}
+		// The text column already lays out name and odds; the rest runs the card's full width beneath.
+		card.add(more, BorderLayout.SOUTH);
+		card.setToolTipText(ItemTile.tooltip(item));
+		return card;
+	}
+
+	/** "Half by 2,079 · 1,667 to go" until you pass half, then the nine-in-ten mark; null without odds. */
+	static String marks(Report.ItemReport item)
+	{
+		int half = com.codex.loginsight.core.Wanted.countFor(item, 0.5);
+		int most = com.codex.loginsight.core.Wanted.countFor(item, 0.9);
+		if (half < 0 || item.getCount() < 0)
+		{
+			return half < 0 ? null : "Half of players by " + Format.count(half) + " kc";
+		}
+		if (item.getCount() < half)
+		{
+			return "Half by " + Format.count(half) + "  ·  " + Format.count(half - item.getCount()) + " to go";
+		}
+		if (item.getCount() < most)
+		{
+			return "9 in 10 by " + Format.count(most) + "  ·  " + Format.count(most - item.getCount()) + " to go";
+		}
+		return "Past 9 in 10 at " + Format.count(most) + " kc";
+	}
+
+	private static JComponent left(JComponent c)
+	{
+		c.setAlignmentX(0f);
+		return c;
 	}
 
 	private static JPanel pair(String left, String right, Color leftColor, Color rightColor)

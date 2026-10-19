@@ -2,6 +2,7 @@ package com.codex.loginsight;
 
 import com.codex.loginsight.core.Analyst;
 import com.codex.loginsight.core.DryWatch;
+import com.codex.loginsight.core.Grind;
 import com.codex.loginsight.core.Announcements;
 import com.codex.loginsight.core.ChatReader;
 import com.codex.loginsight.core.LogStructure;
@@ -14,6 +15,7 @@ import com.codex.loginsight.data.Activity;
 import com.codex.loginsight.data.ItemOdds;
 import com.codex.loginsight.data.LogData;
 import com.codex.loginsight.overlay.FindPlaque;
+import com.codex.loginsight.overlay.GrindCard;
 import com.codex.loginsight.ui.Format;
 import com.codex.loginsight.ui.ItemIcons;
 import com.codex.loginsight.ui.LogInsightPanel;
@@ -169,6 +171,10 @@ public class CodexLogInsightPlugin extends Plugin
 	private final Announcements announcements = new Announcements();
 	/** Kill count changes waiting a few ticks for the same kill's new-slot messages before milestones are checked. */
 	private final DryWatch.Queue milestones = new DryWatch.Queue();
+	private final GrindCard grindCard = new GrindCard();
+	/** The counter the last kill count message moved, and when, for the grind card; null until one moves. */
+	private String grindLabel;
+	private long grindAt;
 
 	@Provides
 	CodexLogInsightConfig provideConfig(ConfigManager configManager)
@@ -205,6 +211,7 @@ public class CodexLogInsightPlugin extends Plugin
 			return image;
 		};
 		panel = new LogInsightPanel(icons);
+		panel.setOnWant(itemId -> clientThread.invokeLater(() -> toggleWanted(itemId)));
 		navButton = NavigationButton.builder()
 			.tooltip("Codex Log Insight")
 			.icon(Sigil.icon(16))
@@ -213,6 +220,7 @@ public class CodexLogInsightPlugin extends Plugin
 			.build();
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(plaque);
+		overlayManager.add(grindCard);
 		clientThread.invokeLater(() ->
 		{
 			if (client.getGameState() == GameState.LOGGED_IN)
@@ -235,6 +243,8 @@ public class CodexLogInsightPlugin extends Plugin
 			profile = null;
 		});
 		overlayManager.remove(plaque);
+		overlayManager.remove(grindCard);
+		grindCard.clear();
 		clientToolbar.removeNavigation(navButton);
 		plaque.clear();
 		generation.incrementAndGet();
@@ -294,6 +304,8 @@ public class CodexLogInsightPlugin extends Plugin
 			}
 			announcements.clear();
 			milestones.clear();
+			grindLabel = null;
+			grindCard.clear();
 			plaque.clear();
 			publish(Report.loggedOut(), null);
 		}
@@ -305,6 +317,8 @@ public class CodexLogInsightPlugin extends Plugin
 		save();
 		// A kill counted on the account before the switch is not this account's milestone.
 		milestones.clear();
+		grindLabel = null;
+		grindCard.clear();
 		progress = null;
 		loadProgress();
 		dirty = true;
@@ -444,6 +458,11 @@ public class CodexLogInsightPlugin extends Plugin
 				session.observe(count.label, count.value, true);
 			}
 			progress.setCounter(count.label, count.value);
+			if (before != null && count.value > before)
+			{
+				grindLabel = count.label;
+				grindAt = System.currentTimeMillis();
+			}
 			if (config.dryMilestones() && before != null)
 			{
 				// Checked a few ticks on, once this kill's own "new item" line or pop-up has marked its slot owned.
@@ -651,6 +670,7 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 		List<LogStructure.Page> pages = itemId > 0 ? structure.pagesOf(itemId) : java.util.Collections.emptyList();
 		String page = pages.isEmpty() ? null : pages.get(0).getName();
+		boolean wasWanted = itemId > 0 && progress.isWanted(itemId);
 		if (itemId > 0)
 		{
 			progress.addOwned(itemId);
@@ -665,7 +685,8 @@ public class CodexLogInsightPlugin extends Plugin
 		if (config.showPlaque())
 		{
 			plaque.show(new FindPlaque.View(name, page, odd, verdict, color, itemId > 0 && data.isPet(itemId),
-				itemId > 0 ? itemManager.getImage(itemId) : null, System.currentTimeMillis(), config.plaqueSeconds() * 1000L));
+				itemId > 0 ? itemManager.getImage(itemId) : null, System.currentTimeMillis(), config.plaqueSeconds() * 1000L,
+				wasWanted));
 		}
 		if (config.chatLine() && (chance > 0 || verdict != null))
 		{
@@ -680,12 +701,24 @@ public class CodexLogInsightPlugin extends Plugin
 			{
 				line.append(". ").append(ChatColorType.HIGHLIGHT).append(verdict).append(ChatColorType.NORMAL);
 			}
-			line.append(".");
+			line.append(wasWanted ? ". Off your wanted list." : ".");
 			chatMessageManager.queue(QueuedMessage.builder()
 				.type(ChatMessageType.CONSOLE)
 				.runeLiteFormattedMessage(line.build())
 				.build());
 		}
+	}
+
+	/** Marks a slot wanted or not, from a click in the panel, and shows the change at the next tick. */
+	private void toggleWanted(int itemId)
+	{
+		if (progress == null || !progress.toggleWanted(itemId))
+		{
+			return;
+		}
+		changed();
+		// A click deserves an answer now, not after the usual pause between analyses.
+		ticksSinceAnalysis = ANALYSE_GAP_TICKS;
 	}
 
 	/** One chat line when a kill takes you past a dry milestone on a slot you are still missing. */
@@ -883,6 +916,8 @@ public class CodexLogInsightPlugin extends Plugin
 		Analyst reader = analyst;
 		// Read here, on the client thread that updates the session, rather than beside the analysis.
 		Session.Summary summary = session == null ? null : session.read(data, snapshot, System.currentTimeMillis());
+		String grindOn = config.grindCard() ? grindLabel : null;
+		long grindSince = grindAt;
 		executor.execute(() ->
 		{
 			try
@@ -890,6 +925,7 @@ public class CodexLogInsightPlugin extends Plugin
 				Report report = reader.analyse(shape, snapshot, iron, pace, owned, total, can).withSession(summary);
 				if (ticket == generation.get())
 				{
+					grindCard.setGrind(Grind.of(report, grindOn, grindSince));
 					publish(report, name);
 				}
 			}

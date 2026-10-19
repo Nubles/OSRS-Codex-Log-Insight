@@ -119,9 +119,20 @@ public final class Analyst
 		List<Report.Hunt> hunts = hunts(structure, owned, rates, unlocks, prospects);
 		List<PetPlan> pets = pets(structure, unique, owned, rates, unlocks);
 
-		return new Report(true, !structure.isEmpty(), officialOwned, officialTotal, knownOwned, unique.size(),
+		Report report = new Report(true, !structure.isEmpty(), officialOwned, officialTotal, knownOwned, unique.size(),
 			progress.getFullReadAt(), progress.pagesReadCount(), pages.size(), complete, luck, finish.hours,
 			finish.unrated, iron, pages, hunts, driest, progress.getFinds(), prospects, pets);
+		List<Report.ItemReport> wanted = new ArrayList<>();
+		for (int id : progress.getWanted())
+		{
+			if (!owned.contains(id) && unique.contains(id))
+			{
+				List<LogStructure.Page> where = structure.pagesOf(id);
+				wanted.add(item(structure, id, where.isEmpty() ? null : where.get(0).getName(), progress, rates));
+			}
+		}
+		report.setWanted(wanted);
+		return report;
 	}
 
 	/** Builds the report for one slot, for the panel and for the drop plaque. */

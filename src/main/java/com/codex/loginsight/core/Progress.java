@@ -17,6 +17,8 @@ import java.util.Set;
 public final class Progress
 {
 	private static final int MAX_FINDS = 40;
+	/** The most slots that can be wanted at once: a short list stays a list of goals. */
+	public static final int MAX_WANTED = 6;
 
 	/** Slots known to be owned. Only ever grows; the game never takes a slot back. */
 	private Set<Integer> owned = new HashSet<>();
@@ -32,6 +34,8 @@ public final class Progress
 	private Map<String, Long> pagesRead = new LinkedHashMap<>();
 	/** The counter names each read page shows, in its own order. */
 	private Map<String, List<String>> pageLabels = new HashMap<>();
+	/** Slots you marked as wanted, in the order you marked them. */
+	private List<Integer> wanted = new ArrayList<>();
 
 	public Progress copy()
 	{
@@ -47,6 +51,7 @@ public final class Progress
 		p.fullReadAt = fullReadAt;
 		p.pagesRead = new LinkedHashMap<>(pagesRead());
 		p.pageLabels = new HashMap<>(pageLabels());
+		p.wanted = new ArrayList<>(wanted());
 		return p;
 	}
 
@@ -106,6 +111,45 @@ public final class Progress
 		return pageLabels;
 	}
 
+	private List<Integer> wanted()
+	{
+		if (wanted == null)
+		{
+			wanted = new ArrayList<>();
+		}
+		return wanted;
+	}
+
+	/** Slots marked as wanted, oldest mark first. */
+	public List<Integer> getWanted()
+	{
+		return Collections.unmodifiableList(wanted());
+	}
+
+	public boolean isWanted(int itemId)
+	{
+		return wanted().contains(itemId);
+	}
+
+	/**
+	 * Marks a missing slot wanted, or unmarks it. An owned slot cannot be wanted, and a full list refuses a new one.
+	 *
+	 * @return true if the list changed
+	 */
+	public boolean toggleWanted(int itemId)
+	{
+		if (wanted().remove((Integer) itemId))
+		{
+			return true;
+		}
+		if (itemId <= 0 || owns(itemId) || wanted().size() >= MAX_WANTED)
+		{
+			return false;
+		}
+		wanted().add(itemId);
+		return true;
+	}
+
 	public boolean owns(int itemId)
 	{
 		return owned().contains(itemId);
@@ -119,6 +163,8 @@ public final class Progress
 	/** @return true if this slot is new */
 	public boolean addOwned(int itemId)
 	{
+		// A slot found is no longer wanted.
+		wanted().remove((Integer) itemId);
 		return owned().add(itemId);
 	}
 
