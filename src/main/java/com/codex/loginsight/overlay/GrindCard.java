@@ -54,7 +54,7 @@ public class GrindCard extends Overlay
 		g.setFont(Theme.title());
 		FontMetrics bold = g.getFontMetrics();
 		Layout l = layout;
-		if (l == null || l.grind != v || l.small != small || l.bold != bold)
+		if (l == null || l.grind != v || !l.small.getFont().equals(small.getFont()) || !l.bold.getFont().equals(bold.getFont()))
 		{
 			// Every line, its clipping and the card's shape are worked out once per grind update, not every frame.
 			l = new Layout(v, small, bold);
