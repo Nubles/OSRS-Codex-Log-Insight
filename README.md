@@ -35,6 +35,8 @@ It is the third plugin in the **Codex** suite, after [Codex Navigator](https://g
 
 Open your collection log and press its **Search** button once. Log Insight reads every slot you own from it. Kill counts are read from the log pages you open, from the kill count messages in chat, and from the counts RuneLite's chat commands have already saved, so open the pages you care about once and the luck numbers fill in.
 
+Until everything is in place, the Ledger opens with **Getting your log ready**: whether the whole log has been read (and read again when the game counts slots Log Insight has not seen, such as ones found on mobile), whether the game is set to announce new slots at all (with the notification off, a find goes unseen, and a chat line says so once a session), and how many pages have kill counts, naming the pages you have finds on but no count for, most finds first. Click one to open it. The card steps aside once all three are done.
+
 ## How the numbers work
 
 - **Luck** is a percentile: the share of players with your kill counts who would own fewer of these slots than you, with ties split evenly. Above 85% is Blessed, above 65% Fortunate, 35% to 65% Even, below 35% Dry and below 15% Parched.
