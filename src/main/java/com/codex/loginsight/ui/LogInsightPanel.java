@@ -150,7 +150,7 @@ public class LogInsightPanel extends PluginPanel
 	private void ledgerChanged()
 	{
 		stale[0] = true;
-		if (active && shown == 0)
+		if ((active || isShowing()) && shown == 0)
 		{
 			rebuildTab(0);
 		}
@@ -253,7 +253,7 @@ public class LogInsightPanel extends PluginPanel
 	{
 		crest.update(report, playerName);
 		java.util.Arrays.fill(stale, true);
-		if (active)
+		if (active || isShowing())
 		{
 			rebuildTab(shown);
 		}
