@@ -312,6 +312,8 @@ public class CodexLogInsightPlugin extends Plugin
 		{
 			harvest.clear();
 			lastTransmitTick = -1;
+			// A hop logs in afresh and the varbits arrive again: settings read in between may be blanks.
+			loginTick = -1;
 		}
 		if (event.getGameState() == GameState.LOGGED_IN && loginTick < 0)
 		{
@@ -435,11 +437,11 @@ public class CodexLogInsightPlugin extends Plugin
 		if (now - loginTick >= SETTLE_TICKS)
 		{
 			watchNotices();
-		}
-		// The account type arrives with the varbits at login: an analysis made before it used the wrong rates.
-		if (ironShown != null && ironShown != ironRates())
-		{
-			dirty = true;
+			// The account type arrives with the varbits at login: an analysis made before it used the wrong rates.
+			if (ironShown != null && ironShown != ironRates())
+			{
+				dirty = true;
+			}
 		}
 
 		ticksSinceAnalysis++;
