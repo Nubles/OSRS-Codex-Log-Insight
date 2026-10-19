@@ -49,6 +49,8 @@ public class LogInsightPanel extends PluginPanel
 	private String shareNote;
 	/** True while a card waits for its pictures, so a second click does not start a second wait. */
 	private boolean sharing;
+	/** The card waiting for its pictures, called off if the plugin stops first. */
+	private IconWait pending;
 	/** True while the panel is open in the sidebar; a closed panel only marks its tabs stale. */
 	private boolean active;
 
@@ -140,6 +142,21 @@ public class LogInsightPanel extends PluginPanel
 		ledgerChanged();
 	}
 
+	/**
+	 * The plugin is stopping: a card still waiting for its pictures is called off, so it is never saved or copied
+	 * after the plugin is gone. Swing thread only.
+	 */
+	public void shutDown()
+	{
+		if (pending != null)
+		{
+			pending.cancel();
+			pending = null;
+		}
+		sharing = false;
+		share = null;
+	}
+
 	/** Shows what became of a save or copy under the podium. Swing thread only. */
 	public void shareNote(String note)
 	{
@@ -194,9 +211,10 @@ public class LogInsightPanel extends PluginPanel
 		}
 		// The card waits for every picture, so it never shows an empty plinth.
 		sharing = true;
-		FindsShare.whenReady(spec, icons, card ->
+		pending = FindsShare.whenReady(spec, icons, card ->
 		{
 			sharing = false;
+			pending = null;
 			ShareActions to = share;
 			if (to == null)
 			{

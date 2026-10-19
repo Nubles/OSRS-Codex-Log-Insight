@@ -34,12 +34,13 @@ final class IconWait
 	/**
 	 * @param done called on the Swing thread exactly once, with each item's picture (or none for one that never came)
 	 */
-	static void forItems(ItemIcons icons, List<Integer> itemIds, Consumer<Map<Integer, BufferedImage>> done)
+	static IconWait forItems(ItemIcons icons, List<Integer> itemIds, Consumer<Map<Integer, BufferedImage>> done)
 	{
-		forItems(icons, itemIds, GIVE_UP_MS, done);
+		return forItems(icons, itemIds, GIVE_UP_MS, done);
 	}
 
-	static void forItems(ItemIcons icons, List<Integer> itemIds, int giveUpMs, Consumer<Map<Integer, BufferedImage>> done)
+	/** @return the wait, so it can be called off when the plugin stops */
+	static IconWait forItems(ItemIcons icons, List<Integer> itemIds, int giveUpMs, Consumer<Map<Integer, BufferedImage>> done)
 	{
 		IconWait wait = new IconWait(icons, done);
 		for (int id : itemIds)
@@ -59,6 +60,17 @@ final class IconWait
 			wait.giveUp = new Timer(giveUpMs, e -> wait.finish());
 			wait.giveUp.setRepeats(false);
 			wait.giveUp.start();
+		}
+		return wait;
+	}
+
+	/** Calls the wait off: the card is never made, and the give-up timer is stopped. */
+	void cancel()
+	{
+		finished = true;
+		if (giveUp != null)
+		{
+			giveUp.stop();
 		}
 	}
 

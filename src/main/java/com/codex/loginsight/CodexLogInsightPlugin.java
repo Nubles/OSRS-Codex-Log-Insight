@@ -321,6 +321,10 @@ public class CodexLogInsightPlugin extends Plugin
 		ironShown = null;
 		statsChangedAt = -1;
 		statLevels.clear();
+		if (panel != null)
+		{
+			panel.shutDown();
+		}
 		panel = null;
 	}
 

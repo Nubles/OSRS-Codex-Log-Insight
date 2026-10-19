@@ -102,9 +102,9 @@ public final class FindsShare
 	/**
 	 * Waits for the finds' pictures, then draws the card and hands it over on the Swing thread.
 	 */
-	public static void whenReady(Spec spec, ItemIcons icons, java.util.function.Consumer<BufferedImage> done)
+	static IconWait whenReady(Spec spec, ItemIcons icons, java.util.function.Consumer<BufferedImage> done)
 	{
-		IconWait.forItems(icons, spec.itemIds(), images -> done.accept(render(spec, images)));
+		return IconWait.forItems(icons, spec.itemIds(), images -> done.accept(render(spec, images)));
 	}
 
 	/** @param images each find's picture by item id; a find without one stands on its plinth as a dark disc */

@@ -178,4 +178,29 @@ public class CohesionTest
 		SwingUtilities.invokeAndWait(() -> IconWait.forItems(none, Collections.singletonList(22006), 60_000, made::add));
 		assertEquals(1, made.size());
 	}
+
+	@Test
+	public void theFirstDayVsAverageNoteFitsItsTile()
+	{
+		Graphics2D g = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
+		int width = g.getFontMetrics(Theme.small()).stringWidth(LedgerView.NO_COUNTS);
+		g.dispose();
+		// A tile is about 97 px at sidebar width and its note gets 16 px less: "needs kill counts" (83 px) was cut.
+		assertTrue(width + " px", width <= 80);
+	}
+
+	@Test
+	public void aCardStillWaitingWhenThePluginStopsIsNeverMade() throws Exception
+	{
+		SlowIcons icons = new SlowIcons();
+		List<Map<Integer, BufferedImage>> made = new ArrayList<>();
+		IconWait[] wait = new IconWait[1];
+		SwingUtilities.invokeAndWait(() -> wait[0] = IconWait.forItems(icons, Collections.singletonList(22006), 50, made::add));
+		// The plugin stops before the picture comes: the give-up timer must not go on to save or copy a card.
+		SwingUtilities.invokeAndWait(() -> wait[0].cancel());
+		Thread.sleep(300);
+		icons.arrive();
+		flush();
+		assertEquals(0, made.size());
+	}
 }

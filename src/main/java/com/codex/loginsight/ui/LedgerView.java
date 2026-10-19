@@ -23,6 +23,9 @@ final class LedgerView
 	{
 	}
 
+	/** The Vs average tile's note before any kill count is read: short enough not to be cut at sidebar width. */
+	static final String NO_COUNTS = "no kill counts";
+
 	static StackPanel build(Report report, LuckDial dial, ItemIcons icons, Consumer<String> openPage, Runnable openQuarry, long now)
 	{
 		return build(report, dial, icons, openPage, openQuarry, now, null);
@@ -76,7 +79,7 @@ final class LedgerView
 		}
 		else
 		{
-			tiles.add(new StatTile("-", "Vs average", "needs kill counts", Theme.TEXT_MUTED));
+			tiles.add(new StatTile("-", "Vs average", NO_COUNTS, Theme.TEXT_MUTED));
 		}
 		if (hunts.isEmpty())
 		{
