@@ -305,6 +305,9 @@ public class CodexLogInsightPlugin extends Plugin
 			announcements.clear();
 			milestones.clear();
 			grindLabel = null;
+			// An analysis still running for the account just left must not land after this: it would put that
+			// account's report back in the panel, and its grind card back on screen, while logged out.
+			generation.incrementAndGet();
 			grindCard.clear();
 			plaque.clear();
 			publish(Report.loggedOut(), null);

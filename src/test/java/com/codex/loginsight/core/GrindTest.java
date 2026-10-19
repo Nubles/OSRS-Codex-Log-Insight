@@ -53,6 +53,7 @@ public class GrindTest
 		Progress p = new Progress();
 		p.setCounter("Beast kills", 120);
 		p.addOwned(SHIELD);
+		p.markPageRead("Beast", 1);
 		Session session = new Session(new HashSet<>(p.getOwned()), 0);
 		session.observe("Beast kills", 100, true);
 		session.observe("Beast kills", 120, true);
@@ -82,6 +83,7 @@ public class GrindTest
 	{
 		Progress p = new Progress();
 		p.setCounter("Beast kills", 10);
+		p.markPageRead("Beast", 1);
 		Report report = new Analyst(data).analyse(structure, p, false, true, -1, -1);
 		Grind grind = Grind.of(report, "Beast kills", 1_000);
 		assertTrue(grind.isShowing(1_000 + Grind.SHOW_MS - 1));
@@ -95,5 +97,18 @@ public class GrindTest
 		p.addOwned(SHIELD);
 		assertNull(Grind.of(new Analyst(data).analyse(structure, p, false, true, -1, -1), "Beast kills", 1_000));
 		assertSame(null, Grind.of(Report.loggedOut(), "Beast kills", 0));
+	}
+
+	@Test
+	public void noCardUntilWhatYouOwnOnThePageIsKnown()
+	{
+		// A first kill before the log was ever opened: every slot reads as missing, so the card would claim
+		// "3 slots left" and a dry slot the account may have owned for years.
+		Progress p = new Progress();
+		p.setCounter("Beast kills", 300);
+		assertNull(Grind.of(new Analyst(data).analyse(structure, p, false, true, -1, -1), "Beast kills", 1_000));
+		// A full read of the log is as good as opening the page.
+		p.setFullReadAt(5);
+		assertEquals("Beast", Grind.of(new Analyst(data).analyse(structure, p, false, true, -1, -1), "Beast kills", 1_000).getPage());
 	}
 }

@@ -41,7 +41,8 @@ public final class Grind
 	}
 
 	/**
-	 * The grind for a counter, or null when no unfinished page counts by it. Of several pages counted by one
+	 * The grind for a counter, or null when no unfinished page counts by it or what you own there is not known yet
+	 * (neither the page nor the whole log has been read). Of several pages counted by one
 	 * counter, the one with the most slots left is the grind.
 	 *
 	 * @param at when the counter last moved
@@ -61,7 +62,9 @@ public final class Grind
 				best = page;
 			}
 		}
-		if (best == null)
+		// Until the page (or the whole log) has been read, every slot looks missing: "6 slots left" and a dry
+		// slot you have owned for years would be wrong, so the card waits for the log to be opened.
+		if (best == null || !best.isRead() && report.getFullReadAt() <= 0)
 		{
 			return null;
 		}
