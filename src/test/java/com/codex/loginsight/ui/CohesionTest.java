@@ -149,4 +149,33 @@ public class CohesionTest
 		assertEquals(1, made.size());
 		assertTrue(made.get(0).isEmpty());
 	}
+
+	@Test
+	public void aClosedPanelOnlyMarksItsTabsStale() throws Exception
+	{
+		com.codex.loginsight.core.Report report = com.codex.loginsight.core.Report.loggedOut();
+		LogInsightPanel[] panel = new LogInsightPanel[1];
+		SwingUtilities.invokeAndWait(() ->
+		{
+			panel[0] = new LogInsightPanel((id, cb) -> null);
+			panel[0].update(report, null);
+		});
+		// Closed: the report waits rather than rebuilding a page nobody sees.
+		assertTrue(panel[0].isStale(0));
+		SwingUtilities.invokeAndWait(() -> panel[0].onActivate());
+		assertTrue(!panel[0].isStale(0));
+		SwingUtilities.invokeAndWait(() -> panel[0].update(report, null));
+		// Open: the tab in view is rebuilt at once, the rest wait.
+		assertTrue(!panel[0].isStale(0));
+		assertTrue(panel[0].isStale(2));
+	}
+
+	@Test
+	public void aFindWithNoPictureAtAllDoesNotHoldTheCardUp() throws Exception
+	{
+		List<Map<Integer, BufferedImage>> made = new ArrayList<>();
+		ItemIcons none = (id, cb) -> null;
+		SwingUtilities.invokeAndWait(() -> IconWait.forItems(none, Collections.singletonList(22006), 60_000, made::add));
+		assertEquals(1, made.size());
+	}
 }

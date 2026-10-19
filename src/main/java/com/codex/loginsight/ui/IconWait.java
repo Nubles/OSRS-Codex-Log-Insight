@@ -46,7 +46,12 @@ final class IconWait
 		{
 			if (id > 0 && !wait.images.containsKey(id) && icons != null)
 			{
-				wait.images.put(id, icons.icon(id, () -> SwingUtilities.invokeLater(wait::check)));
+				BufferedImage image = icons.icon(id, () -> SwingUtilities.invokeLater(wait::check));
+				// No picture at all will never arrive: the card draws that find without one rather than waiting.
+				if (image != null)
+				{
+					wait.images.put(id, image);
+				}
 			}
 		}
 		if (!wait.check())

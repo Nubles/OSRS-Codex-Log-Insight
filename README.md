@@ -14,7 +14,7 @@ It is the third plugin in the **Codex** suite, after [Codex Navigator](https://g
 ## What it does
 
 - **Ledger.** Your whole log at a glance: slots owned, pages finished, a luck dial from Parched to Blessed comparing your slots with what an average player would own at your kill counts, and the hours left to finish the log. Tiles show how many slots you are ahead of or behind the average, your soonest next slot, your pets and how many pages' kill counts have been read. Below them, the best next hunts you can do right now, the drops you are driest on (at most two from one page), and your recent finds with the odds they came at and how lucky each one was.
-- **Finest finds.** The Ledger puts your three rarest drops on a podium, the rarest in the middle: each on a gilt plinth with its odds, the kill count it came at and how far ahead of other players that was ("top 3%"). Fourth and fifth sit on slim rows beneath it. The shelf keeps its own five rarest, so a great drop stays however many ordinary ones follow it. Only drops Log Insight saw happen are on it.
+- **Finest finds.** The Ledger puts your three rarest drops on a podium, the rarest in the middle: each on a gilt plinth with its odds, the kill count it came at and how far ahead of other players that was ("top 3%"). Fourth and fifth sit on slim rows beneath it. The shelf keeps its own five rarest, so a great drop stays however many ordinary ones follow it. Only drops Log Insight saw happen are on it. **Save finds card** (or Copy) under it makes a picture of the podium to share, with your name (turn off "Name on cards" to leave it off) and how full your log is; it waits for every item picture to load, so no plinth stands empty.
 - **Folios.** Every log page with its progress, its luck verdict, your kill count and the time to the next slot. Open a page for its own dial, the time to finish it, every missing slot with its drop rate, how dry you are on it and where it comes quickest, and the slots you already own.
 - **Quarry.** Every activity ranked by the wait for your next new slot, filtered by combat, minigames, other activities or pets (ranked by the wait for the pet itself). Activities you cannot do yet, by your real skill levels and finished quests, sink to the bottom and say what they need. Guaranteed rewards (a reward shop, a fixed number of completions) are counted exactly rather than as a random roll, rewards bought with points add up, and pieces that only drop in order are chained.
 - **Plan.** Pick how long you have (1, 5, 20 or 100 hours) and Plan ranks what you can do right now by the new slots an average player would get from it in that time, with the chance of at least one, counting points rewards and pieces that drop in order properly. Below that, the pages nearest a green log with the hours by which half and nine in ten players finish them, and every missing pet as a hunt: where it comes quickest that you can do, the chance of seeing it in the time you picked, how long half and nine in ten players take, and how many other new slots usually turn up on the way.
@@ -30,6 +30,10 @@ It is the third plugin in the **Codex** suite, after [Codex Navigator](https://g
 <p align="center">
   <img src="docs/screenshots/plaque.png" width="300" alt="New slot plaque">
   <img src="docs/screenshots/plaque-pet.png" width="300" alt="Pet plaque">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/finds-card.png" width="260" alt="Finest finds card">
 </p>
 
 ## Getting started

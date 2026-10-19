@@ -49,6 +49,8 @@ public class LogInsightPanel extends PluginPanel
 	private String shareNote;
 	/** True while a card waits for its pictures, so a second click does not start a second wait. */
 	private boolean sharing;
+	/** True while the panel is open in the sidebar; a closed panel only marks its tabs stale. */
+	private boolean active;
 
 	public LogInsightPanel(ItemIcons icons)
 	{
@@ -135,19 +137,20 @@ public class LogInsightPanel extends PluginPanel
 	{
 		this.share = share;
 		this.nameOnCards = nameOnCards == null ? () -> true : nameOnCards;
-		stale[0] = true;
-		if (shown == 0)
-		{
-			rebuildTab(0);
-		}
+		ledgerChanged();
 	}
 
 	/** Shows what became of a save or copy under the podium. Swing thread only. */
 	public void shareNote(String note)
 	{
 		shareNote = note;
+		ledgerChanged();
+	}
+
+	private void ledgerChanged()
+	{
 		stale[0] = true;
-		if (shown == 0)
+		if (active && shown == 0)
 		{
 			rebuildTab(0);
 		}
@@ -241,12 +244,41 @@ public class LogInsightPanel extends PluginPanel
 		cards.show(content, TABS[tab]);
 	}
 
-	/** Only the tab in view is rebuilt for each report; the others wait until they are opened. */
+	/**
+	 * Only the tab in view is rebuilt for each report, and only while the panel is open; the others, or all of them
+	 * while it is closed, wait until they are seen. Reports come with every kill count, so a closed panel would
+	 * otherwise rebuild a page nobody looks at after each kill.
+	 */
 	private void rebuild()
 	{
 		crest.update(report, playerName);
 		java.util.Arrays.fill(stale, true);
-		rebuildTab(shown);
+		if (active)
+		{
+			rebuildTab(shown);
+		}
+	}
+
+	@Override
+	public void onActivate()
+	{
+		active = true;
+		if (stale[shown])
+		{
+			rebuildTab(shown);
+		}
+	}
+
+	@Override
+	public void onDeactivate()
+	{
+		active = false;
+	}
+
+	/** True when a tab was built from an older report and waits to be rebuilt. */
+	boolean isStale(int tab)
+	{
+		return stale[tab];
 	}
 
 	private void rebuildTab(int tab)
