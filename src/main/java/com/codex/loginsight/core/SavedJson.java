@@ -78,20 +78,23 @@ public final class SavedJson
 		{
 			return new Read<>(null, false);
 		}
+		T whole = null;
 		try
 		{
-			// The usual case, read straight from the text without building a tree first.
-			T whole = gson.fromJson(json, type);
-			if (whole != null)
-			{
-				return new Read<>(whole, false);
-			}
+			// The usual case, read straight from the text: Gson's text reader never expands a huge exponent.
+			whole = gson.fromJson(json, type);
 		}
 		catch (RuntimeException | StackOverflowError e)
 		{
 			// Taken apart below.
 		}
 		JsonElement root = tree(gson, json);
+		if (whole != null)
+		{
+			// Read without an error, but a newer version's fields (or a kind of entry this one does not know) are
+			// passed over in silence and would be lost at the next save: flagged, so the text is kept aside.
+			return new Read<>(whole, root == null || !covers(root, toTree(gson, whole)));
+		}
 		if (root == null || !root.isJsonObject())
 		{
 			return new Read<>(null, true);
@@ -156,6 +159,70 @@ public final class SavedJson
 			return parse(gson, wrap.apply(out), type) != null ? out : null;
 		}
 		return null;
+	}
+
+	/** {@code value} as Gson would save it, or null when it cannot be written. */
+	private static JsonElement toTree(Gson gson, Object value)
+	{
+		try
+		{
+			return gson.toJsonTree(value);
+		}
+		catch (RuntimeException | StackOverflowError e)
+		{
+			return null;
+		}
+	}
+
+	/**
+	 * True when every field and list entry saved in {@code saved} is still there in {@code reread}, the value read
+	 * from it written out again: nothing was passed over. Only the shape is compared, not the figures, which the
+	 * reader may round or bring back to sense. A field saved as null was nothing to lose.
+	 */
+	static boolean covers(JsonElement saved, JsonElement reread)
+	{
+		if (saved == null || saved.isJsonNull())
+		{
+			return true;
+		}
+		if (reread == null || reread.isJsonNull())
+		{
+			return false;
+		}
+		if (saved.isJsonObject())
+		{
+			if (!reread.isJsonObject())
+			{
+				return false;
+			}
+			JsonObject now = reread.getAsJsonObject();
+			for (Map.Entry<String, JsonElement> field : saved.getAsJsonObject().entrySet())
+			{
+				if (!field.getValue().isJsonNull() && !covers(field.getValue(), now.get(field.getKey())))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+		if (saved.isJsonArray())
+		{
+			if (!reread.isJsonArray() || reread.getAsJsonArray().size() < saved.getAsJsonArray().size())
+			{
+				return false;
+			}
+			JsonArray then = saved.getAsJsonArray();
+			JsonArray now = reread.getAsJsonArray();
+			for (int i = 0; i < then.size(); i++)
+			{
+				if (!covers(then.get(i), now.get(i)))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+		return true;
 	}
 
 	private static <T> T parse(Gson gson, JsonElement tree, Class<T> type)

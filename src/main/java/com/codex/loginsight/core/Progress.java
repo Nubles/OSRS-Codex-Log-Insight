@@ -51,7 +51,12 @@ public final class Progress
 	public static SavedJson.Read<Progress> load(com.google.gson.Gson gson, String json)
 	{
 		SavedJson.Read<Progress> read = SavedJson.read(gson, json, Progress.class);
-		return new SavedJson.Read<>(read.getValue() == null ? null : read.getValue().repair(), read.isDamaged());
+		Progress value = read.getValue();
+		// More finds or trophies than this version keeps (a newer one may keep more): the repair trims them, so the
+		// saved text is kept aside first.
+		boolean trimmed = value != null && (value.finds != null && value.finds.size() > MAX_FINDS
+			|| value.trophies != null && value.trophies.size() > TROPHIES);
+		return new SavedJson.Read<>(value == null ? null : value.repair(), read.isDamaged() || trimmed);
 	}
 
 	/** Drops what no game could have saved (empty entries, negative counts, a broken pace) and holds every list to its limit. */

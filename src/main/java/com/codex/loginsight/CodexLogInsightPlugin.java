@@ -125,6 +125,9 @@ public class CodexLogInsightPlugin extends Plugin
 	/** Varbits sent at login have all arrived by this many ticks after it; a setting read sooner may be a blank. */
 	private static final int SETTLE_TICKS = 10;
 
+	/** How many items the game has (the highest id plus one), or 0 until the client has its item table. */
+	private volatile int itemCount;
+
 	@Inject
 	private Client client;
 
@@ -244,6 +247,13 @@ public class CodexLogInsightPlugin extends Plugin
 			@Override
 			public BufferedImage icon(int itemId, Runnable onLoaded)
 			{
+				// A find's id comes from the save: one the game does not have would never draw, and the item manager
+				// would try again for it on every client tick.
+				int known = itemCount;
+				if (itemId <= 0 || known > 0 && itemId >= known)
+				{
+					return null;
+				}
 				AsyncBufferedImage image = itemManager.getImage(itemId);
 				image.onLoaded(() ->
 				{
@@ -289,6 +299,10 @@ public class CodexLogInsightPlugin extends Plugin
 		overlayManager.add(grindCard);
 		clientThread.invokeLater(() ->
 		{
+			if (client.getGameState().ordinal() >= GameState.LOGIN_SCREEN.ordinal())
+			{
+				itemCount = client.getItemCount();
+			}
 			if (client.getGameState() == GameState.LOGGED_IN)
 			{
 				loadProgress();
@@ -356,6 +370,11 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event)
 	{
+		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.LOGGED_IN)
+		{
+			// The item table is loaded by the login screen; read here, on the client thread, for the panel's pictures.
+			itemCount = client.getItemCount();
+		}
 		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.HOPPING)
 		{
 			harvest.clear();

@@ -67,7 +67,7 @@ Until everything is in place, the Ledger opens with **Getting your log ready**: 
 
 ## Privacy and rules
 
-Log Insight only reads what the game already shows you: your collection log, its page counters, your chat messages and new slot pop-ups, your skill levels and your quest list, plus the kill counts RuneLite's own chat commands have saved. It does not click, change menus, send chat or touch the network. Your progress is saved per account in your RuneLite profile and never leaves your computer. If that save is ever damaged, Log Insight keeps every part it can read and keeps the saved text aside (as `progressUnreadable`) rather than writing over it. It needs no other Codex plugin.
+Log Insight only reads what the game already shows you: your collection log, its page counters, your chat messages and new slot pop-ups, your skill levels and your quest list, plus the kill counts RuneLite's own chat commands have saved. It does not click, change menus, send chat or touch the network. Your progress is saved per account in your RuneLite profile and never leaves your computer. If that save is ever damaged, or holds something only a newer Log Insight understands, Log Insight keeps every part it can read and keeps the saved text aside (as `progressUnreadable`) rather than writing over it. It needs no other Codex plugin.
 
 ## Credits
 

@@ -121,6 +121,31 @@ public class DamagedDataTest
 	}
 
 	@Test
+	public void fieldsFromANewerLogInsightAreKeptAside()
+	{
+		// A newer Log Insight adds a field to the save and to a find. Gson reads past both without an error, so the
+		// read used to say nothing was left out and the next save wrote over them for good.
+		JsonObject saved = GSON.toJsonTree(progress()).getAsJsonObject();
+		saved.addProperty("sailingLog", 3);
+		assertTrue(Progress.load(GSON, GSON.toJson(saved)).isDamaged());
+		JsonObject inFind = GSON.toJsonTree(progress()).getAsJsonObject();
+		inFind.getAsJsonArray("finds").get(0).getAsJsonObject().addProperty("world", 302);
+		SavedJson.Read<Progress> read = Progress.load(GSON, GSON.toJson(inFind));
+		assertTrue(read.isDamaged());
+		assertEquals(1, read.getValue().getFinds().size());
+		// More finds than this version keeps are trimmed, so they are kept aside too.
+		JsonObject many = GSON.toJsonTree(progress()).getAsJsonObject();
+		JsonArray finds = many.getAsJsonArray("finds");
+		for (int i = 0; i < 60; i++)
+		{
+			finds.add(finds.get(0).deepCopy());
+		}
+		assertTrue(Progress.load(GSON, GSON.toJson(many)).isDamaged());
+		// What this version writes reads back whole, so a normal save is never kept aside.
+		assertFalse(Progress.load(GSON, GSON.toJson(progress())).isDamaged());
+	}
+
+	@Test
 	public void absurdFiguresAreBroughtBackToSense()
 	{
 		Progress p = Progress.load(GSON, "{\"owned\":[1,null,2],\"counters\":{\"Vorkath kills\":-7,\"Zulrah kills\":2147483647},"
