@@ -123,7 +123,7 @@ public class LuckDial extends JComponent
 
 		int y = Math.round(cy + small.getHeight() + 4);
 		String verdict = known ? luck.verdict().getLabel() : "Not read yet";
-		String line = known ? luckLine(luck.luckierThan()) : "Open log pages to learn your kill counts";
+		String line = known ? luckLine(luck.luckierThan()) : NOT_READ_LINE;
 		g.setFont(Theme.title());
 		ProgressRing.drawShadowed(g, verdict, Math.round(cx - bold.stringWidth(verdict) / 2f), y + bold.getAscent(),
 			known ? Theme.luck(luck.verdict()) : Theme.TEXT_MUTED);
@@ -131,6 +131,9 @@ public class LuckDial extends JComponent
 		ProgressRing.drawShadowed(g, line, Math.round(cx - small.stringWidth(line) / 2f), y + bold.getHeight() + small.getAscent(), Theme.TEXT_MUTED);
 		g.dispose();
 	}
+
+	/** Under "Not read yet": short enough to sit inside the dial's card at sidebar width. */
+	static final String NOT_READ_LINE = "Open log pages to read your luck";
 
 	/**
 	 * "Luckier than 68% of players", or for the unlucky half "Drier than 90% of players": never "luckier than 0%",

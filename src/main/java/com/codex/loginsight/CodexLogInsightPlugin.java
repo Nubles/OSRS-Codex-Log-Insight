@@ -22,21 +22,28 @@ import com.codex.loginsight.ui.ItemIcons;
 import com.codex.loginsight.ui.LogInsightPanel;
 import com.codex.loginsight.ui.Sigil;
 import com.codex.loginsight.ui.Theme;
+import com.codex.loginsight.ui.ShareActions;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.google.inject.Provides;
 import java.awt.Color;
+import java.awt.Toolkit;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +88,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.Text;
+import net.runelite.client.util.Filepath;
 
 @Slf4j
 @PluginDescriptor(
@@ -226,13 +234,47 @@ public class CodexLogInsightPlugin extends Plugin
 				questsNeeded.put(name, quest);
 			}
 		}
-		ItemIcons icons = (itemId, onLoaded) ->
+		// Pictures that have been drawn in, held weakly by the very image handed out (the item manager may later hand
+		// out a fresh blank for the same item), so a card can wait for exactly the pictures it will draw.
+		Set<BufferedImage> arrived = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+		ItemIcons icons = new ItemIcons()
 		{
-			AsyncBufferedImage image = itemManager.getImage(itemId);
-			image.onLoaded(onLoaded);
-			return image;
+			@Override
+			public BufferedImage icon(int itemId, Runnable onLoaded)
+			{
+				AsyncBufferedImage image = itemManager.getImage(itemId);
+				image.onLoaded(() ->
+				{
+					arrived.add(image);
+					if (onLoaded != null)
+					{
+						onLoaded.run();
+					}
+				});
+				return image;
+			}
+
+			@Override
+			public boolean ready(BufferedImage image)
+			{
+				return image != null && arrived.contains(image);
+			}
 		};
 		panel = new LogInsightPanel(icons);
+		panel.setShare(new ShareActions()
+		{
+			@Override
+			public void save(BufferedImage card, String fileName)
+			{
+				saveCard(card, fileName);
+			}
+
+			@Override
+			public void copy(BufferedImage card)
+			{
+				copyCard(card);
+			}
+		}, config::nameOnCard);
 		panel.setOnWant(itemId -> clientThread.invokeLater(() -> toggleWanted(itemId)));
 		navButton = NavigationButton.builder()
 			.tooltip("Codex Log Insight")
@@ -1043,6 +1085,72 @@ public class CodexLogInsightPlugin extends Plugin
 		if (target != null)
 		{
 			SwingUtilities.invokeLater(() -> target.update(report, name));
+		}
+	}
+
+	/** Asks where to save the finest finds card (on the Swing thread), then writes it off that thread. */
+	private void saveCard(BufferedImage card, String fileName)
+	{
+		LogInsightPanel view = panel;
+		if (view == null)
+		{
+			return;
+		}
+		List<Filepath> chosen = new Filepath.Chooser()
+			.setIsSave()
+			.setAcceptsFiles()
+			.setDialogTitle("Save finest finds card")
+			.addExtensionFilter("PNG image", "png")
+			.setDefaultExtension("png")
+			.setFileName(fileName)
+			.showDialog(view);
+		if (chosen == null || chosen.isEmpty())
+		{
+			return;
+		}
+		Filepath target = chosen.get(0);
+		executor.execute(() ->
+		{
+			String note;
+			try (OutputStream out = target.openOutputStream())
+			{
+				ImageIO.write(card, "png", out);
+				note = "Saved as " + target.getFileName() + ".";
+			}
+			catch (IOException e)
+			{
+				log.warn("Could not save the finest finds card", e);
+				note = "The card could not be saved: " + e.getMessage();
+			}
+			String shown = note;
+			SwingUtilities.invokeLater(() ->
+			{
+				LogInsightPanel p = panel;
+				if (p != null)
+				{
+					p.shareNote(shown);
+				}
+			});
+		});
+	}
+
+	/** Puts the finest finds card on the clipboard; called on the Swing thread. */
+	private void copyCard(BufferedImage card)
+	{
+		String note;
+		try
+		{
+			Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new ImageTransfer(ImageTransfer.opaque(card)), null);
+			note = "Copied. Paste it anywhere you share pictures.";
+		}
+		catch (IllegalStateException e)
+		{
+			note = "The clipboard is busy, try again in a moment.";
+		}
+		LogInsightPanel p = panel;
+		if (p != null)
+		{
+			p.shareNote(note);
 		}
 	}
 }

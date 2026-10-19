@@ -44,6 +44,11 @@ public class LogInsightPanel extends PluginPanel
 	private String openPage;
 	/** Marks a slot wanted or not; set by the plugin. */
 	private java.util.function.IntConsumer onWant;
+	private ShareActions share;
+	private java.util.function.BooleanSupplier nameOnCards = () -> true;
+	private String shareNote;
+	/** True while a card waits for its pictures, so a second click does not start a second wait. */
+	private boolean sharing;
 
 	public LogInsightPanel(ItemIcons icons)
 	{
@@ -125,6 +130,86 @@ public class LogInsightPanel extends PluginPanel
 		this.onWant = onWant;
 	}
 
+	/** Lets the Ledger save and copy the finest finds card; names go on it while the option is on. */
+	public void setShare(ShareActions share, java.util.function.BooleanSupplier nameOnCards)
+	{
+		this.share = share;
+		this.nameOnCards = nameOnCards == null ? () -> true : nameOnCards;
+		stale[0] = true;
+		if (shown == 0)
+		{
+			rebuildTab(0);
+		}
+	}
+
+	/** Shows what became of a save or copy under the podium. Swing thread only. */
+	public void shareNote(String note)
+	{
+		shareNote = note;
+		stale[0] = true;
+		if (shown == 0)
+		{
+			rebuildTab(0);
+		}
+	}
+
+	/** Save and copy under the podium, with what became of the last one; null without sharing or finds. */
+	private JComponent shareRow()
+	{
+		if (share == null || report.getTrophies().isEmpty())
+		{
+			return null;
+		}
+		JPanel row = new JPanel(new BorderLayout(0, 4));
+		row.setOpaque(false);
+		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 0));
+		buttons.setOpaque(false);
+		buttons.add(new CodexButton("Save finds card", false, () -> shareFinds(true)));
+		buttons.add(javax.swing.Box.createHorizontalStrut(6));
+		buttons.add(new CodexButton("Copy", false, () -> shareFinds(false)));
+		row.add(buttons, BorderLayout.NORTH);
+		if (shareNote != null)
+		{
+			row.add(Ui.wrapped(shareNote, Theme.small(), Theme.TEAL, 200), BorderLayout.CENTER);
+		}
+		return row;
+	}
+
+	private void shareFinds(boolean save)
+	{
+		if (sharing || share == null)
+		{
+			return;
+		}
+		long now = System.currentTimeMillis();
+		java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+		String name = nameOnCards.getAsBoolean() && report.isLoggedIn() ? playerName : null;
+		FindsShare.Spec spec = FindsShare.Spec.of(report.getTrophies(), name, report.owned(), report.total(), now, zone);
+		if (spec == null)
+		{
+			return;
+		}
+		// The card waits for every picture, so it never shows an empty plinth.
+		sharing = true;
+		FindsShare.whenReady(spec, icons, card ->
+		{
+			sharing = false;
+			ShareActions to = share;
+			if (to == null)
+			{
+				return;
+			}
+			if (save)
+			{
+				to.save(card, FindsShare.fileName(now, zone));
+			}
+			else
+			{
+				to.copy(card);
+			}
+		});
+	}
+
 	/** Called on the Swing thread with each new report. */
 	public void update(Report report, String playerName)
 	{
@@ -170,7 +255,7 @@ public class LogInsightPanel extends PluginPanel
 		if (tab == 0)
 		{
 			replace(ledger, LedgerView.build(report, dial, icons, this::showPage, () -> showTab(2),
-				System.currentTimeMillis()));
+				System.currentTimeMillis(), shareRow()));
 		}
 		else if (tab == 1)
 		{

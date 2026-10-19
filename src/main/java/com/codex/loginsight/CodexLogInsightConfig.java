@@ -109,6 +109,18 @@ public interface CodexLogInsightConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "nameOnCard",
+		name = "Name on cards",
+		description = "Write your character's name on the finest finds card; turn off to share it without it",
+		position = 6,
+		section = finds
+	)
+	default boolean nameOnCard()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "rates",
 		name = "Rates",
 		description = "Typical kills per hour for a normal account or an ironman",

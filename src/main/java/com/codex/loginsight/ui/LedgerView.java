@@ -25,6 +25,13 @@ final class LedgerView
 
 	static StackPanel build(Report report, LuckDial dial, ItemIcons icons, Consumer<String> openPage, Runnable openQuarry, long now)
 	{
+		return build(report, dial, icons, openPage, openQuarry, now, null);
+	}
+
+	/** @param share the finest finds card's save and copy row, shown under the podium, or null for none */
+	static StackPanel build(Report report, LuckDial dial, ItemIcons icons, Consumer<String> openPage, Runnable openQuarry, long now,
+		javax.swing.JComponent share)
+	{
 		StackPanel stack = new StackPanel(6, 8);
 		if (!report.isLoggedIn())
 		{
@@ -105,6 +112,10 @@ final class LedgerView
 		{
 			stack.add(new SectionHeader("Finest finds", "rarest seen"));
 			stack.add(new TrophyShelf(report.getTrophies(), icons));
+			if (share != null)
+			{
+				stack.add(share);
+			}
 		}
 
 		if (!report.getWanted().isEmpty())
@@ -338,8 +349,12 @@ final class LedgerView
 					+ " addition notification (chat or pop-up) in the game's settings." : null));
 		}
 		boolean counted = setup.getToOpenTotal() == 0;
-		steps.add(step(counted ? Mark.Kind.GOOD : Mark.Kind.NOTE, "Kill counts on " + setup.getPagesCounted() + " of "
-			+ setup.getPagesCountable() + " pages", counted ? null : "Open these once to count your finds there:"));
+		// On a first day nothing is owned, so nothing is missing a count, but "0 of 73" beside a tick reads as a
+		// mistake: it says how the counts arrive instead.
+		boolean firstDay = counted && setup.getPagesCounted() == 0 && setup.getPagesCountable() > 0;
+		steps.add(step(firstDay ? Mark.Kind.NOTE : counted ? Mark.Kind.GOOD : Mark.Kind.NOTE, "Kill counts on "
+			+ setup.getPagesCounted() + " of " + setup.getPagesCountable() + " pages", firstDay
+			? "Each page's count is read when you open it." : counted ? null : "Open these once to count your finds there:"));
 		for (Report.PageReport page : setup.getToOpen())
 		{
 			// The name gives way before the count does: "Fishing from the Reward Pool" is wider than the card.

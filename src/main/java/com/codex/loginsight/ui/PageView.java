@@ -76,7 +76,7 @@ final class PageView
 			LuckDial dial = new LuckDial(104);
 			dial.setLuck(page.getLuck(), false);
 			dialCard.add(dial, BorderLayout.CENTER);
-			dialCard.setToolTipText("An average player would own " + String.format("%.1f", page.getLuck().getExpected())
+			dialCard.setToolTipText("An average player would own " + String.format(java.util.Locale.ENGLISH, "%.1f", page.getLuck().getExpected())
 				+ " of these " + page.getLuck().getSlots() + " slots by now; you own " + page.getLuck().getOwned() + ".");
 			stack.add(dialCard);
 		}
