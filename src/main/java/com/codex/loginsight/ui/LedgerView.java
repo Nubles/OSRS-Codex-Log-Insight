@@ -3,6 +3,7 @@ package com.codex.loginsight.ui;
 import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
+import com.codex.loginsight.core.Session;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
@@ -99,6 +100,13 @@ final class LedgerView
 			report.getPagesRead() < report.getPagesTotal() ? "open more for luck" : "all kill counts", Theme.GOLD));
 		stack.add(tiles);
 
+		Session.Summary session = report.getSession();
+		if (session != null)
+		{
+			stack.add(new SectionHeader("This session", Format.duration(session.getMillis())));
+			stack.add(sessionCard(session));
+		}
+
 		if (!hunts.isEmpty())
 		{
 			stack.add(new SectionHeader("Best next hunts", "all in Quarry"));
@@ -136,6 +144,63 @@ final class LedgerView
 			}
 		}
 		return stack;
+	}
+
+	/** Kill counts added since logging in, the slots they gave, and how that compares with an average player. */
+	static Card sessionCard(Session.Summary session)
+	{
+		Card card = new Card(new BorderLayout(0, 6));
+		card.setBorder(new EmptyBorder(7, 10, 8, 10));
+		if (session.isEmpty())
+		{
+			card.add(Ui.wrapped("Kill counts you add from now on show here, with the slots they give and how lucky "
+				+ "that was.", Theme.small(), Theme.TEXT_MUTED, 170), BorderLayout.CENTER);
+			return card;
+		}
+		StackPanel rows = new StackPanel(3, 0);
+		List<Session.Gain> gains = session.getGains();
+		for (int i = 0; i < Math.min(3, gains.size()); i++)
+		{
+			Session.Gain gain = gains.get(i);
+			rows.add(pair(Format.counterName(gain.getLabel()), "+" + Format.count(gain.getAdded()), Theme.TEXT, Theme.GOLD));
+		}
+		if (gains.size() > 3)
+		{
+			int rest = 0;
+			for (int i = 3; i < gains.size(); i++)
+			{
+				rest += gains.get(i).getAdded();
+			}
+			rows.add(pair((gains.size() - 3) + " more", "+" + Format.count(rest), Theme.TEXT_MUTED, Theme.TEXT_MUTED));
+		}
+		Luck luck = session.getLuck();
+		int found = session.getFinds().size();
+		String expected = luck == null ? "" : "  ·  avg " + Format.slots(luck.getExpected());
+		rows.add(pair("New slots", found + expected, Theme.TEXT, found > 0 ? Theme.GREEN : Theme.TEXT_MUTED));
+		card.add(rows, BorderLayout.CENTER);
+		if (luck != null)
+		{
+			Color color = Theme.luck(luck.getPercentile());
+			card.add(Ui.label(luck.verdict().getLabel() + "  ·  luckier than " + luck.luckierThan() + "%", Theme.small(), color),
+				BorderLayout.SOUTH);
+			card.accent(color);
+			card.setToolTipText("<html>Across the " + luck.getSlots() + " slots tonight's kills could have given.<br>"
+				+ "An average player would have found " + String.format(java.util.Locale.ENGLISH, "%.2f", luck.getExpected())
+				+ " of them; you found " + luck.getOwned() + ".</html>");
+		}
+		return card;
+	}
+
+	private static JPanel pair(String left, String right, Color leftColor, Color rightColor)
+	{
+		JPanel row = new JPanel(new BorderLayout(6, 0));
+		row.setOpaque(false);
+		javax.swing.JLabel name = Ui.label(left, Theme.small(), leftColor);
+		name.setMinimumSize(new java.awt.Dimension(10, name.getPreferredSize().height));
+		name.setPreferredSize(new java.awt.Dimension(10, name.getPreferredSize().height));
+		row.add(name, BorderLayout.CENTER);
+		row.add(Ui.label(right, Theme.small(), rightColor), BorderLayout.EAST);
+		return row;
 	}
 
 	static Card callout(String title, String text)

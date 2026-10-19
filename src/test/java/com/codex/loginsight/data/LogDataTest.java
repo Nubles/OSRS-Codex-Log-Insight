@@ -67,4 +67,63 @@ public class LogDataTest
 		assertEquals(1500, araxxor.getDrops().get(0).getAttempts(), 1e-9);
 		assertEquals(1, data.dropsOf(1).size());
 	}
+
+	private static final int ROCKY = 20663;
+	private static final int TANGLEROOT = 20661;
+
+	private static Activity.Drop only(LogData data, int itemId)
+	{
+		assertEquals(1, data.dropsOf(itemId).size());
+		return data.dropsOf(itemId).get(0);
+	}
+
+	@Test
+	public void skillingPetsFollowTheAccountsLevel() throws Exception
+	{
+		LogData data = LogData.load(new Gson());
+		// Bundled at level 99: Rocky from seed stalls is 1 in 36,490 - 25 x 99.
+		assertEquals(34_015, only(data, ROCKY).getAttempts(), 1e-9);
+		assertEquals(new java.util.TreeSet<>(java.util.Arrays.asList("AGILITY", "FARMING", "FISHING", "HUNTER", "MINING",
+			"RUNECRAFTING", "THIEVING", "WOODCUTTING")), data.scaledSkills());
+
+		// A level 40 thief rolls 1 in 35,490; a level 99 one with 200M experience fifteen times as often.
+		LogData forty = data.atLevels(Collections.singletonMap("THIEVING", 40), Collections.emptySet());
+		assertEquals(35_490, only(forty, ROCKY).getAttempts(), 1e-9);
+		LogData maxed = data.atLevels(Collections.singletonMap("THIEVING", 99), Collections.singleton("THIEVING"));
+		assertEquals(34_015 / 15.0, only(maxed, ROCKY).getAttempts(), 1e-9);
+		// Fruit trees use the wiki's base of 9,000, not Log Adviser's rounded 6,500.
+		LogData farmer = data.atLevels(Collections.singletonMap("FARMING", 51), Collections.emptySet());
+		assertEquals(9_000 - 25 * 51, only(farmer, TANGLEROOT).getAttempts(), 1e-9);
+
+		// Everything else is untouched, and unknown levels change nothing.
+		assertEquals(only(data, TANZANITE_FANG).getAttempts(), only(forty, TANZANITE_FANG).getAttempts(), 1e-9);
+		assertEquals(data.getActivities().size(), forty.getActivities().size());
+		assertTrue(data.atLevels(null, null) == data);
+		assertTrue(data.atLevels(Collections.singletonMap("THIEVING", 99), Collections.emptySet()) == data);
+		assertTrue(data.atLevels(Collections.singletonMap("SLAYER", 50), Collections.emptySet()) == data);
+	}
+
+	@Test
+	public void petAttemptsStayInBounds()
+	{
+		assertEquals(36_465, Activity.Drop.petAttempts(36_490, 0, false), 1e-9);
+		assertEquals(34_015, Activity.Drop.petAttempts(36_490, 126, false), 1e-9);
+		assertEquals(1, Activity.Drop.petAttempts(100, 99, false), 1e-9);
+	}
+
+	@Test
+	public void oldTablesWithoutPetBasesStillLoad()
+	{
+		LogData.Raw raw = new LogData.Raw();
+		LogData.RawActivity a = new LogData.RawActivity();
+		a.n = "Thieving";
+		a.c = "O";
+		a.m = 1000;
+		a.i = 1000;
+		a.d.add(new double[]{ROCKY, 34_015, 0});
+		raw.activities.add(a);
+		LogData data = LogData.fromRaw(raw);
+		assertFalse(only(data, ROCKY).isLevelScaled());
+		assertTrue(data.atLevels(Collections.singletonMap("THIEVING", 30), Collections.emptySet()) == data);
+	}
 }

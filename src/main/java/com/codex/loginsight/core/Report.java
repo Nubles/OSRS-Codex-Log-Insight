@@ -35,6 +35,8 @@ public final class Report
 	private final List<Prospect> prospects;
 	/** Every missing pet as a hunt, quickest first. */
 	private final List<PetPlan> pets;
+	/** This play session, or null when logged out. Set once, before the report is handed to the panel. */
+	private Session.Summary session;
 
 	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
 		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
@@ -71,6 +73,16 @@ public final class Report
 		this.hunts = Collections.unmodifiableList(hunts);
 		this.driest = Collections.unmodifiableList(driest);
 		this.finds = Collections.unmodifiableList(finds);
+	}
+
+	/** This report with the session's summary attached. */
+	public Report withSession(Session.Summary summary)
+	{
+		Report copy = new Report(loggedIn, structureLoaded, officialOwned, officialTotal, knownOwned, totalSlots, fullReadAt,
+			pagesRead, pagesTotal, pagesComplete, luck, hoursLeft, unratedMissing, ironRates, pages, hunts, driest, finds,
+			prospects, pets);
+		copy.session = summary;
+		return copy;
 	}
 
 	public static Report loggedOut()

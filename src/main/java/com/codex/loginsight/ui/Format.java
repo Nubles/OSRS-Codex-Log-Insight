@@ -123,6 +123,19 @@ public final class Format
 		return Math.round(share * 100) + "%";
 	}
 
+	/** A stretch of play: "12m", "1h 20m", "6h". */
+	public static String duration(long millis)
+	{
+		long minutes = Math.max(0, millis / 60_000);
+		if (minutes < 60)
+		{
+			return minutes + "m";
+		}
+		long h = minutes / 60;
+		long m = minutes % 60;
+		return m == 0 ? h + "h" : h + "h " + m + "m";
+	}
+
 	/** "just now", "5m ago", "3h ago", "2d ago". */
 	public static String ago(long then, long now)
 	{

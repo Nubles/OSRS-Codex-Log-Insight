@@ -18,6 +18,23 @@ CATEGORIES = {'combat': 'C', 'minigame': 'M', 'miscellaneous': 'O'}
 EXACT, INDEPENDENT, SEQUENTIAL = 1, 2, 4
 
 
+# Skilling pets roll 1 in (base - 25 x level) per action, so a level 30 thief waits longer for Rocky than a
+# level 99 one; with 200M experience in the skill the chance is 15 times higher. Log Adviser lists each at
+# level 99. Bases are the OSRS Wiki's for that action; each is checked against Log Adviser's level-99 figure
+# below so a changed upstream table is caught. Fruit trees are listed there as a rounded 1 in 6,500.
+SKILLING_PETS = {
+    ('Thieving (seed stalls)', 20663): ('THIEVING', 36490),
+    ('Fishing (2-tick tuna and swordfish)', 13320): ('FISHING', 128885),
+    ('Mining (gemstone rocks)', 13321): ('MINING', 211886),
+    ('Woodcutting (1.5-tick teaks)', 13322): ('WOODCUTTING', 264336),
+    ('Hunting chinchompas (black chinchompas)', 13324): ('HUNTER', 82758),
+    ('Agility (penguin course)', 20659): ('AGILITY', 9779),
+    ('Farming (fruit trees)', 20661): ('FARMING', 9000),
+    ('Runecrafting (fire runes)', 20665): ('RUNECRAFTING', 1795758),
+}
+PET_LEVEL_STEP = 25
+
+
 def activities(adviser):
     data = adviser / 'src/main/resources/com/logadviser/data'
     acts = json.load(open(data / 'activities.json'))
@@ -43,6 +60,16 @@ def activities(adviser):
             continue
         flags = (EXACT if r['exact'] else 0) | (INDEPENDENT if r['independent'] else 0) | (SEQUENTIAL if r['requiresPrevious'] else 0)
         a['d'].append([r['itemId'], round(r['dropRateAttempts'], 3), flags])
+        pet = SKILLING_PETS.get((a['n'].strip(), r['itemId']))
+        if pet:
+            skill, base = pet
+            at99 = base - PET_LEVEL_STEP * 99
+            if abs(at99 - r['dropRateAttempts']) / at99 > 0.05:
+                raise SystemExit(f"{a['n']}: Log Adviser lists 1/{r['dropRateAttempts']}, the wiki base gives 1/{at99} at 99")
+            a.setdefault('p', []).append({'i': r['itemId'], 's': skill, 'b': base})
+    found = {(a['n'].strip(), i['i']) for a in by_index.values() for i in a.get('p', [])}
+    if found != set(SKILLING_PETS):
+        raise SystemExit(f'skilling pet rows not found: {set(SKILLING_PETS) - found}')
     out = [a for _, a in sorted(by_index.items()) if a['d']]
     return out, sorted(set(pets))
 

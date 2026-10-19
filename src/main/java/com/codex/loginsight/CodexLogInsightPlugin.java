@@ -1,12 +1,14 @@
 package com.codex.loginsight;
 
 import com.codex.loginsight.core.Analyst;
+import com.codex.loginsight.core.DryWatch;
 import com.codex.loginsight.core.Announcements;
 import com.codex.loginsight.core.ChatReader;
 import com.codex.loginsight.core.LogStructure;
 import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
+import com.codex.loginsight.core.Session;
 import com.codex.loginsight.core.Unlocks;
 import com.codex.loginsight.data.Activity;
 import com.codex.loginsight.data.ItemOdds;
@@ -37,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.EnumComposition;
+import net.runelite.api.Experience;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
 import net.runelite.api.Quest;
@@ -135,8 +138,13 @@ public class CodexLogInsightPlugin extends Plugin
 	private final Set<Integer> harvest = new HashSet<>();
 	private final Map<Integer, Integer> replacements = new HashMap<>();
 
+	/** The tables as bundled, with skilling pets at level 99. */
+	private LogData baseData;
+	/** The tables at this account's levels; what every read uses. */
 	private LogData data;
 	private Analyst analyst;
+	/** The levels {@link #data} was scaled to, only for the skills a rate depends on. */
+	private Map<String, Integer> scaledAt;
 	private ChatReader chat;
 	private LogInsightPanel panel;
 	private NavigationButton navButton;
@@ -154,6 +162,8 @@ public class CodexLogInsightPlugin extends Plugin
 	private final Map<String, Quest> questsNeeded = new HashMap<>();
 	private Unlocks unlocks = Unlocks.UNKNOWN;
 	private int unlocksReadAt = -1;
+	/** This play session, from the login that loaded the progress; a world hop keeps it. */
+	private Session session;
 	private boolean notificationStarted;
 	/** The chat line and the pop-up can both announce one slot; the second is ignored. */
 	private final Announcements announcements = new Announcements();
@@ -167,8 +177,10 @@ public class CodexLogInsightPlugin extends Plugin
 	@Override
 	protected void startUp() throws IOException
 	{
-		data = LogData.load(gson);
+		baseData = LogData.load(gson);
+		data = baseData;
 		analyst = new Analyst(data);
+		scaledAt = null;
 		chat = new ChatReader(data.getLabels());
 		Map<String, Quest> quests = new HashMap<>();
 		for (Quest quest : Quest.values())
@@ -265,10 +277,18 @@ public class CodexLogInsightPlugin extends Plugin
 			save();
 			progress = null;
 			profile = null;
+			session = null;
 			officialOwned = -1;
 			officialTotal = -1;
 			unlocks = Unlocks.UNKNOWN;
 			unlocksReadAt = -1;
+			// The next account's levels are its own; until they are read, pets go back to the bundled odds.
+			if (scaledAt != null)
+			{
+				scaledAt = null;
+				data = baseData;
+				analyst = new Analyst(data);
+			}
 			announcements.clear();
 			plaque.clear();
 			publish(Report.loggedOut(), null);
@@ -402,7 +422,17 @@ public class CodexLogInsightPlugin extends Plugin
 		ChatReader.Count count = chat.count(message);
 		if (count != null && count.value >= 0)
 		{
+			Integer before = progress.counter(count.label);
+			if (session != null)
+			{
+				session.observe(count.label, count.value, true);
+			}
 			progress.setCounter(count.label, count.value);
+			if (config.dryMilestones() && before != null
+				&& DryWatch.ownedKnown(progress.getFullReadAt(), officialOwned, progress.getOwned().size()))
+			{
+				announceMilestones(count.label, before, count.value);
+			}
 			if (config.learnPace())
 			{
 				progress.paceFor(count.label).record(count.value, System.currentTimeMillis());
@@ -452,10 +482,16 @@ public class CodexLogInsightPlugin extends Plugin
 	{
 		unlocksReadAt = client.getTickCount();
 		Map<String, Integer> levels = new HashMap<>();
+		Set<String> maxed = new HashSet<>();
 		for (Skill skill : Skill.values())
 		{
 			levels.put(skill.name(), client.getRealSkillLevel(skill));
+			if (client.getSkillExperience(skill) >= Experience.MAX_SKILL_XP)
+			{
+				maxed.add(skill.name());
+			}
 		}
+		rescale(levels, maxed);
 		Set<String> unfinished = new HashSet<>();
 		for (Map.Entry<String, Quest> quest : questsNeeded.entrySet())
 		{
@@ -470,6 +506,26 @@ public class CodexLogInsightPlugin extends Plugin
 			unlocks = read;
 			dirty = true;
 		}
+	}
+
+	/** Puts skilling pets at this account's levels; only a change in one of their skills builds new tables. */
+	private void rescale(Map<String, Integer> levels, Set<String> maxed)
+	{
+		Map<String, Integer> key = new HashMap<>();
+		for (String skill : baseData.scaledSkills())
+		{
+			Integer level = levels.get(skill);
+			// A 200M skill is keyed apart from a 99 one: its pet is fifteen times likelier.
+			key.put(skill, level == null ? 0 : maxed.contains(skill) ? level + 1000 : level);
+		}
+		if (key.equals(scaledAt))
+		{
+			return;
+		}
+		scaledAt = key;
+		data = baseData.atLevels(levels, maxed);
+		analyst = new Analyst(data);
+		dirty = true;
 	}
 
 	/** Reads the page open in the collection log: its counters and which slots are owned. */
@@ -497,6 +553,10 @@ public class CodexLogInsightPlugin extends Plugin
 			if (counter != null)
 			{
 				labels.add(counter.label);
+				if (session != null)
+				{
+					session.observe(counter.label, counter.value, false);
+				}
 				progress.setCounter(counter.label, counter.value);
 			}
 		}
@@ -612,6 +672,38 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 	}
 
+	/** One chat line when a kill takes you past a dry milestone on a slot you are still missing. */
+	private void announceMilestones(String label, int before, int after)
+	{
+		List<DryWatch.Milestone> passed = DryWatch.passed(data, progress.getOwned(), progress.getCounters(), label, before, after);
+		if (passed.isEmpty())
+		{
+			return;
+		}
+		DryWatch.Milestone top = passed.get(0);
+		String name = structure.name(top.getItemId());
+		if (name == null || name.isEmpty())
+		{
+			return;
+		}
+		ChatMessageBuilder line = new ChatMessageBuilder()
+			.append(ChatColorType.HIGHLIGHT).append("Log Insight: ")
+			.append(ChatColorType.NORMAL).append(Format.count(after) + " " + Format.counterName(label) + " kc. ")
+			.append(capitalise(top.players()) + " would have ")
+			.append(ChatColorType.HIGHLIGHT).append(name)
+			.append(ChatColorType.NORMAL).append((passed.size() > 1 ? " and " + (passed.size() - 1) + " more" : "")
+				+ " by now (" + Format.chance(top.getChance()) + ").");
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.CONSOLE)
+			.runeLiteFormattedMessage(line.build())
+			.build());
+	}
+
+	private static String capitalise(String text)
+	{
+		return text.isEmpty() ? text : Character.toUpperCase(text.charAt(0)) + text.substring(1);
+	}
+
 	private void changed()
 	{
 		dirty = true;
@@ -715,6 +807,7 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 		progress = loaded == null ? new Progress() : loaded;
 		seedFromChatCommands();
+		session = new Session(progress.getOwned(), System.currentTimeMillis());
 	}
 
 	/**
@@ -771,11 +864,14 @@ public class CodexLogInsightPlugin extends Plugin
 		Player player = client.getLocalPlayer();
 		String name = player == null ? null : player.getName();
 		int ticket = generation.incrementAndGet();
+		Analyst reader = analyst;
+		// Read here, on the client thread that updates the session, rather than beside the analysis.
+		Session.Summary summary = session == null ? null : session.read(data, snapshot, System.currentTimeMillis());
 		executor.execute(() ->
 		{
 			try
 			{
-				Report report = analyst.analyse(shape, snapshot, iron, pace, owned, total, can);
+				Report report = reader.analyse(shape, snapshot, iron, pace, owned, total, can).withSession(summary);
 				if (ticket == generation.get())
 				{
 					publish(report, name);

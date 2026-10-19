@@ -85,6 +85,18 @@ public interface CodexLogInsightConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "dryMilestones",
+		name = "Dry milestones in chat",
+		description = "Add a line to the chat box when a kill takes you past the count by which 9 in 10, then 99 in 100, players would have a slot you are missing",
+		position = 4,
+		section = finds
+	)
+	default boolean dryMilestones()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "rates",
 		name = "Rates",
 		description = "Typical kills per hour for a normal account or an ironman",

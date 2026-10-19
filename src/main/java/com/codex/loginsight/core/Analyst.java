@@ -390,10 +390,32 @@ public final class Analyst
 			Prospect alongside = prospect(structure, activity, rest, rates, locked);
 			List<LogStructure.Page> pages = structure.pagesOf(id);
 			plans.add(new PetPlan(id, structure.name(id), pages.isEmpty() ? null : pages.get(0).getName(), hunt, alongside,
-				1 / attempts));
+				1 / attempts, levelUp(best, unlocks)));
 		}
 		plans.sort(Comparator.comparing((PetPlan p) -> p.getLockedBy() != null).thenComparingDouble(PetPlan::getMedian));
 		return plans;
+	}
+
+	/**
+	 * For a skilling pet, what more of its skill would do for the odds: the chance at 99, or once there, at 200M
+	 * experience. Null for any other pet, and when the account's level is not known.
+	 */
+	static PetPlan.LevelUp levelUp(Activity.Drop drop, Unlocks unlocks)
+	{
+		Integer level = drop.isLevelScaled() ? unlocks.level(drop.getScaleSkill()) : null;
+		if (level == null || level <= 0)
+		{
+			return null;
+		}
+		double base = drop.getScaleBase();
+		boolean maxed = level >= 99 && Math.abs(drop.getAttempts() - Activity.Drop.petAttempts(base, 99, true)) < 1e-6;
+		if (maxed)
+		{
+			return null;
+		}
+		boolean at99 = level >= 99;
+		return new PetPlan.LevelUp(drop.getScaleSkill(), Math.min(99, level), at99,
+			1 / Activity.Drop.petAttempts(base, 99, at99));
 	}
 
 	/** When these missing slots of one page are likely all owned, each hunted at its fastest source in turn. */

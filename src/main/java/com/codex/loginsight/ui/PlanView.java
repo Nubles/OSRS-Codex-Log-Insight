@@ -224,6 +224,11 @@ final class PlanView
 			{
 				text.add(Ui.label("Needs " + pet.getLockedBy(), Theme.small(), Theme.EMBER));
 			}
+			PetPlan.LevelUp up = pet.getLevelUp();
+			if (up != null)
+			{
+				text.add(Ui.label(levelLine(up), Theme.small(), Theme.TEAL));
+			}
 			text.add(Ui.label(odds(pet.getMedian(), pet.getLikely()),
 				Theme.small(), locked ? Theme.TEXT_FAINT : Theme.VIOLET));
 			if (alongside >= 0.05)
@@ -235,13 +240,27 @@ final class PlanView
 			card.add(text, BorderLayout.CENTER);
 			card.setToolTipText("<html>" + Ui.escape(pet.getName()) + " from " + Ui.escape(pet.getSource()) + "<br>"
 				+ Format.percent(within) + " chance within " + span + " of hunting it.<br>In the hours it takes half of players, "
-				+ "they also find " + String.format(Locale.ENGLISH, "%.1f", alongside) + " other new slots there.</html>");
+				+ "they also find " + String.format(Locale.ENGLISH, "%.1f", alongside) + " other new slots there."
+				+ (up == null ? "" : "<br>" + levelTip(up, pet.getChance())) + "</html>");
 			if (pet.getPage() != null)
 			{
 				card.onClick(() -> openPage.accept(pet.getPage()));
 			}
 			stack.add(card);
 		}
+	}
+
+	/** "At 99: 1 in 34,015", or for a 99, "At 200M xp: 1 in 2,268". */
+	static String levelLine(PetPlan.LevelUp up)
+	{
+		return (up.isMaxedExperience() ? "At 200M xp: " : "At 99: ") + Format.chance(up.getChance());
+	}
+
+	static String levelTip(PetPlan.LevelUp up, double now)
+	{
+		return "Skilling pets get likelier as you level: " + Format.chance(now) + " at your " + up.skillName() + " "
+			+ up.getLevel() + ", " + Format.chance(up.getChance())
+			+ (up.isMaxedExperience() ? " with 200M experience." : " at 99.");
 	}
 
 	/** The hours by which half and nine in ten players are done: "50% 12h  ·  90% 31h". */

@@ -69,9 +69,22 @@ public final class LogData
 			List<Activity.Drop> drops = new ArrayList<>();
 			Map<Integer, Integer> positions = new HashMap<>();
 			int index = activities.size();
+			Map<Integer, RawPet> scaled = new HashMap<>();
+			if (a.p != null)
+			{
+				for (RawPet pet : a.p)
+				{
+					if (pet != null && pet.s != null && pet.b > 0)
+					{
+						scaled.put(pet.i, pet);
+					}
+				}
+			}
 			for (double[] d : a.d)
 			{
-				Activity.Drop drop = new Activity.Drop(index, (int) d[0], d[1], (int) d[2]);
+				RawPet pet = scaled.get((int) d[0]);
+				Activity.Drop drop = pet == null ? new Activity.Drop(index, (int) d[0], d[1], (int) d[2])
+					: new Activity.Drop(index, (int) d[0], d[1], (int) d[2], pet.s, pet.b);
 				Integer at = positions.putIfAbsent(drop.getItemId(), drops.size());
 				if (at == null)
 				{
@@ -107,6 +120,47 @@ public final class LogData
 		return new LogData(activities, raw.labels, odds, pets);
 	}
 
+	/**
+	 * These tables at an account's real levels, so a skilling pet's odds are the ones this account rolls: a
+	 * level 40 thief waits longer for Rocky than a level 99 one. Itself when no rate moves.
+	 *
+	 * @param levels real level by RuneLite skill name, or null when unknown
+	 * @param maxed  skills with 200M experience, whose pets are 15 times likelier
+	 */
+	public LogData atLevels(Map<String, Integer> levels, Set<String> maxed)
+	{
+		if (levels == null)
+		{
+			return this;
+		}
+		List<Activity> scaled = new ArrayList<>(activities.size());
+		boolean changed = false;
+		for (Activity activity : activities)
+		{
+			Activity at = activity.atLevels(levels, maxed);
+			changed |= at != activity;
+			scaled.add(at);
+		}
+		return changed ? new LogData(scaled, labels, odds, pets) : this;
+	}
+
+	/** The skills any rate depends on, by RuneLite name. */
+	public Set<String> scaledSkills()
+	{
+		Set<String> skills = new java.util.TreeSet<>();
+		for (Activity activity : activities)
+		{
+			for (Activity.Drop drop : activity.getDrops())
+			{
+				if (drop.isLevelScaled())
+				{
+					skills.add(drop.getScaleSkill());
+				}
+			}
+		}
+		return skills;
+	}
+
 	/** True when this row earns its slot sooner than the other, a fixed count winning ties. */
 	private static boolean better(Activity.Drop drop, Activity.Drop other)
 	{
@@ -138,6 +192,12 @@ public final class LogData
 	public ItemOdds odds(int itemId)
 	{
 		return odds.get(itemId);
+	}
+
+	/** Every slot with odds per kill count, by item id. */
+	public Map<Integer, ItemOdds> allOdds()
+	{
+		return odds;
 	}
 
 	/** Every quest any activity needs, by name. */
@@ -179,6 +239,15 @@ public final class LogData
 		double f;
 		List<double[]> d = new ArrayList<>();
 		RawNeeds r;
+		/** Skilling pets on this table whose odds follow a level. */
+		List<RawPet> p;
+	}
+
+	static final class RawPet
+	{
+		int i;
+		String s;
+		double b;
 	}
 
 	static final class RawNeeds

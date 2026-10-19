@@ -34,6 +34,12 @@ public final class Unlocks
 		}
 	}
 
+	/** The account's real level in a skill, by RuneLite name, or null when unknown. */
+	public Integer level(String skill)
+	{
+		return levels == null ? null : levels.get(skill);
+	}
+
 	/** The first thing this activity still needs, such as "85 Slayer", or null when it can be done. */
 	public String missing(Activity activity)
 	{
