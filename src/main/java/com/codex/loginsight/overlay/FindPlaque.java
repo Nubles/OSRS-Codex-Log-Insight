@@ -99,67 +99,138 @@ public class FindPlaque extends Overlay
 		}
 		float alpha = (float) Math.min(1, Math.min(age / (double) FADE_MS, (v.durationMs - age) / (double) FADE_MS));
 		Composite old = g.getComposite();
-		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0, alpha)));
+		g.setComposite(FADE[Math.max(0, Math.min(FADE_STEPS, Math.round(alpha * FADE_STEPS)))]);
 		Theme.smooth(g);
 
 		g.setFont(Theme.small());
 		FontMetrics small = g.getFontMetrics();
 		g.setFont(Theme.title());
 		FontMetrics bold = g.getFontMetrics();
-		int lines = 2 + (v.odds == null ? 0 : 1) + (v.verdict == null ? 0 : 1);
-		int textHeight = small.getHeight() + bold.getHeight() + (lines - 2) * (small.getHeight() + 1);
-		int height = PAD * 2 + Math.max(ICON, textHeight);
-		Color tint = v.pet ? Theme.VIOLET : Theme.GOLD;
+		Layout l = layout;
+		if (l == null || l.view != v || !l.small.getFont().equals(small.getFont()) || !l.bold.getFont().equals(bold.getFont()))
+		{
+			// The plaque's text, shape and paints are worked out once per find, not every frame it is up.
+			l = new Layout(v, small, bold);
+			layout = l;
+		}
 
-		RoundRectangle2D shape = new RoundRectangle2D.Float(0.5f, 0.5f, WIDTH - 1, height - 1, 12, 12);
-		g.setPaint(new GradientPaint(0, 0, Theme.alpha(Theme.CARD_TOP, 238), 0, height, Theme.alpha(Theme.INK_DEEP, 238)));
-		g.fill(shape);
+		g.setPaint(l.fill);
+		g.fill(l.shape);
 		double beat = 0.5 + 0.5 * Math.sin(age / 220.0);
-		g.setStroke(new BasicStroke(3f));
-		g.setColor(Theme.alpha(tint, (int) (40 + beat * 70)));
-		g.draw(shape);
-		g.setStroke(new BasicStroke(1f));
-		g.setColor(Theme.alpha(tint, 200));
-		g.draw(shape);
+		g.setStroke(GLOW);
+		g.setColor(l.pulse[(int) Math.round(beat * PULSE_STEPS)]);
+		g.draw(l.shape);
+		g.setStroke(LINE);
+		g.setColor(l.rim);
+		g.draw(l.shape);
 
 		// The item sits in a lit well.
-		int wellX = PAD;
-		int wellY = (height - ICON) / 2;
-		g.setPaint(new RadialGradientPaint(wellX + ICON / 2f, wellY + ICON / 2f, ICON / 2f,
-			new float[]{0f, 1f}, new Color[]{Theme.alpha(tint, 110), Theme.alpha(Theme.INK_DEEP, 220)}));
-		g.fill(new Ellipse2D.Float(wellX, wellY, ICON, ICON));
-		g.setColor(Theme.alpha(tint, 170));
-		g.draw(new Ellipse2D.Float(wellX, wellY, ICON, ICON));
+		g.setPaint(l.wellPaint);
+		g.fill(l.well);
+		g.setColor(l.wellRim);
+		g.draw(l.well);
 		if (v.icon != null)
 		{
-			g.drawImage(v.icon, wellX + (ICON - v.icon.getWidth()) / 2, wellY + (ICON - v.icon.getHeight()) / 2, null);
+			g.drawImage(v.icon, l.wellX + (ICON - v.icon.getWidth()) / 2, l.wellY + (ICON - v.icon.getHeight()) / 2, null);
 		}
 		else
 		{
-			Sigil.paint(g, wellX + 8, wellY + 8, ICON - 16);
+			Sigil.paint(g, l.wellX + 8, l.wellY + 8, ICON - 16);
 		}
 
 		int x = PAD + ICON + 9;
-		int width = WIDTH - x - PAD;
-		int y = PAD + Math.max(0, (Math.max(ICON, textHeight) - textHeight) / 2);
+		int y = l.textY;
 		g.setFont(Theme.small());
-		shadow(g, v.wanted ? "WANTED, AND FOUND" : v.pet ? "A NEW COMPANION" : "NEW LOG SLOT", x, y + small.getAscent(), tint);
+		shadow(g, l.heading, x, y + small.getAscent(), l.tint);
 		y += small.getHeight();
 		g.setFont(Theme.title());
-		shadow(g, clip(v.name, bold, width), x, y + bold.getAscent(), Theme.GOLD_BRIGHT);
+		shadow(g, l.name, x, y + bold.getAscent(), Theme.GOLD_BRIGHT);
 		y += bold.getHeight();
 		g.setFont(Theme.small());
-		if (v.odds != null)
+		if (l.odds != null)
 		{
-			shadow(g, clip(v.odds, small, width), x, y + small.getAscent(), Theme.TEXT_MUTED);
+			shadow(g, l.odds, x, y + small.getAscent(), Theme.TEXT_MUTED);
 			y += small.getHeight() + 1;
 		}
-		if (v.verdict != null)
+		if (l.verdict != null)
 		{
-			shadow(g, clip(v.verdict, small, width), x, y + small.getAscent(), v.color);
+			shadow(g, l.verdict, x, y + small.getAscent(), v.color);
 		}
 		g.setComposite(old);
-		return new Dimension(WIDTH, height);
+		return l.size;
+	}
+
+	private static final int FADE_STEPS = 32;
+	/** The fade in and out in 32 steps, so no composite is made while the plaque is up. */
+	private static final AlphaComposite[] FADE = new AlphaComposite[FADE_STEPS + 1];
+	private static final int PULSE_STEPS = 35;
+	private static final BasicStroke GLOW = new BasicStroke(3f);
+	private static final BasicStroke LINE = new BasicStroke(1f);
+
+	static
+	{
+		for (int i = 0; i <= FADE_STEPS; i++)
+		{
+			FADE[i] = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, i / (float) FADE_STEPS);
+		}
+	}
+
+	private volatile Layout layout;
+
+	/** Everything about the plaque that depends only on the find and the fonts. */
+	private static final class Layout
+	{
+		final View view;
+		final FontMetrics small;
+		final FontMetrics bold;
+		final Color tint;
+		final Color rim;
+		/** The beating outer glow, from faint to full. */
+		final Color[] pulse = new Color[PULSE_STEPS + 1];
+		final String heading;
+		final String name;
+		final String odds;
+		final String verdict;
+		final int wellX;
+		final int wellY;
+		final int textY;
+		final RoundRectangle2D shape;
+		final GradientPaint fill;
+		final Ellipse2D well;
+		final RadialGradientPaint wellPaint;
+		final Color wellRim;
+		final Dimension size;
+
+		Layout(View v, FontMetrics small, FontMetrics bold)
+		{
+			view = v;
+			this.small = small;
+			this.bold = bold;
+			int lines = 2 + (v.odds == null ? 0 : 1) + (v.verdict == null ? 0 : 1);
+			int textHeight = small.getHeight() + bold.getHeight() + (lines - 2) * (small.getHeight() + 1);
+			int height = PAD * 2 + Math.max(ICON, textHeight);
+			tint = v.pet ? Theme.VIOLET : Theme.GOLD;
+			rim = Theme.alpha(tint, 200);
+			for (int i = 0; i <= PULSE_STEPS; i++)
+			{
+				pulse[i] = Theme.alpha(tint, 40 + 70 * i / PULSE_STEPS);
+			}
+			shape = new RoundRectangle2D.Float(0.5f, 0.5f, WIDTH - 1, height - 1, 12, 12);
+			fill = new GradientPaint(0, 0, Theme.alpha(Theme.CARD_TOP, 238), 0, height, Theme.alpha(Theme.INK_DEEP, 238));
+			wellX = PAD;
+			wellY = (height - ICON) / 2;
+			well = new Ellipse2D.Float(wellX, wellY, ICON, ICON);
+			wellPaint = new RadialGradientPaint(wellX + ICON / 2f, wellY + ICON / 2f, ICON / 2f,
+				new float[]{0f, 1f}, new Color[]{Theme.alpha(tint, 110), Theme.alpha(Theme.INK_DEEP, 220)});
+			wellRim = Theme.alpha(tint, 170);
+			int width = WIDTH - (PAD + ICON + 9) - PAD;
+			textY = PAD + Math.max(0, (Math.max(ICON, textHeight) - textHeight) / 2);
+			heading = v.wanted ? "WANTED, AND FOUND" : v.pet ? "A NEW COMPANION" : "NEW LOG SLOT";
+			name = clip(v.name, bold, width);
+			odds = v.odds == null ? null : clip(v.odds, small, width);
+			verdict = v.verdict == null ? null : clip(v.verdict, small, width);
+			size = new Dimension(WIDTH, height);
+		}
 	}
 
 	private static void shadow(Graphics2D g, String text, int x, int y, Color color)
