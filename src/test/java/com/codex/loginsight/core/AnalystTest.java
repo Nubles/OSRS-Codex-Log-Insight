@@ -217,6 +217,27 @@ public class AnalystTest
 	}
 
 	@Test
+	public void pageNextSlotNamesASourceTheAccountCanPlay()
+	{
+		List<Activity.Drop> easy = Collections.singletonList(new Activity.Drop(0, 21, 5000, 0));
+		List<Activity.Drop> hard = Collections.singletonList(new Activity.Drop(1, 21, 10, 0));
+		Activity cows = new Activity(0, "Killing cows", Activity.Category.COMBAT, 100, 100, 0, easy);
+		Activity hydra = new Activity(1, "Killing hydra", Activity.Category.COMBAT, 100, 100, 0, hard,
+			Collections.singletonMap("SLAYER", 95), Collections.emptyList());
+		LogData both = new LogData(Arrays.asList(cows, hydra), Collections.emptyList(), new HashMap<>(), Collections.emptySet());
+		LogStructure log = new LogStructure(Collections.singletonList(new LogStructure.Tab("Bosses",
+			Collections.singletonList(new LogStructure.Page("Bosses", "Mixed", Collections.singletonList(21))))), new HashMap<>());
+		Analyst analyst = new Analyst(both);
+		Unlocks low = new Unlocks(Collections.singletonMap("SLAYER", 80), Collections.emptySet());
+		Report.PageReport locked = analyst.analyse(log, new Progress(), false, true, -1, -1, low).getPages().get(0);
+		assertEquals("Killing cows", locked.getNextSource());
+		assertEquals(50, locked.getHoursToNext(), 0.01);
+		assertEquals(50, locked.getHoursToFinish(), 0.01);
+		Report.PageReport any = analyst.analyse(log, new Progress(), false, true, -1, -1).getPages().get(0);
+		assertEquals("Killing hydra", any.getNextSource());
+	}
+
+	@Test
 	public void officialCountWinsWhenHigher()
 	{
 		Report report = new Analyst(data).analyse(structure, new Progress(), false, true, 300, 1700);

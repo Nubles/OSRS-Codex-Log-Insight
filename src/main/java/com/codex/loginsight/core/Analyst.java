@@ -112,7 +112,7 @@ public final class Analyst
 			}
 		}
 
-		Finish finish = finish(missing, owned, rates);
+		Finish finish = finish(missing, owned, rates, unlocks);
 		Luck luck = luck(unique, owned, counters);
 		List<Report.ItemReport> driest = driest(structure, missing, progress, rates);
 		List<Prospect> prospects = new ArrayList<>();
@@ -197,8 +197,8 @@ public final class Analyst
 		}
 		Integer count = mainLabel == null ? null : counters.get(mainLabel);
 
-		Finish finish = finish(missing, owned, rates);
-		Next next = next(missing, owned, rates);
+		Finish finish = finish(missing, owned, rates, unlocks);
+		Next next = next(missing, owned, rates, unlocks);
 		Luck luck = luck(page.getItems(), owned, counters);
 		Report.PageReport report = new Report.PageReport(page.getTab(), page.getName(), ownedCount, page.getItems().size(),
 			lines, count == null ? -1 : count, mainLabel, luck, finish.hours, next.hours, next.source, finish.unrated,
@@ -566,14 +566,14 @@ public final class Analyst
 			eval.means, eval.stages, eval.exact, eval.missing);
 	}
 
-	/** Hours to finish these slots, each hunted at its fastest source. */
-	private Finish finish(List<Integer> missing, Set<Integer> owned, Rates rates)
+	/** Hours to finish these slots, each hunted at its fastest source you can do now (any source when none is open). */
+	private Finish finish(List<Integer> missing, Set<Integer> owned, Rates rates, Unlocks unlocks)
 	{
 		Map<Integer, Set<Integer>> byActivity = new LinkedHashMap<>();
 		int unrated = 0;
 		for (int id : missing)
 		{
-			Activity.Drop fastest = rates.fastest(id);
+			Activity.Drop fastest = fastestOpen(id, rates, unlocks);
 			if (fastest == null)
 			{
 				unrated++;
@@ -591,8 +591,17 @@ public final class Analyst
 		return new Finish(byActivity.isEmpty() ? (unrated > 0 ? Double.POSITIVE_INFINITY : 0) : hours, unrated);
 	}
 
-	/** The soonest new slot among these, from any activity that drops one. */
-	private Next next(List<Integer> missing, Set<Integer> owned, Rates rates)
+	/**
+	 * The soonest new slot among these, from an activity you can do now; from any activity only when none of them is
+	 * open yet, so a page never names a boss you cannot reach as its next slot while another source is open.
+	 */
+	private Next next(List<Integer> missing, Set<Integer> owned, Rates rates, Unlocks unlocks)
+	{
+		Next open = next(missing, owned, rates, unlocks, true);
+		return open.source != null ? open : next(missing, owned, rates, unlocks, false);
+	}
+
+	private Next next(List<Integer> missing, Set<Integer> owned, Rates rates, Unlocks unlocks, boolean openOnly)
 	{
 		Set<Integer> wanted = new HashSet<>(missing);
 		Set<Integer> activities = new LinkedHashSet<>();
@@ -608,7 +617,7 @@ public final class Analyst
 		for (int index : activities)
 		{
 			Activity activity = data.activity(index);
-			if (rates.perHour(activity) <= 0)
+			if (rates.perHour(activity) <= 0 || openOnly && unlocks.missing(activity) != null)
 			{
 				continue;
 			}
