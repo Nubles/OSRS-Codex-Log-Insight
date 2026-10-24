@@ -112,8 +112,10 @@ public final class Analyst
 			}
 		}
 
-		Finish finish = finish(missing, owned, rates);
-		Luck luck = luck(unique, owned, counters);
+		Finish finish = finish(missing, owned, rates, unlocks);
+		// Before the owned slots are read every slot reads as missing, which would say "very dry" of any log.
+		boolean ownedRead = progress.getFullReadAt() > 0 || officialOwned >= 0 && knownOwned >= officialOwned;
+		Luck luck = ownedRead ? luck(unique, owned, counters) : null;
 		List<Report.ItemReport> driest = driest(structure, missing, progress, rates);
 		List<Prospect> prospects = new ArrayList<>();
 		List<Report.Hunt> hunts = hunts(structure, owned, rates, unlocks, prospects);
@@ -133,6 +135,7 @@ public final class Analyst
 		}
 		report.setWanted(wanted);
 		report.setTrophies(progress.getTrophies());
+		report.setDrops(ownedRead ? drops(unique, progress) : null);
 		return report;
 	}
 
@@ -196,12 +199,16 @@ public final class Analyst
 		}
 		Integer count = mainLabel == null ? null : counters.get(mainLabel);
 
-		Finish finish = finish(missing, owned, rates);
-		Next next = next(missing, owned, rates);
+		Finish finish = finish(missing, owned, rates, unlocks);
+		Next next = next(missing, owned, rates, unlocks);
 		Luck luck = luck(page.getItems(), owned, counters);
-		return new Report.PageReport(page.getTab(), page.getName(), ownedCount, page.getItems().size(), lines,
-			count == null ? -1 : count, mainLabel, luck, finish.hours, next.hours, next.source, finish.unrated,
+		Report.PageReport report = new Report.PageReport(page.getTab(), page.getName(), ownedCount, page.getItems().size(),
+			lines, count == null ? -1 : count, mainLabel, luck, finish.hours, next.hours, next.source, finish.unrated,
 			progress.isPageRead(page.getName()), items, projection(structure, missing, owned, rates, unlocks));
+		// A page's counts are known once it, or the whole log, has been read.
+		boolean counted = progress.isPageRead(page.getName()) || progress.getFullReadAt() > 0;
+		report.setDrops(counted ? drops(page.getItems(), progress) : null);
+		return report;
 	}
 
 	private Report.ItemReport item(LogStructure structure, int id, String page, Progress progress, Rates rates)
@@ -232,9 +239,68 @@ public final class Analyst
 				chance = 1 / fastest.getAttempts();
 			}
 		}
-		return new Report.ItemReport(id, structure.name(id), page, progress.owns(id), data.isPet(id), chance, label,
-			count, dry, source, hours);
+		Report.ItemReport report = new Report.ItemReport(id, structure.name(id), page, progress.owns(id), data.isPet(id),
+			chance, label, count, dry, source, hours);
+		if (progress.owns(id))
+		{
+			double expected = countable(id, odds) ? odds.expectedCount(progress.countedAt(id)) : -1;
+			report.setObtained(progress.obtained(id), expected);
+		}
+		return report;
 	}
+
+	/**
+	 * Every copy of these slots the log counts against the odds at your counts, or null when there is nothing to count
+	 * or an owned slot's count has not been read yet (a guess there would read as dry). Pets are left out, and so are
+	 * slots whose drop is not one item per roll (stacks, dupe-protected sets, guaranteed ones).
+	 */
+	private Drops drops(Collection<Integer> items, Progress progress)
+	{
+		Map<String, Integer> counters = progress.getCounters();
+		int got = 0;
+		double expected = 0;
+		int slots = 0;
+		Set<Integer> seen = new HashSet<>();
+		for (int id : items)
+		{
+			ItemOdds odds = data.odds(id);
+			if (!seen.add(id) || !countable(id, odds))
+			{
+				continue;
+			}
+			// An owned slot is set against the counts as they stood when its copies were read; a missing one against now.
+			double mean = odds.expectedCount(progress.owns(id) ? progress.countedAt(id) : counters);
+			if (mean < 0)
+			{
+				continue;
+			}
+			if (progress.owns(id))
+			{
+				int count = progress.obtained(id);
+				if (count <= 0)
+				{
+					return null;
+				}
+				got += count;
+			}
+			expected += mean;
+			slots++;
+		}
+		return slots == 0 || got == 0 && expected < 0.5 ? null : new Drops(got, expected, slots);
+	}
+
+	/**
+	 * Whether the log's count of a slot can be set against its odds: one item per roll, not a pet, and rare enough that
+	 * the odds' own rounding stays small beside the spread. A 1/20 drop over a few thousand kills would pin the reading to
+	 * either end on a few percent of model error alone.
+	 */
+	private boolean countable(int id, ItemOdds odds)
+	{
+		return odds != null && odds.isCountable() && !data.isPet(id) && odds.mainChance() <= COMMON;
+	}
+
+	/** The commonest drop whose copies are counted, per kill. */
+	private static final double COMMON = 1 / 40.0;
 
 	private Luck luck(Collection<Integer> items, Set<Integer> owned, Map<String, Integer> counters)
 	{
@@ -518,14 +584,14 @@ public final class Analyst
 			eval.means, eval.stages, eval.exact, eval.missing);
 	}
 
-	/** Hours to finish these slots, each hunted at its fastest source. */
-	private Finish finish(List<Integer> missing, Set<Integer> owned, Rates rates)
+	/** Hours to finish these slots, each hunted at its fastest source you can do now (any source when none is open). */
+	private Finish finish(List<Integer> missing, Set<Integer> owned, Rates rates, Unlocks unlocks)
 	{
 		Map<Integer, Set<Integer>> byActivity = new LinkedHashMap<>();
 		int unrated = 0;
 		for (int id : missing)
 		{
-			Activity.Drop fastest = rates.fastest(id);
+			Activity.Drop fastest = fastestOpen(id, rates, unlocks);
 			if (fastest == null)
 			{
 				unrated++;
@@ -543,8 +609,17 @@ public final class Analyst
 		return new Finish(byActivity.isEmpty() ? (unrated > 0 ? Double.POSITIVE_INFINITY : 0) : hours, unrated);
 	}
 
-	/** The soonest new slot among these, from any activity that drops one. */
-	private Next next(List<Integer> missing, Set<Integer> owned, Rates rates)
+	/**
+	 * The soonest new slot among these, from an activity you can do now; from any activity only when none of them is
+	 * open yet, so a page never names a boss you cannot reach as its next slot while another source is open.
+	 */
+	private Next next(List<Integer> missing, Set<Integer> owned, Rates rates, Unlocks unlocks)
+	{
+		Next open = next(missing, owned, rates, unlocks, true);
+		return open.source != null ? open : next(missing, owned, rates, unlocks, false);
+	}
+
+	private Next next(List<Integer> missing, Set<Integer> owned, Rates rates, Unlocks unlocks, boolean openOnly)
 	{
 		Set<Integer> wanted = new HashSet<>(missing);
 		Set<Integer> activities = new LinkedHashSet<>();
@@ -560,7 +635,7 @@ public final class Analyst
 		for (int index : activities)
 		{
 			Activity activity = data.activity(index);
-			if (rates.perHour(activity) <= 0)
+			if (rates.perHour(activity) <= 0 || openOnly && unlocks.missing(activity) != null)
 			{
 				continue;
 			}

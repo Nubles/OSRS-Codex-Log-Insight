@@ -1,8 +1,10 @@
 package com.codex.loginsight.ui;
 
+import com.codex.loginsight.core.Drops;
 import com.codex.loginsight.core.Projection;
 import com.codex.loginsight.core.Report;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.util.ArrayList;
@@ -84,6 +86,10 @@ final class PageView
 		{
 			stack.add(Rows.note("Open this page in your collection log to read its kill count and see your luck here.", 190));
 		}
+		if (page.getDrops() != null)
+		{
+			stack.add(drops(page.getDrops(), page.getDrops().getSlots() == 1 ? "this slot" : "these " + page.getDrops().getSlots() + " slots"));
+		}
 
 		if (!page.isComplete())
 		{
@@ -137,6 +143,34 @@ final class PageView
 			stack.add(grid(owned, icons));
 		}
 		return stack;
+	}
+
+	/**
+	 * Every copy the log counts against the odds: "14 drops, 9.6 average", with its verdict. It keeps saying how lucky
+	 * a page has been after it is green, when owning the slots or not no longer can.
+	 */
+	static Card drops(Drops drops, String what)
+	{
+		Card card = new Card(new BorderLayout(8, 2));
+		card.setBorder(new EmptyBorder(7, 9, 7, 9));
+		JPanel head = new JPanel(new BorderLayout(6, 0));
+		head.setOpaque(false);
+		head.add(Ui.label("DROPS", Theme.small(), Theme.TEXT_MUTED), BorderLayout.WEST);
+		Color tone = Theme.luck(drops.verdict());
+		head.add(new Pill(drops.verdict().getLabel(), tone), BorderLayout.EAST);
+		card.add(head, BorderLayout.NORTH);
+		JPanel body = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+		body.setOpaque(false);
+		body.add(Ui.label(Format.count(drops.getGot()), Theme.title(), tone));
+		body.add(Ui.label((drops.getGot() == 1 ? "  drop" : "  drops") + "  ·  average " + Format.slots(drops.getExpected()),
+			Theme.small(), Theme.TEXT_MUTED));
+		card.add(body, BorderLayout.CENTER);
+		card.add(Ui.wrapped("Luckier than " + drops.luckierThan() + "% of players, counting every copy of " + what
+			+ " in your log.", Theme.small(), Theme.TEXT_FAINT, 168), BorderLayout.SOUTH);
+		card.setToolTipText("<html>Your log holds " + Format.count(drops.getGot()) + " copies of " + Ui.escape(what)
+			+ ";<br>an average player would have " + Format.slots(drops.getExpected()) + " at your kill counts.<br>"
+			+ "Pets, stacks and slots the game deals out in sets are left out.<br>Counts are as of your last read of the log.</html>");
+		return card;
 	}
 
 	/** The green log curve: the chance the page is done against hours, with the half and nine-in-ten marks. */

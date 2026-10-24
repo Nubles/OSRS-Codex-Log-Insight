@@ -49,6 +49,41 @@ public final class Odds
 	}
 
 	/**
+	 * Where a count of drops sits among everyone at the same counts, from 0 (driest) to 1 (luckiest): the share of
+	 * players who would have had fewer, counting half of those with exactly as many. Rare drops at fixed counts add
+	 * up to a Poisson count with the expected number as its mean.
+	 */
+	public static double dropPercentile(double expected, int got)
+	{
+		if (!(expected > 0))
+		{
+			return got > 0 ? 1 : 0.5;
+		}
+		got = Math.max(0, got);
+		double logMean = Math.log(expected);
+		double logFactorial = 0;
+		double below = 0;
+		double at = 0;
+		for (int k = 0; k <= got; k++)
+		{
+			if (k > 0)
+			{
+				logFactorial += Math.log(k);
+			}
+			double p = Math.exp(k * logMean - expected - logFactorial);
+			if (k < got)
+			{
+				below += p;
+			}
+			else
+			{
+				at = p;
+			}
+		}
+		return Math.max(0, Math.min(1, below + at / 2));
+	}
+
+	/**
 	 * Expected attempts until any one of these slots arrives: the first success of a roll
 	 * with this summed chance per attempt, or the fixed count, whichever comes first.
 	 *

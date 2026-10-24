@@ -105,7 +105,13 @@ public class ProgressRing extends JComponent
 		{
 			textY -= 5;
 		}
-		if (text != null)
+		// A small ring's hole holds the number only: "80" fits where "80%" would cross the rim.
+		int hole = Math.round(diameter - thickness * 2 - 2);
+		if (text != null && centre == null && fm.stringWidth(text) > hole)
+		{
+			text = text.substring(0, text.length() - 1);
+		}
+		if (text != null && fm.stringWidth(text) <= hole + 2)
 		{
 			drawShadowed(g, text, (diameter - fm.stringWidth(text)) / 2, textY, Theme.TEXT);
 		}

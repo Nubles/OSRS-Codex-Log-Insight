@@ -119,6 +119,12 @@ public final class Format
 		return String.valueOf(Math.round(slots));
 	}
 
+	/** "slot" for a figure that reads as exactly one, "slots" for any other: "1 slot", "0.99 slots", "2.4 slots". */
+	public static String slotWord(double slots)
+	{
+		return "1".equals(slots(slots)) ? "slot" : "slots";
+	}
+
 	/** "9.0" to "9", "0.50" to "0.5"; whole numbers and other decimals are left as they are. */
 	private static String trimZeros(String number)
 	{
@@ -218,7 +224,91 @@ public final class Format
 			out.append(out.length() > 0 ? " " : "")
 				.append(small ? word : Character.toUpperCase(word.charAt(0)) + word.substring(1));
 		}
-		return out.length() == 0 ? name : out.toString();
+		if (out.length() == 0)
+		{
+			return name;
+		}
+		String full = out.toString();
+		String shortName = SHORT_SOURCES.get(full);
+		if (shortName != null)
+		{
+			return shortName;
+		}
+		// "Sorting Through Barracuda Salvage" and the barracuda trials are named by what sets them apart.
+		return full.replaceFirst("^Sorting Through ", "").replaceFirst(" Barracuda Trials$", " Trials");
+	}
+
+	/** Places and activities that name an activity's variant in Log Adviser's names, longest first. */
+	private static final String[] PROPER_NAMES = {
+		"chambers of xeric challenge mode", "stronghold of security", "guardians of the rift", "hallowed sepulchre",
+		"chambers of xeric", "champion's challenge", "corrupted gauntlet", "doom of mokhaiotl", "last man standing",
+		"mastering mixology", "creature creation", "fortis colosseum", "temple trekking", "trouble brewing",
+		"pyramid plunder", "moons of peril", "royal titans", "pest control", "vale totems", "wintertodt", "prifddinas",
+		"zemouregal", "tempoross", "wyrmscraig", "non-zaros"};
+
+	/** Long activity names, as the short name a card has room for. */
+	private static final java.util.Map<String, String> SHORT_SOURCES = new java.util.HashMap<>();
+
+	static
+	{
+		String[][] shorts = {
+			{"Spending 100 Numulite at the Fossil Island Notes Chest", "Fossil Island Notes"},
+			{"Collecting Unidentified Minerals at the Mining Guild", "Mining Guild Minerals"},
+			{"Collecting Gold Nuggets at the Motherlode Mine", "Motherlode Mine"},
+			{"Wasting Hours at the Magic Training Arena", "Magic Training Arena"},
+			{"Charging Glories at the Fountain of Rune", "Fountain of Rune"},
+			{"Earning Mahogany Homes Carpenter Points", "Mahogany Homes"},
+			{"Collecting Pearls While Aerial Fishing", "Aerial Fishing"},
+			{"Soldiers in the Shayzien Combat Ring", "Shayzien Combat Ring"},
+			{"Pickpocketing from Prifddinas Elves", "Prifddinas Elves"},
+			{"Mining Stardust from Shooting Stars", "Shooting Stars"},
+			{"Earning Volcanic Mine Reward Points", "Volcanic Mine"},
+			{"Chests with Shades of Mort'ton Keys", "Shades of Mort'ton"},
+			{"Stealing from the Rogues' Den Maze", "Rogues' Den"},
+			{"Pickpocketing from Darkmeyer Vyres", "Darkmeyer Vyres"},
+			{"In the Wilderness God Wars Dungeon", "Wilderness God Wars"},
+			{"Earning Giants' Foundry Reputation", "Giants' Foundry"},
+			{"Doing Entling Events for God Eggs", "Entling Events"},
+			{"Pulling from the Reward Guardian", "Guardians of the Rift"},
+			{"Finding Lumberjack Zombie Events", "Lumberjack Zombies"},
+			{"Earning Tithe Farm Reward Points", "Tithe Farm"},
+			{"Earning Last Man Standing Points", "Last Man Standing"},
+			{"Skeletons in the Ancient Cavern", "Ancient Cavern"},
+			{"Cyclopes at the Warriors' Guild", "Warriors' Guild"},
+			{"Barronite Deposits in Camdozaal", "Barronite Deposits"},
+			{"Tombs of Amascut Reward Chests", "Tombs of Amascut Chests"},
+			{"Running Laps of Monkey Agility", "Ape Atoll Agility"},
+			{"Barbarian Assault High Gambles", "High Gambles"},
+			{"Collecting Anima-infused Bark", "Anima-infused Bark"},
+		};
+		for (String[] pair : shorts)
+		{
+			SHORT_SOURCES.put(pair[0], pair[1]);
+		}
+	}
+
+	private static String titleCase(String text)
+	{
+		StringBuilder out = new StringBuilder();
+		for (String word : text.split(" "))
+		{
+			boolean small = out.length() > 0 && SMALL_WORDS.contains(word.toLowerCase(java.util.Locale.ENGLISH));
+			out.append(out.length() > 0 ? " " : "")
+				.append(small || word.isEmpty() ? word : capitalise(word));
+		}
+		return out.toString();
+	}
+
+	/** "zaros" to "Zaros", and each part of a hyphenated name: "non-zaros" to "Non-Zaros". */
+	private static String capitalise(String word)
+	{
+		StringBuilder out = new StringBuilder();
+		for (String part : word.split("-", -1))
+		{
+			out.append(out.length() > 0 ? "-" : "")
+				.append(part.isEmpty() ? part : Character.toUpperCase(part.charAt(0)) + part.substring(1));
+		}
+		return out.toString();
 	}
 
 	/** The bracketed detail of an activity name, such as "on task" or "300", or null. */
@@ -233,6 +323,22 @@ public final class Format
 		// Tombs of Amascut rows differ only by raid level.
 		detail = detail.matches("[0-9]+") && name.toLowerCase(java.util.Locale.ENGLISH).contains("amascut")
 			? "raid level " + detail : detail;
+		// Names of places and activities read as names, the way the log's own pages write them.
+		String lower = detail.toLowerCase(java.util.Locale.ENGLISH);
+		for (String proper : PROPER_NAMES)
+		{
+			int at = lower.indexOf(proper);
+			if (at >= 0)
+			{
+				detail = detail.substring(0, at) + titleCase(detail.substring(at, at + proper.length()))
+					+ detail.substring(at + proper.length());
+			}
+		}
+		// A detail that only repeats the short name says nothing.
+		if (detail.equalsIgnoreCase(source(name)))
+		{
+			return null;
+		}
 		// A tag under a title starts with a capital, like every other line on the card.
 		return detail.isEmpty() ? detail : Character.toUpperCase(detail.charAt(0)) + detail.substring(1);
 	}

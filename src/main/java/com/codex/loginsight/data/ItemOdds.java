@@ -15,11 +15,38 @@ public final class ItemOdds
 	private final List<Roll> rolls;
 	/** Kill count at which the slot is guaranteed, or 0. */
 	private final int guaranteedBy;
+	/** Each successful roll gives one of the item, so the log's count of it can be held against these odds. */
+	private final boolean countable;
 
 	public ItemOdds(List<Roll> rolls, int guaranteedBy)
 	{
+		this(rolls, guaranteedBy, false);
+	}
+
+	public ItemOdds(List<Roll> rolls, int guaranteedBy, boolean countable)
+	{
 		this.rolls = Collections.unmodifiableList(rolls);
 		this.guaranteedBy = guaranteedBy;
+		this.countable = countable;
+	}
+
+	/**
+	 * How many of the item an average player would have had by these counts, or -1 unless every counter it drops from
+	 * is known. The log counts copies from every source, so a source left out would read the log as lucky.
+	 */
+	public double expectedCount(Map<String, Integer> counters)
+	{
+		double expected = 0;
+		for (Roll roll : rolls)
+		{
+			Integer count = counters.get(roll.label);
+			if (count == null)
+			{
+				return -1;
+			}
+			expected += roll.chance * roll.rolls * count;
+		}
+		return rolls.isEmpty() ? -1 : expected;
 	}
 
 	/** The counter most of this slot's chance comes from, used to label it. */

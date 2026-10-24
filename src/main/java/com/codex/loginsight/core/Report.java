@@ -43,6 +43,8 @@ public final class Report
 	private int notices = Setup.NOTICES_UNKNOWN;
 	/** The finest finds for the trophy shelf, rarest first. Set once, like the wanted list. */
 	private List<Progress.Find> trophies = Collections.emptyList();
+	/** Every copy the whole log counts against the odds, or null until the counts are read. Set once, like the wanted list. */
+	private Drops drops;
 
 	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
 		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
@@ -91,6 +93,7 @@ public final class Report
 		copy.wanted = wanted;
 		copy.notices = notices;
 		copy.trophies = trophies;
+		copy.drops = drops;
 		return copy;
 	}
 
@@ -99,6 +102,15 @@ public final class Report
 	{
 		notices = setting;
 		return this;
+	}
+
+	/**
+	 * Whether the slots you own have been read: the whole log once, or every slot the game counts found some other way.
+	 * Before that every slot reads as missing, so waits and rankings would describe an empty log.
+	 */
+	public boolean ownedRead()
+	{
+		return fullReadAt > 0 || officialOwned >= 0 && knownOwned >= officialOwned;
 	}
 
 	/** What is left to set up, for the Ledger's first card. */
@@ -111,6 +123,12 @@ public final class Report
 	void setWanted(List<ItemReport> wanted)
 	{
 		this.wanted = Collections.unmodifiableList(wanted);
+	}
+
+	/** Sets the whole log's drop count; called once by the analyst before the report is handed on. */
+	void setDrops(Drops drops)
+	{
+		this.drops = drops;
 	}
 
 	/** Sets the trophy shelf; called once by the analyst before the report is handed on. */
@@ -182,6 +200,10 @@ public final class Report
 		private final String source;
 		/** Expected hours to get it alone from its fastest source, or infinity. */
 		private final double hours;
+		/** How many of it the log counts, or 0 when not read. Set once by the analyst. */
+		private int obtained;
+		/** How many an average player would have had by now, or -1 when unknown or not one per roll. */
+		private double expectedCount = -1;
 
 		public ItemReport(int itemId, String name, String page, boolean owned, boolean pet, double chance, String label,
 			int count, double dryChance, String source, double hours)
@@ -197,6 +219,12 @@ public final class Report
 			this.dryChance = dryChance;
 			this.source = source;
 			this.hours = hours;
+		}
+
+		void setObtained(int obtained, double expectedCount)
+		{
+			this.obtained = obtained;
+			this.expectedCount = expectedCount;
 		}
 	}
 
@@ -226,6 +254,8 @@ public final class Report
 		private final List<ItemReport> items;
 		/** When the page is likely to be finished, or null when it is or cannot be projected. */
 		private final Projection projection;
+		/** Every copy the page's slots have dropped against the odds, or null until the counts are read. */
+		private Drops drops;
 
 		public PageReport(String tab, String name, int owned, int total, List<String> counters, int count,
 			String countLabel, Luck luck, double hoursToFinish, double hoursToNext, String nextSource, int unrated,
@@ -254,6 +284,11 @@ public final class Report
 			this.unrated = unrated;
 			this.read = read;
 			this.items = Collections.unmodifiableList(items);
+		}
+
+		void setDrops(Drops drops)
+		{
+			this.drops = drops;
 		}
 
 		public boolean isComplete()

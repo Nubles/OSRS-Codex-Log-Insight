@@ -27,12 +27,21 @@ final class QuarryView
 	{
 	}
 
+	/** Until the owned slots are read every slot counts as missing, so nothing is ranked. */
+	static final String UNREAD = "Open your collection log and press its Search button once. Until Log Insight has read"
+		+ " which slots you own, it cannot say where your next ones come from.";
+
 	static StackPanel build(Report report, int filter, ItemIcons icons)
 	{
 		StackPanel stack = new StackPanel(5, 8);
 		if (!report.isLoggedIn())
 		{
 			stack.add(Rows.note("Log in to rank where your next slots will come from.", 190));
+			return stack;
+		}
+		if (!report.ownedRead())
+		{
+			stack.add(Rows.note(UNREAD, 190));
 			return stack;
 		}
 		boolean pets = filter == 4;

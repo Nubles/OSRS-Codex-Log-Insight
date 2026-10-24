@@ -54,6 +54,14 @@ public class ItemTile extends JComponent
 		if (item.isOwned())
 		{
 			sb.append("<br>Owned");
+			if (item.getObtained() > 0)
+			{
+				sb.append(", ").append(Format.count(item.getObtained())).append(" in your log");
+			}
+			if (item.getExpectedCount() >= 0)
+			{
+				sb.append("<br>An average player would have ").append(Format.slots(item.getExpectedCount())).append(" by now");
+			}
 		}
 		if (item.getChance() > 0)
 		{
@@ -118,6 +126,19 @@ public class ItemTile extends JComponent
 			g.fill(new Ellipse2D.Float(w - 10, 2, 8, 8));
 			g.setColor(bead);
 			g.fill(new Ellipse2D.Float(w - 9, 3, 6, 6));
+		}
+		if (owned && item.getObtained() > 1)
+		{
+			// The log's own count, as the game prints it on a stack.
+			String count = item.getObtained() > 99_999 ? "99k+" : Format.count(item.getObtained());
+			g.setFont(Theme.small());
+			java.awt.FontMetrics fm = g.getFontMetrics();
+			int tx = w - fm.stringWidth(count) - 3;
+			int ty = h - 3;
+			g.setColor(Color.BLACK);
+			g.drawString(count, tx + 1, ty + 1);
+			g.setColor(Theme.GOLD_BRIGHT);
+			g.drawString(count, tx, ty);
 		}
 		if (owned)
 		{
