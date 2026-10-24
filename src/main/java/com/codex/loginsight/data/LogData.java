@@ -110,7 +110,7 @@ public final class LogData
 			{
 				rolls.add(new ItemOdds.Roll(raw.labels.get((int) r[0]), r[1], (int) r[2]));
 			}
-			odds.put(Integer.parseInt(e.getKey()), new ItemOdds(rolls, e.getValue().g));
+			odds.put(Integer.parseInt(e.getKey()), new ItemOdds(rolls, e.getValue().g, e.getValue().c == 1));
 		}
 		Set<Integer> pets = new HashSet<>();
 		for (int id : raw.pets)
@@ -260,5 +260,7 @@ public final class LogData
 	{
 		List<double[]> r = new ArrayList<>();
 		int g;
+		/** 1 when the log's count of the item can be held against its odds. */
+		int c;
 	}
 }

@@ -133,6 +133,7 @@ public final class Analyst
 		}
 		report.setWanted(wanted);
 		report.setTrophies(progress.getTrophies());
+		report.setDrops(drops(unique, progress));
 		return report;
 	}
 
@@ -199,9 +200,11 @@ public final class Analyst
 		Finish finish = finish(missing, owned, rates);
 		Next next = next(missing, owned, rates);
 		Luck luck = luck(page.getItems(), owned, counters);
-		return new Report.PageReport(page.getTab(), page.getName(), ownedCount, page.getItems().size(), lines,
-			count == null ? -1 : count, mainLabel, luck, finish.hours, next.hours, next.source, finish.unrated,
+		Report.PageReport report = new Report.PageReport(page.getTab(), page.getName(), ownedCount, page.getItems().size(),
+			lines, count == null ? -1 : count, mainLabel, luck, finish.hours, next.hours, next.source, finish.unrated,
 			progress.isPageRead(page.getName()), items, projection(structure, missing, owned, rates, unlocks));
+		report.setDrops(drops(page.getItems(), progress));
+		return report;
 	}
 
 	private Report.ItemReport item(LogStructure structure, int id, String page, Progress progress, Rates rates)
@@ -232,8 +235,53 @@ public final class Analyst
 				chance = 1 / fastest.getAttempts();
 			}
 		}
-		return new Report.ItemReport(id, structure.name(id), page, progress.owns(id), data.isPet(id), chance, label,
-			count, dry, source, hours);
+		Report.ItemReport report = new Report.ItemReport(id, structure.name(id), page, progress.owns(id), data.isPet(id),
+			chance, label, count, dry, source, hours);
+		if (progress.owns(id))
+		{
+			double expected = odds != null && odds.isCountable() && !data.isPet(id) ? odds.expectedCount(progress.getCounters()) : -1;
+			report.setObtained(progress.obtained(id), expected);
+		}
+		return report;
+	}
+
+	/**
+	 * Every copy of these slots the log counts against the odds at your counts, or null when there is nothing to count
+	 * or an owned slot's count has not been read yet (a guess there would read as dry). Pets are left out, and so are
+	 * slots whose drop is not one item per roll (stacks, dupe-protected sets, guaranteed ones).
+	 */
+	private Drops drops(Collection<Integer> items, Progress progress)
+	{
+		Map<String, Integer> counters = progress.getCounters();
+		int got = 0;
+		double expected = 0;
+		int slots = 0;
+		Set<Integer> seen = new HashSet<>();
+		for (int id : items)
+		{
+			ItemOdds odds = data.odds(id);
+			if (!seen.add(id) || odds == null || !odds.isCountable() || data.isPet(id))
+			{
+				continue;
+			}
+			double mean = odds.expectedCount(counters);
+			if (mean < 0)
+			{
+				continue;
+			}
+			if (progress.owns(id))
+			{
+				int count = progress.obtained(id);
+				if (count <= 0)
+				{
+					return null;
+				}
+				got += count;
+			}
+			expected += mean;
+			slots++;
+		}
+		return slots == 0 || got == 0 && expected < 0.5 ? null : new Drops(got, expected, slots);
 	}
 
 	private Luck luck(Collection<Integer> items, Set<Integer> owned, Map<String, Integer> counters)

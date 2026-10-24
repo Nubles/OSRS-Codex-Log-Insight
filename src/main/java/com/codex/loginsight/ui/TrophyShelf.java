@@ -99,12 +99,19 @@ final class TrophyShelf extends JComponent
 		}
 	}
 
-	/** "top 3%" for a find fewer players would have had by then; null when it came later than most. */
+	/**
+	 * "top 3%" for a find fewer players would have had by then, "a late one" for one most would have had sooner,
+	 * so every plinth carries a line; null when the odds are unknown.
+	 */
 	static String standing(double luckier)
 	{
-		if (luckier < 0.5)
+		if (luckier < 0)
 		{
 			return null;
+		}
+		if (luckier < 0.5)
+		{
+			return "a late one";
 		}
 		long top = Math.max(1, Math.round((1 - luckier) * 100));
 		return "top " + top + "%";
@@ -208,8 +215,10 @@ final class TrophyShelf extends JComponent
 			String standing = standing(find.getLuckier());
 			if (standing != null)
 			{
+				standing = clip(standing, sm, colW - 2);
 				ty += sm.getAscent() + 2;
-				text(g, small, standing, cx - sm.stringWidth(standing) / 2, ty, Theme.luck(find.getLuckier()));
+				text(g, small, standing, cx - sm.stringWidth(standing) / 2, ty,
+					find.getLuckier() < 0.5 ? Theme.TEXT_FAINT : Theme.luck(find.getLuckier()));
 			}
 		}
 		paintRest(g, w, sm, bm);

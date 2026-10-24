@@ -43,6 +43,11 @@ public final class Progress
 	 * shelf by forty ordinary ones. Missing from older saves, which start it from the finds they still have.
 	 */
 	private List<Find> trophies;
+	/**
+	 * How many of each owned slot the log counts, as it shows them; read with the whole log and with each page opened.
+	 * Missing from older saves, and for slots only ever seen announced.
+	 */
+	private Map<Integer, Integer> obtained;
 
 	/**
 	 * Reads saved progress, keeping every field and entry that reads on its own: one odd value never costs the log.
@@ -82,6 +87,7 @@ public final class Progress
 			}
 		}
 		pace().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || !e.getValue().sane());
+		obtained().entrySet().removeIf(e -> e.getKey() == null || e.getKey() <= 0 || e.getValue() == null || e.getValue() <= 0);
 		pagesRead().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
 		pageLabels().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
 		pageLabels().values().forEach(list -> list.removeIf(label -> label == null));
@@ -113,10 +119,20 @@ public final class Progress
 		p.pageLabels = new HashMap<>(pageLabels());
 		p.wanted = new ArrayList<>(wanted());
 		p.trophies = new ArrayList<>(trophies());
+		p.obtained = new HashMap<>(obtained());
 		return p;
 	}
 
 	// Gson leaves fields null when an older save lacks them, so every read goes through these.
+
+	private Map<Integer, Integer> obtained()
+	{
+		if (obtained == null)
+		{
+			obtained = new HashMap<>();
+		}
+		return obtained;
+	}
 
 	private Set<Integer> owned()
 	{
@@ -270,6 +286,39 @@ public final class Progress
 		// A slot found is no longer wanted.
 		wanted().remove((Integer) itemId);
 		return owned().add(itemId);
+	}
+
+	/** How many of this slot the log counts, or 0 when that has not been read. */
+	public int obtained(int itemId)
+	{
+		Integer count = obtained().get(itemId);
+		return count == null ? 0 : count;
+	}
+
+	/** Records the log's count of a slot as read from the game. @return true if it changed */
+	public boolean setObtained(int itemId, int count)
+	{
+		if (itemId <= 0 || count <= 0)
+		{
+			return false;
+		}
+		Integer before = obtained().put(itemId, count);
+		return before == null || before != count;
+	}
+
+	/**
+	 * Replaces every owned slot with a read of the whole log, which repairs a slot once marked owned in error. Only a
+	 * read holding at least as many slots as the game counts may do this; a shorter one only adds.
+	 */
+	public void replaceOwned(Set<Integer> read)
+	{
+		for (int id : read)
+		{
+			wanted().remove((Integer) id);
+		}
+		owned().retainAll(read);
+		owned().addAll(read);
+		obtained().keySet().retainAll(read);
 	}
 
 	public Map<String, Integer> getCounters()

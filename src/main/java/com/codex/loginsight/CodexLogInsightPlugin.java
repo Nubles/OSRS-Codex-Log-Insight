@@ -11,6 +11,7 @@ import com.codex.loginsight.core.Progress;
 import com.codex.loginsight.core.Report;
 import com.codex.loginsight.core.SavedJson;
 import com.codex.loginsight.core.Session;
+import com.codex.loginsight.core.SlotResolver;
 import com.codex.loginsight.core.Setup;
 import com.codex.loginsight.core.Unlocks;
 import com.codex.loginsight.data.Activity;
@@ -161,6 +162,8 @@ public class CodexLogInsightPlugin extends Plugin
 	private final FindPlaque plaque = new FindPlaque();
 	private final AtomicInteger generation = new AtomicInteger();
 	private final Set<Integer> harvest = new HashSet<>();
+	/** The log's count of each slot in the read under way. */
+	private final Map<Integer, Integer> harvestCounts = new HashMap<>();
 	private final Map<Integer, Integer> replacements = new HashMap<>();
 
 	/** The tables as bundled, with skilling pets at level 99. */
@@ -208,6 +211,9 @@ public class CodexLogInsightPlugin extends Plugin
 	private final DryWatch.Queue milestones = new DryWatch.Queue();
 	private final GrindCard grindCard = new GrindCard();
 	/** The counter the last kill count message moved, and when, for the grind card; null until one moves. */
+	/** How long after a kill count rises a new slot is taken to have come from that kill. */
+	private static final long RECENT_KILL_MS = 120_000;
+
 	private String grindLabel;
 	private long grindAt;
 
@@ -330,6 +336,7 @@ public class CodexLogInsightPlugin extends Plugin
 		generation.incrementAndGet();
 		structure = LogStructure.empty();
 		harvest.clear();
+		harvestCounts.clear();
 		lastTransmitTick = -1;
 		loginTick = -1;
 		notices = Setup.NOTICES_UNKNOWN;
@@ -378,6 +385,7 @@ public class CodexLogInsightPlugin extends Plugin
 		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.HOPPING)
 		{
 			harvest.clear();
+			harvestCounts.clear();
 			lastTransmitTick = -1;
 			// A hop logs in afresh and the varbits arrive again: settings read in between may be blanks.
 			loginTick = -1;
@@ -551,7 +559,9 @@ public class CodexLogInsightPlugin extends Plugin
 		int quantity = (Integer) args[2];
 		if (itemId > 0 && quantity > 0)
 		{
-			harvest.add(replacements.getOrDefault(itemId, itemId));
+			int slot = replacements.getOrDefault(itemId, itemId);
+			harvest.add(slot);
+			harvestCounts.merge(slot, quantity, Math::max);
 			lastTransmitTick = client.getTickCount();
 		}
 	}
@@ -769,7 +779,9 @@ public class CodexLogInsightPlugin extends Plugin
 				// The log draws owned slots solid and missing ones faded.
 				if (slot != null && slot.getItemId() > 0 && slot.getOpacity() == 0)
 				{
-					progress.addOwned(replacements.getOrDefault(slot.getItemId(), slot.getItemId()));
+					int id = replacements.getOrDefault(slot.getItemId(), slot.getItemId());
+					progress.addOwned(id);
+					progress.setObtained(id, slot.getItemQuantity());
 				}
 			}
 		}
@@ -784,13 +796,27 @@ public class CodexLogInsightPlugin extends Plugin
 		if (progress == null || harvest.isEmpty())
 		{
 			harvest.clear();
+			harvestCounts.clear();
 			return;
 		}
-		for (int id : harvest)
+		if (officialOwned > 0 && harvest.size() >= officialOwned)
 		{
-			progress.addOwned(id);
+			// The read holds the whole log, so it is the truth: a slot once marked in error goes.
+			progress.replaceOwned(harvest);
+		}
+		else
+		{
+			for (int id : harvest)
+			{
+				progress.addOwned(id);
+			}
+		}
+		for (Map.Entry<Integer, Integer> count : harvestCounts.entrySet())
+		{
+			progress.setObtained(count.getKey(), count.getValue());
 		}
 		harvest.clear();
+		harvestCounts.clear();
 		progress.setFullReadAt(System.currentTimeMillis());
 		changed();
 		save();
@@ -798,20 +824,11 @@ public class CodexLogInsightPlugin extends Plugin
 
 	private void onNewSlot(String name)
 	{
-		List<Integer> ids = structure.idsNamed(name);
-		int itemId = -1;
-		for (int id : ids)
-		{
-			if (!progress.owns(id))
-			{
-				itemId = id;
-				break;
-			}
-		}
-		if (itemId < 0 && !ids.isEmpty())
-		{
-			itemId = ids.get(0);
-		}
+		// Several slots share some names; the counter that just rose says which one, else none is marked.
+		String recent = grindLabel != null && System.currentTimeMillis() - grindAt < RECENT_KILL_MS ? grindLabel : null;
+		SlotResolver.Result resolved = SlotResolver.resolve(structure.idsNamed(name), progress.getOwned(), data::odds, recent);
+		int itemId = resolved.shown;
+		boolean ambiguous = resolved.ambiguous();
 
 		ItemOdds odds = itemId > 0 ? data.odds(itemId) : null;
 		String label = null;
@@ -833,12 +850,13 @@ public class CodexLogInsightPlugin extends Plugin
 				chance = Math.max(chance, 1 / Math.max(1, drop.getAttempts()));
 			}
 		}
-		List<LogStructure.Page> pages = itemId > 0 ? structure.pagesOf(itemId) : java.util.Collections.emptyList();
+		List<LogStructure.Page> pages = itemId > 0 && !ambiguous ? structure.pagesOf(itemId) : java.util.Collections.emptyList();
 		String page = pages.isEmpty() ? null : pages.get(0).getName();
-		boolean wasWanted = itemId > 0 && progress.isWanted(itemId);
-		if (itemId > 0)
+		boolean wasWanted = !ambiguous && itemId > 0 && progress.isWanted(itemId);
+		if (resolved.owned > 0 && progress.addOwned(resolved.owned))
 		{
-			progress.addOwned(itemId);
+			// A new slot is one copy until the log is read again.
+			progress.setObtained(resolved.owned, 1);
 		}
 		progress.addFind(new Progress.Find(itemId, name, page, label, count, chance, luckier, System.currentTimeMillis()));
 		changed();

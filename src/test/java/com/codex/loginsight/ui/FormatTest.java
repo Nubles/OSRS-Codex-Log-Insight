@@ -29,7 +29,7 @@ public class FormatTest
 	{
 		assertEquals("King Black Dragon", Format.source("Killing king black dragon"));
 		assertEquals("Hard Caskets", Format.source("Opening hard caskets"));
-		assertEquals("Tombs of Amascut Reward Chests", Format.source("Tombs of amascut reward chests (300)"));
+		assertEquals("Tombs of Amascut Chests", Format.source("Tombs of amascut reward chests (300)"));
 		assertEquals("Leviathan", Format.source("Killing the leviathan"));
 		assertEquals("Raid level 300", Format.detail("Tombs of amascut reward chests (300)"));
 		assertNull(Format.detail("Killing vorkath"));
@@ -61,8 +61,19 @@ public class FormatTest
 		org.junit.Assert.assertArrayEquals(new int[]{0, 1}, TrophyShelf.order(2));
 		assertEquals("top 3%", TrophyShelf.standing(0.97));
 		assertEquals("top 1%", TrophyShelf.standing(0.999));
-		assertNull(TrophyShelf.standing(0.3));
+		assertEquals("a late one", TrophyShelf.standing(0.3));
 		assertNull(TrophyShelf.standing(-1));
-		assertEquals("Hallowed sepulchre", Format.detail("Looting (hallowed sepulchre)"));
+		assertEquals("Hallowed Sepulchre", Format.detail("Looting (hallowed sepulchre)"));
+	}
+
+	@Test
+	public void longActivityNamesFitACard()
+	{
+		assertEquals("Fossil Island Notes", Format.source("Spending 100 numulite at the fossil island notes chest"));
+		assertEquals("Barracuda Salvage", Format.source("Sorting through barracuda salvage"));
+		assertEquals("Tempor Tantrum Trials", Format.source("Completing tempor tantrum barracuda trials"));
+		assertEquals("Royal Titans", Format.detail("Killing branda, the fire queen (royal titans)"));
+		assertEquals("And gambling quiver, Fortis Colosseum", Format.detail("Sol heredit (and gambling quiver, fortis colosseum)"));
+		assertEquals("Level 146, on task", Format.detail("Killing araxytes (level 146, on task)"));
 	}
 }

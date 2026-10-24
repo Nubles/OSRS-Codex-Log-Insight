@@ -98,7 +98,14 @@ public class Crest extends JPanel
 			luck.set(l.verdict().getLabel(), -1, c);
 			glow = Theme.mix(Theme.GOLD_DIM, c, 0.45);
 		}
-		left.set(Format.hours(report.getHoursLeft()), -1, Theme.TEXT);
+		if (report.ownedRead())
+		{
+			left.set(Format.hours(report.getHoursLeft()), -1, Theme.TEXT);
+		}
+		else
+		{
+			left.set("-", -1, Theme.TEXT_MUTED);
+		}
 		left.setToolTipText(report.isIronRates() ? "At ironman rates" : "At typical rates, or your own pace where Log Insight has learned it");
 		repaint();
 	}

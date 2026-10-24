@@ -11,6 +11,7 @@ import java.awt.GridLayout;
 import java.util.List;
 import java.util.function.Consumer;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
@@ -81,7 +82,11 @@ final class LedgerView
 		{
 			tiles.add(new StatTile("-", "Vs average", NO_COUNTS, Theme.TEXT_MUTED));
 		}
-		if (hunts.isEmpty())
+		if (!report.ownedRead())
+		{
+			tiles.add(new StatTile("-", "Next slot", "after a log read", Theme.TEXT_MUTED));
+		}
+		else if (hunts.isEmpty())
 		{
 			tiles.add(new StatTile("-", "Next slot", "nothing rated", Theme.TEXT_MUTED));
 		}
@@ -109,6 +114,10 @@ final class LedgerView
 		tiles.add(new StatTile(report.getPagesRead() + "/" + report.getPagesTotal(), "Pages read",
 			report.getPagesRead() < report.getPagesTotal() ? "open for luck" : "all kill counts", Theme.GOLD));
 		stack.add(tiles);
+		if (report.getDrops() != null)
+		{
+			stack.add(PageView.drops(report.getDrops(), Format.count(report.getDrops().getSlots()) + " slots"));
+		}
 
 		// The finest drops on a podium: the card worth a screenshot.
 		if (!report.getTrophies().isEmpty())
@@ -142,7 +151,7 @@ final class LedgerView
 			stack.add(sessionCard(session));
 		}
 
-		if (!hunts.isEmpty())
+		if (!hunts.isEmpty() && report.ownedRead())
 		{
 			stack.add(new SectionHeader("Best next hunts", "all in Quarry"));
 			for (int i = 0; i < hunts.size(); i++)
@@ -151,7 +160,7 @@ final class LedgerView
 			}
 		}
 
-		if (!report.getDriest().isEmpty())
+		if (!report.getDriest().isEmpty() && report.ownedRead())
 		{
 			stack.add(new SectionHeader("Longest waits"));
 			for (Report.ItemReport item : report.getDriest())
@@ -281,8 +290,12 @@ final class LedgerView
 		double even = com.codex.loginsight.core.Wanted.evenChanceHours(item);
 		if (even > 0 && item.getSource() != null)
 		{
-			more.add(left(Ui.label("50% chance within " + Format.hours(even) + "  ·  " + Format.source(item.getSource()),
-				Theme.small(), Theme.TEAL)));
+			// The even-chance mark and the average are both said, so this card and the page's "~98h on its own" agree.
+			JLabel when = Ui.label("Even odds in " + Format.hours(even) + "  ·  " + Format.about(item.getHours()) + " average",
+				Theme.small(), Theme.TEAL);
+			when.setToolTipText("Hunting it at " + Format.source(item.getSource()) + ": half of players have it within "
+				+ Format.hours(even) + "; the average wait is " + Format.hours(item.getHours()) + ".");
+			more.add(left(when));
 		}
 		else if (item.getSource() == null)
 		{

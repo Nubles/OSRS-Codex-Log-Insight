@@ -49,6 +49,11 @@ final class PlanView
 			stack.add(Rows.note("Log Insight is still reading the collection log's pages from the game.", WIDTH));
 			return stack;
 		}
+		if (!report.ownedRead())
+		{
+			stack.add(Rows.note(QuarryView.UNREAD, WIDTH));
+			return stack;
+		}
 		double hours = HOURS[Math.max(0, Math.min(HOURS.length - 1, horizon))];
 		String span = HORIZONS[Math.max(0, Math.min(HORIZONS.length - 1, horizon))];
 
@@ -115,10 +120,10 @@ final class PlanView
 			text.add(Ui.clamped(detail, Theme.small(), Theme.GOLD_DIM, TEXT, 1));
 		}
 		// Past near certainty the chance of one says nothing the count does not.
-		text.add(Ui.label(Format.slots(slots) + (Math.abs(slots - 1) < 0.05 ? " new slot" : " new slots")
+		text.add(Ui.label(Format.slots(slots) + " new " + Format.slotWord(slots)
 			+ (any < 0.995 ? "  ·  " + Format.percent(any) + " any" : ""), Theme.small(), Theme.TEAL));
 		String next = p.getNextItemName() == null ? "" : "likeliest " + p.getNextItemName();
-		JLabel nextLabel = Ui.label(next, Theme.small(), Theme.TEXT_MUTED);
+		JComponent nextLabel = Ui.clamped(next, Theme.small(), Theme.TEXT_MUTED, TEXT, 2);
 		nextLabel.setToolTipText(next);
 		text.add(nextLabel);
 		text.add(Ui.label(p.getRemaining() + " left  ·  " + Math.round(p.getPerHour()) + " an hour"
@@ -233,7 +238,7 @@ final class PlanView
 				Theme.small(), locked ? Theme.TEXT_FAINT : Theme.VIOLET));
 			if (alongside >= 0.05)
 			{
-				text.add(Ui.label("+" + Format.slots(alongside) + " other " + (Math.abs(alongside - 1) < 0.05 ? "slot" : "slots")
+				text.add(Ui.label("+" + Format.slots(alongside) + " other " + Format.slotWord(alongside)
 					+ " on the way", Theme.small(), Theme.TEXT_FAINT));
 			}
 			fix(text);

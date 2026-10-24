@@ -76,6 +76,8 @@ def activities(adviser):
 
 ROLL = re.compile(r'new RollInfo\(\s*LogItemSourceInfo\.(\w+)\s*,\s*([^,()]+(?:\([^()]*\))?[^,()]*)\s*(?:,\s*(\d+))?\s*\)')
 ITEM = re.compile(r'public static LogItemInfo \w+ = new LogItemInfo\(\s*"((?:[^"\\]|\\.)*)"\s*,\s*(\d+)\s*,(.*?)\);\s*(?=public static|private|//|\Z)', re.S)
+# Drops that give one of the item per successful roll, so the log's count of it can be compared with the odds.
+COUNTABLE = {'BinomialDrop', 'PoissonBinomialDrop'}
 SIMPLE = {'BinomialDrop', 'PoissonBinomialDrop', 'FixedStackDrop', 'FiniteBinomialDrop', 'BinomialUniformSumDrop',
           'DupeProtectedSetBinomialDrop', 'DupeProtectedFirstSetBinomialDrop', 'InterchangeableSetBinomialDrop',
           'InterchangeableSetFiniteBinomialDrop', 'SinglePityBinomialDrop', 'GuaranteedOnceBinomialDrop'}
@@ -178,6 +180,8 @@ def luck(luck_repo):
             print(f'warning: {m.group(1)} rolls one counter twice; check it is not split into stretches',
                   file=sys.stderr)
         entry = {'r': rolls}
+        if kind.group(1) in COUNTABLE:
+            entry['c'] = 1
         if kind.group(1) == 'GuaranteedOnceBinomialDrop':
             g = re.search(r'\)\s*,\s*(\d+)\s*\)\s*$', body.strip())
             if g:
