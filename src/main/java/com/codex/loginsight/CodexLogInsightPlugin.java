@@ -781,13 +781,28 @@ public class CodexLogInsightPlugin extends Plugin
 				{
 					int id = replacements.getOrDefault(slot.getItemId(), slot.getItemId());
 					progress.addOwned(id);
-					progress.setObtained(id, slot.getItemQuantity());
+					recordCount(id, slot.getItemQuantity());
 				}
 			}
 		}
 		progress.setPageLabels(page, labels);
 		progress.markPageRead(page, System.currentTimeMillis());
 		changed();
+	}
+
+	/** Keeps the log's count of a slot together with the counters it drops from, as they stand now. */
+	private void recordCount(int itemId, int count)
+	{
+		ItemOdds odds = data.odds(itemId);
+		java.util.List<String> labels = new java.util.ArrayList<>();
+		if (odds != null)
+		{
+			for (ItemOdds.Roll roll : odds.getRolls())
+			{
+				labels.add(roll.getLabel());
+			}
+		}
+		progress.setObtained(itemId, count, labels);
 	}
 
 	private void finishFullRead()
@@ -799,7 +814,10 @@ public class CodexLogInsightPlugin extends Plugin
 			harvestCounts.clear();
 			return;
 		}
-		if (officialOwned > 0 && harvest.size() >= officialOwned)
+		// Every id the game sent must be one the log's pages use, or replacing would drop a slot the next page open
+		// adds back.
+		boolean known = harvest.stream().noneMatch(id -> structure.pagesOf(id).isEmpty());
+		if (officialOwned > 0 && harvest.size() >= officialOwned && known)
 		{
 			// The read holds the whole log, so it is the truth: a slot once marked in error goes.
 			progress.replaceOwned(harvest);
@@ -813,7 +831,7 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 		for (Map.Entry<Integer, Integer> count : harvestCounts.entrySet())
 		{
-			progress.setObtained(count.getKey(), count.getValue());
+			recordCount(count.getKey(), count.getValue());
 		}
 		harvest.clear();
 		harvestCounts.clear();
@@ -856,7 +874,7 @@ public class CodexLogInsightPlugin extends Plugin
 		if (resolved.owned > 0 && progress.addOwned(resolved.owned))
 		{
 			// A new slot is one copy until the log is read again.
-			progress.setObtained(resolved.owned, 1);
+			recordCount(resolved.owned, 1);
 		}
 		progress.addFind(new Progress.Find(itemId, name, page, label, count, chance, luckier, System.currentTimeMillis()));
 		changed();

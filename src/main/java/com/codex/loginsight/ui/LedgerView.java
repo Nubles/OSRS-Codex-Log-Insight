@@ -80,7 +80,7 @@ final class LedgerView
 		}
 		else
 		{
-			tiles.add(new StatTile("-", "Vs average", NO_COUNTS, Theme.TEXT_MUTED));
+			tiles.add(new StatTile("-", "Vs average", report.ownedRead() ? NO_COUNTS : "after a log read", Theme.TEXT_MUTED));
 		}
 		if (!report.ownedRead())
 		{
@@ -109,14 +109,21 @@ final class LedgerView
 				}
 			}
 		}
-		tiles.add(new StatTile(petsOwned + "/" + pets, "Pets", pets == petsOwned ? "every one" : (pets - petsOwned) + " to go",
-			Theme.VIOLET));
+		if (report.ownedRead())
+		{
+			tiles.add(new StatTile(petsOwned + "/" + pets, "Pets", pets == petsOwned ? "every one" : (pets - petsOwned) + " to go",
+				Theme.VIOLET));
+		}
+		else
+		{
+			tiles.add(new StatTile("-", "Pets", "after a log read", Theme.TEXT_MUTED));
+		}
 		tiles.add(new StatTile(report.getPagesRead() + "/" + report.getPagesTotal(), "Pages read",
 			report.getPagesRead() < report.getPagesTotal() ? "open for luck" : "all kill counts", Theme.GOLD));
 		stack.add(tiles);
 		if (report.getDrops() != null)
 		{
-			stack.add(PageView.drops(report.getDrops(), Format.count(report.getDrops().getSlots()) + " slots"));
+			stack.add(PageView.drops(report.getDrops(), Format.count(report.getDrops().getSlots()) + (report.getDrops().getSlots() == 1 ? " slot" : " slots")));
 		}
 
 		// The finest drops on a podium: the card worth a screenshot.

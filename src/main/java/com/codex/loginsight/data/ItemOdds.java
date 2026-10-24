@@ -31,23 +31,22 @@ public final class ItemOdds
 	}
 
 	/**
-	 * How many of the item an average player would have had by these counts, or -1 when none of its counters is
-	 * known. Counters that are unknown count as zero.
+	 * How many of the item an average player would have had by these counts, or -1 unless every counter it drops from
+	 * is known. The log counts copies from every source, so a source left out would read the log as lucky.
 	 */
 	public double expectedCount(Map<String, Integer> counters)
 	{
-		boolean known = false;
 		double expected = 0;
 		for (Roll roll : rolls)
 		{
 			Integer count = counters.get(roll.label);
-			if (count != null)
+			if (count == null)
 			{
-				known = true;
-				expected += roll.chance * roll.rolls * count;
+				return -1;
 			}
+			expected += roll.chance * roll.rolls * count;
 		}
-		return known ? expected : -1;
+		return rolls.isEmpty() ? -1 : expected;
 	}
 
 	/** The counter most of this slot's chance comes from, used to label it. */

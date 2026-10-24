@@ -72,6 +72,7 @@ public class DropsTest
 		progress.setObtained(HEAD, heads);
 		progress.setObtained(SHIELD, shields);
 		progress.setObtained(STACK, 400);
+		progress.setFullReadAt(1);
 		return progress;
 	}
 
@@ -100,6 +101,7 @@ public class DropsTest
 		fresh.addOwned(HEAD);
 		fresh.addOwned(SHIELD);
 		fresh.setObtained(HEAD, 11);
+		fresh.markPageRead("Beast", 1);
 		// The shield is owned but its count was never read: guessing one would read as dry.
 		assertNull(new Analyst(data).analyse(structure, fresh, false, true, -1, -1).getPages().get(0).getDrops());
 		assertNotNull(new Analyst(data).analyse(structure, progress, false, true, -1, -1).getDrops());
@@ -121,6 +123,46 @@ public class DropsTest
 				assertEquals(-1, item.getExpectedCount(), 0);
 			}
 		}
+	}
+
+	@Test
+	public void anUnreadLogSaysNothingAboutLuck()
+	{
+		// Kill counts seen in chat, but neither the log nor the page read: every slot would read as missing.
+		Progress progress = new Progress();
+		progress.setCounter("Beast kills", 1000);
+		Report report = new Analyst(data).analyse(structure, progress, false, true, -1, -1);
+		assertNull(report.getDrops());
+		assertNull(report.getLuck());
+		assertNull(report.getPages().get(0).getDrops());
+	}
+
+	@Test
+	public void countsAreSetAgainstTheKillsTheyWereReadAt()
+	{
+		Progress progress = greenPage(10, 20);
+		progress.setCounter("Beast kills", 1000);
+		progress.setObtained(HEAD, 10, Collections.singletonList("Beast kills"));
+		progress.setObtained(SHIELD, 20, Collections.singletonList("Beast kills"));
+		// A thousand more kills with no read: the game announces no second copies, so the log's counts stand still.
+		progress.setCounter("Beast kills", 2000);
+		Drops drops = new Analyst(data).analyse(structure, progress, false, true, -1, -1).getDrops();
+		assertEquals(30, drops.getExpected(), 1e-9);
+		assertTrue(drops.getPercentile() > 0.4 && drops.getPercentile() < 0.6);
+		Progress back = Progress.load(new Gson(), new Gson().toJson(progress)).getValue();
+		assertEquals(1000, (int) back.countedAt(HEAD).get("Beast kills"));
+	}
+
+	@Test
+	public void aSlotWithAnUncountedSourceIsLeftOut()
+	{
+		ItemOdds twoSources = new ItemOdds(Arrays.asList(new ItemOdds.Roll("Beast kills", 0.01, 1),
+			new ItemOdds.Roll("Other kills", 0.01, 1)), 0, true);
+		assertEquals(-1, twoSources.expectedCount(Collections.singletonMap("Beast kills", 100)), 0);
+		Map<String, Integer> both = new HashMap<>();
+		both.put("Beast kills", 100);
+		both.put("Other kills", 100);
+		assertEquals(2, twoSources.expectedCount(both), 1e-9);
 	}
 
 	@Test

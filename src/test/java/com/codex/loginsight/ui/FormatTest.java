@@ -76,4 +76,11 @@ public class FormatTest
 		assertEquals("And gambling quiver, Fortis Colosseum", Format.detail("Sol heredit (and gambling quiver, fortis colosseum)"));
 		assertEquals("Level 146, on task", Format.detail("Killing araxytes (level 146, on task)"));
 	}
+
+	@Test
+	public void detailsNeitherMisspellNorRepeatTheName()
+	{
+		assertEquals("Non-Zaros", Format.detail("Killing spiritual mages (non-zaros)"));
+		assertNull(Format.detail("Pulling from the reward guardian (guardians of the rift)"));
+	}
 }

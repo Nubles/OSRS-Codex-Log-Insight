@@ -48,6 +48,12 @@ public final class Progress
 	 * Missing from older saves, and for slots only ever seen announced.
 	 */
 	private Map<Integer, Integer> obtained;
+	/**
+	 * The counters each slot's count was read at, so the average it is set against stops where the count stopped: the
+	 * game announces only a slot's first copy, and later kills would otherwise read as ever drier. Only the counters the
+	 * slot drops from are kept. Missing from older saves, which use the counters as they are.
+	 */
+	private Map<Integer, Map<String, Integer>> countedAt;
 
 	/**
 	 * Reads saved progress, keeping every field and entry that reads on its own: one odd value never costs the log.
@@ -88,6 +94,8 @@ public final class Progress
 		}
 		pace().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || !e.getValue().sane());
 		obtained().entrySet().removeIf(e -> e.getKey() == null || e.getKey() <= 0 || e.getValue() == null || e.getValue() <= 0);
+		countedAt().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || !obtained().containsKey(e.getKey()));
+		countedAt().values().forEach(m -> m.entrySet().removeIf(c -> c.getKey() == null || c.getValue() == null || c.getValue() < 0));
 		pagesRead().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
 		pageLabels().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
 		pageLabels().values().forEach(list -> list.removeIf(label -> label == null));
@@ -120,10 +128,20 @@ public final class Progress
 		p.wanted = new ArrayList<>(wanted());
 		p.trophies = new ArrayList<>(trophies());
 		p.obtained = new HashMap<>(obtained());
+		p.countedAt = new HashMap<>(countedAt());
 		return p;
 	}
 
 	// Gson leaves fields null when an older save lacks them, so every read goes through these.
+
+	private Map<Integer, Map<String, Integer>> countedAt()
+	{
+		if (countedAt == null)
+		{
+			countedAt = new HashMap<>();
+		}
+		return countedAt;
+	}
 
 	private Map<Integer, Integer> obtained()
 	{
@@ -307,6 +325,38 @@ public final class Progress
 	}
 
 	/**
+	 * Records the log's count of a slot along with the counters it drops from as they stand now.
+	 *
+	 * @param labels the counters the slot drops from
+	 */
+	public void setObtained(int itemId, int count, java.util.Collection<String> labels)
+	{
+		if (itemId <= 0 || count <= 0)
+		{
+			return;
+		}
+		setObtained(itemId, count);
+		// Read again at the same count, the log still says this many at these counts: the counters move on with it.
+		Map<String, Integer> at = new HashMap<>();
+		for (String label : labels)
+		{
+			Integer value = counters().get(label);
+			if (value != null)
+			{
+				at.put(label, value);
+			}
+		}
+		countedAt().put(itemId, at);
+	}
+
+	/** The counters this slot's count was read at, or the counters now when that was not kept. */
+	public Map<String, Integer> countedAt(int itemId)
+	{
+		Map<String, Integer> at = countedAt().get(itemId);
+		return at == null ? counters() : at;
+	}
+
+	/**
 	 * Replaces every owned slot with a read of the whole log, which repairs a slot once marked owned in error. Only a
 	 * read holding at least as many slots as the game counts may do this; a shorter one only adds.
 	 */
@@ -319,6 +369,7 @@ public final class Progress
 		owned().retainAll(read);
 		owned().addAll(read);
 		obtained().keySet().retainAll(read);
+		countedAt().keySet().retainAll(read);
 	}
 
 	public Map<String, Integer> getCounters()

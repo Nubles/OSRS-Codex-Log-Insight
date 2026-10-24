@@ -113,7 +113,9 @@ public final class Analyst
 		}
 
 		Finish finish = finish(missing, owned, rates, unlocks);
-		Luck luck = luck(unique, owned, counters);
+		// Before the owned slots are read every slot reads as missing, which would say "very dry" of any log.
+		boolean ownedRead = progress.getFullReadAt() > 0 || officialOwned >= 0 && knownOwned >= officialOwned;
+		Luck luck = ownedRead ? luck(unique, owned, counters) : null;
 		List<Report.ItemReport> driest = driest(structure, missing, progress, rates);
 		List<Prospect> prospects = new ArrayList<>();
 		List<Report.Hunt> hunts = hunts(structure, owned, rates, unlocks, prospects);
@@ -133,7 +135,7 @@ public final class Analyst
 		}
 		report.setWanted(wanted);
 		report.setTrophies(progress.getTrophies());
-		report.setDrops(drops(unique, progress));
+		report.setDrops(ownedRead ? drops(unique, progress) : null);
 		return report;
 	}
 
@@ -203,7 +205,9 @@ public final class Analyst
 		Report.PageReport report = new Report.PageReport(page.getTab(), page.getName(), ownedCount, page.getItems().size(),
 			lines, count == null ? -1 : count, mainLabel, luck, finish.hours, next.hours, next.source, finish.unrated,
 			progress.isPageRead(page.getName()), items, projection(structure, missing, owned, rates, unlocks));
-		report.setDrops(drops(page.getItems(), progress));
+		// A page's counts are known once it, or the whole log, has been read.
+		boolean counted = progress.isPageRead(page.getName()) || progress.getFullReadAt() > 0;
+		report.setDrops(counted ? drops(page.getItems(), progress) : null);
 		return report;
 	}
 
@@ -239,7 +243,7 @@ public final class Analyst
 			chance, label, count, dry, source, hours);
 		if (progress.owns(id))
 		{
-			double expected = odds != null && odds.isCountable() && !data.isPet(id) ? odds.expectedCount(progress.getCounters()) : -1;
+			double expected = countable(id, odds) ? odds.expectedCount(progress.countedAt(id)) : -1;
 			report.setObtained(progress.obtained(id), expected);
 		}
 		return report;
@@ -260,11 +264,12 @@ public final class Analyst
 		for (int id : items)
 		{
 			ItemOdds odds = data.odds(id);
-			if (!seen.add(id) || odds == null || !odds.isCountable() || data.isPet(id))
+			if (!seen.add(id) || !countable(id, odds))
 			{
 				continue;
 			}
-			double mean = odds.expectedCount(counters);
+			// An owned slot is set against the counts as they stood when its copies were read; a missing one against now.
+			double mean = odds.expectedCount(progress.owns(id) ? progress.countedAt(id) : counters);
 			if (mean < 0)
 			{
 				continue;
@@ -283,6 +288,19 @@ public final class Analyst
 		}
 		return slots == 0 || got == 0 && expected < 0.5 ? null : new Drops(got, expected, slots);
 	}
+
+	/**
+	 * Whether the log's count of a slot can be set against its odds: one item per roll, not a pet, and rare enough that
+	 * the odds' own rounding stays small beside the spread. A 1/20 drop over a few thousand kills would pin the reading to
+	 * either end on a few percent of model error alone.
+	 */
+	private boolean countable(int id, ItemOdds odds)
+	{
+		return odds != null && odds.isCountable() && !data.isPet(id) && odds.mainChance() <= COMMON;
+	}
+
+	/** The commonest drop whose copies are counted, per kill. */
+	private static final double COMMON = 1 / 40.0;
 
 	private Luck luck(Collection<Integer> items, Set<Integer> owned, Map<String, Integer> counters)
 	{

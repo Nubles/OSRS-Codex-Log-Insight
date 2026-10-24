@@ -88,7 +88,7 @@ final class PageView
 		}
 		if (page.getDrops() != null)
 		{
-			stack.add(drops(page.getDrops(), "these " + page.getDrops().getSlots() + " slots"));
+			stack.add(drops(page.getDrops(), page.getDrops().getSlots() == 1 ? "this slot" : "these " + page.getDrops().getSlots() + " slots"));
 		}
 
 		if (!page.isComplete())

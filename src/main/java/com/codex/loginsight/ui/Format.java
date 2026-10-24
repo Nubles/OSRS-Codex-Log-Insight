@@ -294,7 +294,19 @@ public final class Format
 		{
 			boolean small = out.length() > 0 && SMALL_WORDS.contains(word.toLowerCase(java.util.Locale.ENGLISH));
 			out.append(out.length() > 0 ? " " : "")
-				.append(small || word.isEmpty() ? word : Character.toUpperCase(word.charAt(0)) + word.substring(1));
+				.append(small || word.isEmpty() ? word : capitalise(word));
+		}
+		return out.toString();
+	}
+
+	/** "zaros" to "Zaros", and each part of a hyphenated name: "non-zaros" to "Non-Zaros". */
+	private static String capitalise(String word)
+	{
+		StringBuilder out = new StringBuilder();
+		for (String part : word.split("-", -1))
+		{
+			out.append(out.length() > 0 ? "-" : "")
+				.append(part.isEmpty() ? part : Character.toUpperCase(part.charAt(0)) + part.substring(1));
 		}
 		return out.toString();
 	}
@@ -321,6 +333,11 @@ public final class Format
 				detail = detail.substring(0, at) + titleCase(detail.substring(at, at + proper.length()))
 					+ detail.substring(at + proper.length());
 			}
+		}
+		// A detail that only repeats the short name says nothing.
+		if (detail.equalsIgnoreCase(source(name)))
+		{
+			return null;
 		}
 		// A tag under a title starts with a capital, like every other line on the card.
 		return detail.isEmpty() ? detail : Character.toUpperCase(detail.charAt(0)) + detail.substring(1);
