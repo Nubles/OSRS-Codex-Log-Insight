@@ -1,5 +1,6 @@
 package com.codex.loginsight;
 
+import com.codex.loginsight.notes.FieldNotes;
 import com.codex.loginsight.core.Analyst;
 import com.codex.loginsight.core.DryWatch;
 import com.codex.loginsight.core.Grind;
@@ -8,6 +9,7 @@ import com.codex.loginsight.core.ChatReader;
 import com.codex.loginsight.core.LogStructure;
 import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
+import com.codex.loginsight.core.Prospect;
 import com.codex.loginsight.core.Report;
 import com.codex.loginsight.core.SavedJson;
 import com.codex.loginsight.core.Session;
@@ -159,6 +161,9 @@ public class CodexLogInsightPlugin extends Plugin
 	@Inject
 	private CodexLogInsightConfig config;
 
+	/** The optional local record of what the plugin read and decided. */
+	private FieldNotes notes;
+
 	private final FindPlaque plaque = new FindPlaque();
 	private final AtomicInteger generation = new AtomicInteger();
 	private final Set<Integer> harvest = new HashSet<>();
@@ -226,6 +231,11 @@ public class CodexLogInsightPlugin extends Plugin
 	@Override
 	protected void startUp() throws IOException
 	{
+		notes = new FieldNotes(this::getPluginDirectory, gson);
+		if (config.fieldNotes())
+		{
+			notes.open();
+		}
 		baseData = LogData.load(gson);
 		data = baseData;
 		analyst = new Analyst(data);
@@ -321,6 +331,11 @@ public class CodexLogInsightPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		if (notes != null)
+		{
+			notes.shutdown();
+			notes = null;
+		}
 		clientThread.invokeLater(() ->
 		{
 			save();
@@ -445,6 +460,18 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
+		if (CodexLogInsightConfig.GROUP.equals(event.getGroup()) && "fieldNotes".equals(event.getKey()) && notes != null)
+		{
+			if (config.fieldNotes())
+			{
+				notes.open();
+			}
+			else
+			{
+				notes.close();
+			}
+			return;
+		}
 		if (!CodexLogInsightConfig.GROUP.equals(event.getGroup()))
 		{
 			return;
@@ -579,6 +606,19 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
+		if (notes != null && notes.isOpen())
+		{
+			net.runelite.api.ChatMessageType chatType = event.getType();
+			// Only the game's own lines: other players' chat is never written down.
+			if (chatType == net.runelite.api.ChatMessageType.GAMEMESSAGE || chatType == net.runelite.api.ChatMessageType.SPAM
+				|| chatType == net.runelite.api.ChatMessageType.MESBOX)
+			{
+				com.google.gson.JsonObject chatNote = new com.google.gson.JsonObject();
+				chatNote.addProperty("type", chatType.name());
+				chatNote.addProperty("text", event.getMessage());
+				notes.note("chat", chatNote);
+			}
+		}
 		ChatMessageType type = event.getType();
 		if (progress == null || type != ChatMessageType.GAMEMESSAGE && type != ChatMessageType.SPAM
 			&& type != ChatMessageType.FRIENDSCHATNOTIFICATION)
@@ -1139,6 +1179,23 @@ public class CodexLogInsightPlugin extends Plugin
 
 	private void publish(Report report, String name)
 	{
+		if (notes != null && notes.isOpen() && report != null && report.isLoggedIn())
+		{
+			// What the log was read as and the picks made from it, so a wrong count or hunt can be traced.
+			com.google.gson.JsonObject n = new com.google.gson.JsonObject();
+			n.addProperty("officialOwned", report.getOfficialOwned());
+			n.addProperty("officialTotal", report.getOfficialTotal());
+			n.addProperty("knownOwned", report.getKnownOwned());
+			n.addProperty("pagesRead", report.getPagesRead() + "/" + report.getPagesTotal());
+			n.addProperty("pagesComplete", report.getPagesComplete());
+			n.addProperty("hoursLeft", report.getHoursLeft());
+			n.addProperty("ironRates", report.isIronRates());
+			List<Report.Hunt> hunts = report.getHunts();
+			n.add("hunts", notes.safe(hunts.subList(0, Math.min(5, hunts.size()))));
+			List<Prospect> prospects = report.getProspects();
+			n.add("prospects", notes.safe(prospects.subList(0, Math.min(5, prospects.size()))));
+			notes.noteChanged("report", n);
+		}
 		LogInsightPanel target = panel;
 		if (target != null)
 		{

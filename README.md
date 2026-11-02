@@ -77,6 +77,10 @@ Log Insight only reads what the game already shows you: your collection log, its
 
 Drop rates and activity rates come from two open-source plugins, used under their BSD licenses: [Log Adviser](https://github.com/SFranciscoSouza/LogAdviser) and [Collection Log Luck](https://github.com/peanubnutter/collection-log-luck). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+## Field notes
+
+An optional setting, **Keep field notes** (under Field notes, off by default), writes a plain record of what Log Insight reads and decides to its own folder in `.runelite/plugin-data` on your computer, one line at a time. It is for checking the plugin's guesses against real play: when something looks wrong, the notes show what it saw and why it chose what it did. Other players' chat is never written down, it stays on your computer, and nothing is sent anywhere.
+
 ## Development
 
 ```bash
