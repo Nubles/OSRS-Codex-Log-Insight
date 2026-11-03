@@ -34,6 +34,19 @@ SKILLING_PETS = {
 }
 PET_LEVEL_STEP = 25
 
+# Requirements Log Adviser gets wrong, checked on the OSRS Wiki on 2026-11-03. Every listed requirement must be met,
+# so an either-or entry requirement must not be listed as two. The God Wars Dungeon boulder takes 60 Strength or
+# 60 Agility and can be passed with a Strength boost; each general's chamber takes 70 in its own stat, unboosted
+# (wiki: God Wars Dungeon). Nex also needs the Frozen Door miniquest, which needs Desert Treasure I (wiki: Nex).
+REQUIREMENTS = {
+    'Killing commander zilyana': {'s': {'AGILITY': 70}, 'q': []},
+    'Killing general graardor': {'s': {'STRENGTH': 70}, 'q': []},
+    "Killing kree'arra": {'s': {'RANGED': 70}, 'q': []},
+    "Killing k'ril tsutsaroth": {'s': {'HITPOINTS': 70}, 'q': []},
+    'Killing nex (6 person team)': {'s': {'STRENGTH': 70, 'AGILITY': 70, 'HITPOINTS': 70, 'RANGED': 70},
+                                    'q': ['Desert Treasure I']},
+}
+
 
 def activities(adviser):
     data = adviser / 'src/main/resources/com/logadviser/data'
@@ -67,6 +80,12 @@ def activities(adviser):
             if abs(at99 - r['dropRateAttempts']) / at99 > 0.05:
                 raise SystemExit(f"{a['n']}: Log Adviser lists 1/{r['dropRateAttempts']}, the wiki base gives 1/{at99} at 99")
             a.setdefault('p', []).append({'i': r['itemId'], 's': skill, 'b': base})
+    for a in by_index.values():
+        if a['n'].strip() in REQUIREMENTS:
+            a['r'] = REQUIREMENTS[a['n'].strip()]
+    named = {a['n'].strip() for a in by_index.values()}
+    if not set(REQUIREMENTS) <= named:
+        raise SystemExit(f'requirement fixes for missing activities: {set(REQUIREMENTS) - named}')
     found = {(a['n'].strip(), i['i']) for a in by_index.values() for i in a.get('p', [])}
     if found != set(SKILLING_PETS):
         raise SystemExit(f'skilling pet rows not found: {set(SKILLING_PETS) - found}')
