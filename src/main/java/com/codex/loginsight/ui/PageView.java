@@ -43,6 +43,17 @@ final class PageView
 	static StackPanel build(Report.PageReport page, ItemIcons icons, Runnable back, IntPredicate wanted, IntConsumer onWant,
 		boolean full)
 	{
+		return build(page, icons, back, wanted, onWant, full, null);
+	}
+
+	/**
+	 * @param delve the Doom of Mokhaiotl's delve log, for its own page: once it has runs, the waits and the missing
+	 *              uniques are read from it at the depth you cash out at, not from typical rates
+	 */
+	static StackPanel build(Report.PageReport page, ItemIcons icons, Runnable back, IntPredicate wanted, IntConsumer onWant,
+		boolean full, com.codex.loginsight.core.DelveReport delve)
+	{
+		boolean delved = delve != null && !delve.isEmpty();
 		StackPanel stack = new StackPanel(6, 8);
 		JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 		top.setOpaque(false);
@@ -91,7 +102,19 @@ final class PageView
 			stack.add(drops(page.getDrops(), page.getDrops().getSlots() == 1 ? "this slot" : "these " + page.getDrops().getSlots() + " slots"));
 		}
 
-		if (!page.isComplete())
+		if (!page.isComplete() && delved)
+		{
+			int depth = delve.readDepth();
+			com.codex.loginsight.core.DelveReport.Depth at = delve.depth(depth);
+			JPanel tiles = new JPanel(new GridLayout(1, 2, 6, 6));
+			tiles.setOpaque(false);
+			tiles.add(new StatTile(Format.hours(at == null ? Double.POSITIVE_INFINITY : at.getHoursToNext()), "Next slot",
+				"cashing out at " + depth, Theme.TEAL));
+			tiles.add(new StatTile(Format.hours(delve.hoursToFinish(depth)), "To finish",
+				delve.isOwnPace() ? "your pace" : "typical pace", Theme.EMBER));
+			stack.add(tiles);
+		}
+		else if (!page.isComplete())
 		{
 			JPanel tiles = new JPanel(new GridLayout(1, 2, 6, 6));
 			tiles.setOpaque(false);
@@ -120,7 +143,9 @@ final class PageView
 			for (Report.ItemReport item : missing)
 			{
 				boolean isWanted = wanted.test(item.getItemId());
-				Card row = missingRow(item, icons, false, page.getNextSource(), isWanted);
+				Card row = delved && delve.unique(item.getItemId()) != null
+					? delveRow(item, delve, icons, isWanted)
+					: missingRow(item, icons, false, page.getNextSource(), isWanted);
 				if (isWanted)
 				{
 					row.setToolTipText("<html>On your wanted list. Click to take it off.<br>" + stripHtml(row.getToolTipText()) + "</html>");
@@ -198,6 +223,36 @@ final class PageView
 	private static String stripHtml(String tip)
 	{
 		return tip == null ? "" : tip.replace("<html>", "").replace("</html>", "");
+	}
+
+	/**
+	 * A missing Doom unique read from the delve log: its chance a run to the depth you cash out at, how dry the levels you
+	 * banked make you, and its own wait at your pace.
+	 */
+	static Card delveRow(Report.ItemReport item, com.codex.loginsight.core.DelveReport delve, ItemIcons icons, boolean wanted)
+	{
+		int depth = delve.readDepth();
+		com.codex.loginsight.core.DelveReport.Unique unique = delve.unique(item.getItemId());
+		int u = com.codex.loginsight.core.Delve.index(item.getItemId());
+		double perRun = com.codex.loginsight.core.Delve.runChance(u, depth);
+		String detail = perRun > 0 ? Format.chance(perRun) + " a run to delve " + depth
+			: "Drops from delve " + unique.getFirstLevel();
+		double hours = delve.hoursFor(item.getItemId(), depth);
+		String where = Double.isFinite(hours) ? Format.about(hours) + " on its own" : null;
+		if (wanted)
+		{
+			where = "Wanted" + (where == null ? "" : "  ·  " + where);
+		}
+		double waiting = 1 - unique.getByNow();
+		Pill dry = delve.isOwnedKnown() && delve.getBankedLevels() > 0 ? new Pill(Format.dry(waiting), Theme.dry(waiting)) : null;
+		Card card = Rows.line(new IconBadge(item.getItemId(), icons, false), item.getName(), detail, where,
+			wanted ? Theme.GOLD : Theme.TEXT_FAINT, dry, wanted ? Theme.GOLD : dry != null && waiting < 0.2 ? Theme.dry(waiting) : null);
+		if (wanted)
+		{
+			card.highlighted(true);
+		}
+		card.setToolTipText(DelveView.tooltip(unique, delve));
+		return card;
 	}
 
 	/** Missing slots with a known dry chance first, driest at the top. */

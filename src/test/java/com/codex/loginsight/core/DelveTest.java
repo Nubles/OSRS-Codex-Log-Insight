@@ -338,6 +338,38 @@ public class DelveTest
 	}
 
 	@Test
+	public void pageWaitsAreReadAtTheUsualDepth()
+	{
+		DelveLog log = new DelveLog().repair();
+		long t = 0;
+		for (int run = 0; run < 10; run++)
+		{
+			for (int level = 1; level <= 7; level++)
+			{
+				log.levelCleared(level, t += 60_000);
+			}
+			log.claimed(t += 1_000);
+		}
+		Set<Integer> owned = new HashSet<>(java.util.Arrays.asList(Delve.CLOTH, Delve.EYE, Delve.DOM));
+		DelveReport report = DelveReport.of(log, owned, true);
+		assertEquals(7, report.readDepth());
+		DelveReport.Depth seven = report.depth(7);
+		// One unique missing: the page's wait to finish is its own wait, and the next slot is the same wait.
+		double treads = report.hoursFor(Delve.TREADS, 7);
+		assertEquals(seven.getHoursPerRun() / Delve.runChance(TREADS, 7), treads, 1e-9);
+		assertEquals(treads, report.hoursToFinish(7), treads * 0.01);
+		assertEquals(treads, seven.getHoursToNext(), 1e-9);
+
+		// Two missing: finishing takes longer than either alone.
+		DelveReport two = DelveReport.of(log, new HashSet<>(Collections.singletonList(Delve.CLOTH)), true);
+		double finish = two.hoursToFinish(7);
+		assertTrue(finish > two.hoursFor(Delve.DOM, 7));
+		assertTrue(finish > two.hoursFor(Delve.TREADS, 7));
+		// A unique that cannot drop that shallow never finishes there.
+		assertEquals(Double.POSITIVE_INFINITY, two.hoursToFinish(5), 0);
+	}
+
+	@Test
 	public void chatAndWindowNameTheLevel()
 	{
 		assertEquals(4, DelveReader.levelMessage("Delve level: 4 duration: <col=ff0000>1:12.00</col>"));

@@ -153,6 +153,76 @@ public final class DelveReport
 		this.recent = recent;
 	}
 
+	/** The unique with this item id, or null. */
+	public Unique unique(int itemId)
+	{
+		for (Unique u : uniques)
+		{
+			if (u.itemId == itemId)
+			{
+				return u;
+			}
+		}
+		return null;
+	}
+
+	/** The depth Log Insight reads the page at: the one you usually cash out at, else delve 8. */
+	public int readDepth()
+	{
+		return usual >= 2 ? usual : 8;
+	}
+
+	/**
+	 * Average hours until every unique still missing is owned, cashing out at this depth every run: each one's wait in
+	 * runs (one over its chance a run, counting the runs lost to deaths) raced against the others, times the hours a run
+	 * takes. Zero when nothing is missing; infinity when a missing one cannot drop that shallow.
+	 */
+	public double hoursToFinish(int depth)
+	{
+		Depth d = depth(depth);
+		if (d == null)
+		{
+			return Double.POSITIVE_INFINITY;
+		}
+		List<Double> runs = new ArrayList<>();
+		for (int u = 0; u < uniques.size(); u++)
+		{
+			if (uniques.get(u).owned)
+			{
+				continue;
+			}
+			double chance = Delve.runChance(u, depth) * d.reach;
+			if (!(chance > 0))
+			{
+				return Double.POSITIVE_INFINITY;
+			}
+			runs.add(1 / chance);
+		}
+		if (runs.isEmpty())
+		{
+			return 0;
+		}
+		double[] means = new double[runs.size()];
+		for (int i = 0; i < means.length; i++)
+		{
+			means[i] = runs.get(i);
+		}
+		return Odds.attemptsToAll(means, 0) * d.hoursPerRun;
+	}
+
+	/** Average hours until this one unique, cashing out at this depth every run, or infinity. */
+	public double hoursFor(int itemId, int depth)
+	{
+		Depth d = depth(depth);
+		int u = Delve.index(itemId);
+		if (d == null || u < 0)
+		{
+			return Double.POSITIVE_INFINITY;
+		}
+		double chance = Delve.runChance(u, depth) * d.reach;
+		return chance > 0 ? d.hoursPerRun / chance : Double.POSITIVE_INFINITY;
+	}
+
 	/** The depth row for a depth, or null. */
 	public Depth depth(int depth)
 	{

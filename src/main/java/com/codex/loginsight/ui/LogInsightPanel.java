@@ -445,7 +445,8 @@ public class LogInsightPanel extends PluginPanel
 			{
 				openPage = null;
 				rebuildFolios();
-			}, report::isWanted, onWant, report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED);
+			}, report::isWanted, onWant, report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED,
+				DelveView.isDelvePage(page.getName()) ? delve : null);
 			addDelve(view, page.getName());
 			replace(folios, view);
 		}
