@@ -59,6 +59,8 @@ public class LogInsightPanel extends PluginPanel
 	private IconWait pending;
 	/** True while the panel is open in the sidebar; a closed panel only marks its tabs stale. */
 	private boolean active;
+	/** The Doom of Mokhaiotl's delve log, shown on its page; null while logged out. */
+	private com.codex.loginsight.core.DelveReport delve;
 
 	public LogInsightPanel(ItemIcons icons)
 	{
@@ -259,6 +261,36 @@ public class LogInsightPanel extends PluginPanel
 		rebuild();
 	}
 
+	/** Called on the Swing thread with each new read of the delve log, or null when logged out. */
+	public void setDelve(com.codex.loginsight.core.DelveReport delve)
+	{
+		this.delve = delve;
+		boolean onDelve = monsterOpen && monster != null && DelveView.isDelvePage(monster.getPage())
+			|| DelveView.isDelvePage(openPage);
+		if (onDelve && shown == 1 && (active || isShowing()))
+		{
+			rebuildFolios();
+		}
+		else
+		{
+			stale[1] = true;
+		}
+	}
+
+	/** The delve log's cards under the head card of the Doom's page or monster view. */
+	private void addDelve(StackPanel stack, String page)
+	{
+		if (delve == null || !DelveView.isDelvePage(page))
+		{
+			return;
+		}
+		int at = Math.min(2, stack.getComponentCount());
+		for (JComponent card : DelveView.cards(delve, icons))
+		{
+			stack.add(card, at++);
+		}
+	}
+
 	/**
 	 * Opens the Folios tab at one monster's slots, from the "Log" option on a right-clicked monster. Later reports
 	 * keep it current while it is open. Swing thread only.
@@ -398,20 +430,25 @@ public class LogInsightPanel extends PluginPanel
 		if (page == null && monsterOpen && monster != null)
 		{
 			String home = monster.getPage();
-			replace(folios, MonsterView.build(monster, icons, () ->
+			StackPanel view = MonsterView.build(monster, icons, () ->
 			{
 				monsterOpen = false;
 				rebuildFolios();
 			}, () -> showPage(home), report::isWanted, onWant,
-				report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED));
+				report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED);
+			addDelve(view, home);
+			replace(folios, view);
 		}
 		else if (page != null)
 		{
-			replace(folios, PageView.build(page, icons, () ->
+			StackPanel view = PageView.build(page, icons, () ->
 			{
 				openPage = null;
 				rebuildFolios();
-			}, report::isWanted, onWant, report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED));
+			}, report::isWanted, onWant, report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED,
+				DelveView.isDelvePage(page.getName()) ? delve : null);
+			addDelve(view, page.getName());
+			replace(folios, view);
 		}
 		else
 		{

@@ -2,6 +2,8 @@
 
 Codex Log Insight bundles data derived from two BSD 2-Clause projects. `tools/build_data.py` rebuilds `codex-log.json` from them.
 
+The wording of the Doom of Mokhaiotl's end-of-level game message ("Delve level: 4 duration:", "Delve level: 8+ (9) duration:") was taken as a fact from [DustinKieler/deep-delve-pacer](https://github.com/DustinKieler/deep-delve-pacer) (BSD 2-Clause); no code was copied. The delve log reads it with its own pattern in `DelveReader`.
+
 ## Log Adviser
 
 Activity names, completions per hour, per-activity drop rates and skill and quest requirements come from [SFranciscoSouza/LogAdviser](https://github.com/SFranciscoSouza/LogAdviser) at commit `c56cca9c27a1644f6923d10ca2dea35b24cf326a`.
