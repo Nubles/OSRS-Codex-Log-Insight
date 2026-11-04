@@ -45,6 +45,9 @@ public final class Report
 	private List<Progress.Find> trophies = Collections.emptyList();
 	/** Every copy the whole log counts against the odds, or null until the counts are read. Set once, like the wanted list. */
 	private Drops drops;
+	/** The monster last opened with the "Log" menu option, or null. Set once, like the wanted list. */
+	@lombok.Setter
+	private MonsterReport monster;
 	/** The luck oracle: every rare slot owned or chased and every unfinished page, read at your own counts and pace. */
 	private Oracle oracle = new Oracle(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
 

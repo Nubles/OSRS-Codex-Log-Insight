@@ -1,6 +1,8 @@
 package com.codex.loginsight;
 
 import com.codex.loginsight.core.Analyst;
+import com.codex.loginsight.core.Bestiary;
+import com.codex.loginsight.core.MonsterReport;
 import com.codex.loginsight.core.DryWatch;
 import com.codex.loginsight.core.Grind;
 import com.codex.loginsight.core.Announcements;
@@ -53,6 +55,10 @@ import net.runelite.api.Client;
 import net.runelite.api.EnumComposition;
 import net.runelite.api.Experience;
 import net.runelite.api.GameState;
+import net.runelite.api.KeyCode;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.Quest;
 import net.runelite.api.QuestState;
@@ -63,6 +69,7 @@ import net.runelite.api.StructComposition;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.events.MenuOpened;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.events.StatChanged;
@@ -215,6 +222,8 @@ public class CodexLogInsightPlugin extends Plugin
 	private static final long RECENT_KILL_MS = 120_000;
 
 	private String grindLabel;
+	/** The monster last opened with the Log menu option, kept current in every report while the panel shows it. */
+	private volatile Bestiary.Target monsterTarget;
 	private long grindAt;
 
 	@Provides
@@ -331,6 +340,7 @@ public class CodexLogInsightPlugin extends Plugin
 		overlayManager.remove(plaque);
 		overlayManager.remove(grindCard);
 		grindCard.clear();
+		monsterTarget = null;
 		clientToolbar.removeNavigation(navButton);
 		plaque.clear();
 		generation.incrementAndGet();
@@ -910,6 +920,103 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 	}
 
+	/**
+	 * Adds "Log" just below Examine on each monster Log Insight knows the slots of. It is a menu option of the plugin's
+	 * own that opens the panel: the game's own options are left where they are, and the top option (the left click)
+	 * never changes.
+	 */
+	@Subscribe
+	public void onMenuOpened(MenuOpened event)
+	{
+		Analyst reader = analyst;
+		if (reader == null || progress == null || !menuShown())
+		{
+			return;
+		}
+		MenuEntry[] entries = event.getMenuEntries();
+		Set<String> added = new HashSet<>();
+		// From the top down, so an entry put in below one Examine never moves the ones still to come.
+		for (int i = entries.length - 1; i >= 0; i--)
+		{
+			MenuEntry entry = entries[i];
+			if (entry.getType() != MenuAction.EXAMINE_NPC)
+			{
+				continue;
+			}
+			NPC npc = entry.getNpc();
+			// Pets and mounted heads share some bosses' names, but only the monster itself has a combat level.
+			if (npc == null || npc.getCombatLevel() <= 0)
+			{
+				continue;
+			}
+			Bestiary.Target target = reader.bestiary().lookup(npc.getName(), npc.getId());
+			if (target == null || !added.add(target.key()))
+			{
+				continue;
+			}
+			client.getMenu().createMenuEntry(i)
+				.setOption("Log")
+				.setTarget(entry.getTarget())
+				.setType(MenuAction.RUNELITE)
+				.onClick(e -> openMonster(target));
+		}
+	}
+
+	private boolean menuShown()
+	{
+		switch (config.logMenuOption())
+		{
+			case ALWAYS:
+				return true;
+			case SHIFT:
+				return client.isKeyPressed(KeyCode.KC_SHIFT);
+			default:
+				return false;
+		}
+	}
+
+	/** Opens the panel at a monster's slots, worked out now rather than at the next analysis. Client thread. */
+	private void openMonster(Bestiary.Target target)
+	{
+		monsterTarget = target;
+		if (progress == null || analyst == null)
+		{
+			return;
+		}
+		Progress snapshot = progress.copy();
+		LogStructure shape = structure;
+		boolean iron = ironRates();
+		boolean pace = config.learnPace();
+		Analyst reader = analyst;
+		NavigationButton button = navButton;
+		executor.execute(() ->
+		{
+			MonsterReport monster;
+			try
+			{
+				monster = reader.monster(shape, snapshot, iron, pace, target);
+			}
+			catch (RuntimeException e)
+			{
+				log.warn("Log Insight could not read {}", target.getNpc(), e);
+				return;
+			}
+			SwingUtilities.invokeLater(() ->
+			{
+				LogInsightPanel view = panel;
+				if (view == null || button == null)
+				{
+					return;
+				}
+				clientToolbar.openPanel(button);
+				if (monster != null)
+				{
+					view.showMonster(monster);
+				}
+			});
+		});
+	}
+
 	/** Marks a slot wanted or not, from a click in the panel, and shows the change at the next tick. */
 	private void toggleWanted(int itemId)
 	{
@@ -1118,12 +1225,17 @@ public class CodexLogInsightPlugin extends Plugin
 		Session.Summary summary = session == null ? null : session.read(data, snapshot, System.currentTimeMillis());
 		String grindOn = config.grindCard() ? grindLabel : null;
 		long grindSince = grindAt;
+		Bestiary.Target looking = monsterTarget;
 		executor.execute(() ->
 		{
 			try
 			{
 				Report report = reader.analyse(shape, snapshot, iron, pace, owned, total, can).withSession(summary)
 					.withNotices(setting);
+				if (looking != null)
+				{
+					report.setMonster(reader.monster(shape, snapshot, iron, pace, looking));
+				}
 				if (ticket == generation.get())
 				{
 					grindCard.setGrind(Grind.of(report, grindOn, grindSince));
