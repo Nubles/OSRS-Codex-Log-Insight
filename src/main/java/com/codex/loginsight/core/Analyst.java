@@ -31,6 +31,7 @@ public final class Analyst
 	private final LogData data;
 	/** The counter each activity advances, when its slots agree on one. */
 	private final Map<Integer, String> activityLabels = new HashMap<>();
+	private final Bestiary bestiary;
 	private static final int MAX_CACHED = 20_000;
 	/**
 	 * Curves are kilobytes each and a new own pace misses for every page it touches, so they get a much
@@ -60,6 +61,222 @@ public final class Analyst
 				.filter(e -> e.getValue() * 2 >= activity.getDrops().size())
 				.ifPresent(e -> activityLabels.put(activity.getIndex(), e.getKey()));
 		}
+		bestiary = new Bestiary(data, activityLabels);
+	}
+
+	/** Which monster fills which slots, for the "Log" option on a right-clicked monster. */
+	public Bestiary bestiary()
+	{
+		return bestiary;
+	}
+
+	/**
+	 * One monster's share of the log: only the slots it drops, in the log's own order, each with its chance per kill of
+	 * this monster, the chance an average player would have it by your kill count, and the kills from here until the
+	 * next one it can still give you. Null when none of its slots is in the log as read from the game.
+	 *
+	 * <p>A slot's chance comes from the odds on the monster's own kill counter where there are any (the same odds the
+	 * oracle reads), else from the activity Log Insight times the monster by. Pieces that only drop once the one before
+	 * them is owned are left out of the wait until they can drop.
+	 */
+	public MonsterReport monster(LogStructure structure, Progress progress, boolean iron, boolean ownPace,
+		Bestiary.Target target)
+	{
+		if (target == null || structure.isEmpty())
+		{
+			return null;
+		}
+		Rates rates = new Rates(progress, iron, ownPace);
+		Map<String, Integer> counters = progress.getCounters();
+		String label = target.getLabel();
+		Integer counted = label == null ? null : counters.get(label);
+		int kills = counted == null ? -1 : counted;
+
+		// Each slot's row on this monster's activities: the quickest way it earns it, and what must be owned first.
+		Map<Integer, Activity.Drop> rows = new HashMap<>();
+		Map<Integer, Integer> before = new HashMap<>();
+		for (int index : target.getActivities())
+		{
+			List<Activity.Drop> drops = data.activity(index).getDrops();
+			for (int i = 0; i < drops.size(); i++)
+			{
+				Activity.Drop drop = drops.get(i);
+				Activity.Drop had = rows.get(drop.getItemId());
+				if (had == null || drop.getAttempts() < had.getAttempts())
+				{
+					rows.put(drop.getItemId(), drop);
+					if (drop.isSequential() && i > 0)
+					{
+						before.put(drop.getItemId(), drops.get(i - 1).getItemId());
+					}
+					else
+					{
+						before.remove(drop.getItemId());
+					}
+				}
+			}
+		}
+		Set<Integer> candidates = new HashSet<>(rows.keySet());
+		if (label != null)
+		{
+			for (Map.Entry<Integer, ItemOdds> e : data.allOdds().entrySet())
+			{
+				if (chanceOn(e.getValue(), label) > 0)
+				{
+					candidates.add(e.getKey());
+				}
+			}
+		}
+
+		// The log's own order, and the page most of them are on.
+		Set<Integer> ordered = new LinkedHashSet<>();
+		Map<LogStructure.Page, Integer> votes = new LinkedHashMap<>();
+		for (LogStructure.Tab tab : structure.getTabs())
+		{
+			for (LogStructure.Page page : tab.getPages())
+			{
+				for (int id : page.getItems())
+				{
+					if (candidates.contains(id))
+					{
+						ordered.add(id);
+						votes.merge(page, 1, Integer::sum);
+					}
+				}
+			}
+		}
+		if (ordered.isEmpty())
+		{
+			return null;
+		}
+		LogStructure.Page home = votes.entrySet().stream().max(Map.Entry.comparingByValue()).get().getKey();
+
+		Activity main = label == null ? null : mainActivity(label, rates);
+		if (main == null && !target.getActivities().isEmpty())
+		{
+			main = data.activity(target.getActivities().get(0));
+		}
+		double perHour = main == null ? 0 : rates.perHour(main);
+		Set<Integer> owned = progress.getOwned();
+
+		List<Report.ItemReport> items = new ArrayList<>();
+		boolean fromActivity = false;
+		double chanceSum = 0;
+		double exactNext = Double.POSITIVE_INFINITY;
+		double bestChance = 0;
+		int nextItem = -1;
+		int exactItem = -1;
+		int locked = 0;
+		for (int id : ordered)
+		{
+			ItemOdds odds = data.odds(id);
+			double chance = label == null ? 0 : chanceOn(odds, label);
+			double dry = -1;
+			double exact = Double.POSITIVE_INFINITY;
+			Activity.Drop row = rows.get(id);
+			if (chance > 0)
+			{
+				dry = kills < 0 ? -1 : odds.dryChance(counters);
+				if (odds.getGuaranteedBy() > 0 && label.equals(odds.mainLabel()) && kills >= 0)
+				{
+					exact = Math.max(1, odds.getGuaranteedBy() - kills);
+				}
+			}
+			else if (row != null)
+			{
+				fromActivity = true;
+				if (row.isExact())
+				{
+					exact = Math.max(1, row.getAttempts());
+				}
+				else
+				{
+					chance = 1 / Math.max(1, row.getAttempts());
+					dry = kills < 0 ? -1 : Math.max(Double.MIN_VALUE, Math.exp(kills * Math.log1p(-Math.min(chance, 0.999999))));
+				}
+			}
+			boolean has = owned.contains(id);
+			double hours = chance > 0 && perHour > 0 ? 1 / chance / perHour : Double.POSITIVE_INFINITY;
+			Report.ItemReport item = new Report.ItemReport(id, structure.name(id), home.getName(), has, data.isPet(id),
+				chance, label, kills, dry, main == null ? null : main.getName(), hours);
+			if (has)
+			{
+				item.setObtained(progress.obtained(id), countable(id, odds) && chanceOn(odds, label) > 0
+					? odds.expectedCount(progress.countedAt(id)) : -1);
+			}
+			items.add(item);
+			if (has)
+			{
+				continue;
+			}
+			Integer needs = before.get(id);
+			if (needs != null && !owned.contains(needs))
+			{
+				locked++;
+				continue;
+			}
+			chanceSum += chance;
+			if (chance > bestChance)
+			{
+				bestChance = chance;
+				nextItem = id;
+			}
+			if (exact < exactNext)
+			{
+				exactNext = exact;
+				exactItem = id;
+			}
+		}
+		if (exactItem >= 0 && (nextItem < 0 || exactNext < 1 / chanceSum))
+		{
+			nextItem = exactItem;
+		}
+		double killsToNext = chanceSum <= 0 && Double.isInfinite(exactNext) ? Double.POSITIVE_INFINITY
+			: Odds.attemptsToNext(chanceSum, exactNext);
+		double hoursToNext = perHour > 0 && Double.isFinite(killsToNext) ? killsToNext / perHour : Double.POSITIVE_INFINITY;
+
+		boolean read = progress.getFullReadAt() > 0 || progress.isPageRead(home.getName());
+		Luck luck = null;
+		if (read && kills > 0)
+		{
+			List<Double> chances = new ArrayList<>();
+			int have = 0;
+			for (Report.ItemReport item : items)
+			{
+				double by = MonsterReport.byNow(item);
+				if (by >= 0)
+				{
+					chances.add(by);
+					have += item.isOwned() ? 1 : 0;
+				}
+			}
+			if (!chances.isEmpty())
+			{
+				luck = Luck.of(chances.stream().mapToDouble(Double::doubleValue).toArray(), have);
+			}
+		}
+		return new MonsterReport(target.getNpc(), label, kills, home.getName(), home.getTab(),
+			fromActivity && main != null ? main.getName() : null, items, luck, killsToNext, nextItem,
+			nextItem < 0 ? null : structure.name(nextItem), hoursToNext, perHour, main != null && rates.isOwnPace(main),
+			read, locked);
+	}
+
+	/** The chance in one kill on this counter, or 0 when the slot has no odds on it. */
+	static double chanceOn(ItemOdds odds, String label)
+	{
+		if (odds == null || label == null)
+		{
+			return 0;
+		}
+		double miss = 1;
+		for (ItemOdds.Roll roll : odds.getRolls())
+		{
+			if (roll.getLabel().equals(label))
+			{
+				miss *= Math.pow(1 - roll.getChance(), roll.getRolls());
+			}
+		}
+		return 1 - miss;
 	}
 
 	/**

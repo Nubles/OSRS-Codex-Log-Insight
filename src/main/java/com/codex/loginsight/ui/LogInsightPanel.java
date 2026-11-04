@@ -45,6 +45,9 @@ public class LogInsightPanel extends PluginPanel
 	private String playerName;
 	private String filter = "";
 	private String openPage;
+	/** The monster opened with the "Log" menu option, shown on the Folios tab until you go back. */
+	private com.codex.loginsight.core.MonsterReport monster;
+	private boolean monsterOpen;
 	/** Marks a slot wanted or not; set by the plugin. */
 	private java.util.function.IntConsumer onWant;
 	private ShareActions share;
@@ -249,12 +252,33 @@ public class LogInsightPanel extends PluginPanel
 	{
 		this.report = report;
 		this.playerName = playerName;
+		if (report.getMonster() != null)
+		{
+			monster = report.getMonster();
+		}
 		rebuild();
+	}
+
+	/**
+	 * Opens the Folios tab at one monster's slots, from the "Log" option on a right-clicked monster. Later reports
+	 * keep it current while it is open. Swing thread only.
+	 */
+	public void showMonster(com.codex.loginsight.core.MonsterReport monster)
+	{
+		this.monster = monster;
+		monsterOpen = monster != null;
+		openPage = null;
+		tabs.setSelected(1, false);
+		shown = 1;
+		cards.show(content, TABS[1]);
+		rebuildFolios();
+		SwingUtilities.invokeLater(() -> folios.getVerticalScrollBar().setValue(0));
 	}
 
 	/** Opens the Folios tab at one page, for example the page a new slot landed on. */
 	public void showPage(String page)
 	{
+		monsterOpen = false;
 		openPage = page;
 		tabs.setSelected(1, false);
 		shown = 1;
@@ -370,8 +394,18 @@ public class LogInsightPanel extends PluginPanel
 				}
 			}
 		}
-		searchHolder.setVisible(page == null);
-		if (page != null)
+		searchHolder.setVisible(page == null && !(monsterOpen && monster != null));
+		if (page == null && monsterOpen && monster != null)
+		{
+			String home = monster.getPage();
+			replace(folios, MonsterView.build(monster, icons, () ->
+			{
+				monsterOpen = false;
+				rebuildFolios();
+			}, () -> showPage(home), report::isWanted, onWant,
+				report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED));
+		}
+		else if (page != null)
 		{
 			replace(folios, PageView.build(page, icons, () ->
 			{
@@ -385,6 +419,7 @@ public class LogInsightPanel extends PluginPanel
 			replace(folios, FoliosView.build(report, filter, name ->
 			{
 				openPage = name;
+				monsterOpen = false;
 				rebuildFolios();
 				SwingUtilities.invokeLater(() -> folios.getVerticalScrollBar().setValue(0));
 			}));

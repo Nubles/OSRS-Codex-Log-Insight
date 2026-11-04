@@ -32,6 +32,26 @@ public interface CodexLogInsightConfig extends Config
 		}
 	}
 
+	enum MenuOption
+	{
+		ALWAYS("Always"),
+		SHIFT("Hold Shift"),
+		OFF("Off");
+
+		private final String label;
+
+		MenuOption(String label)
+		{
+			this.label = label;
+		}
+
+		@Override
+		public String toString()
+		{
+			return label;
+		}
+	}
+
 	@ConfigSection(
 		name = "New slots",
 		description = "What Log Insight does when a new collection log slot drops",
@@ -59,6 +79,25 @@ public interface CodexLogInsightConfig extends Config
 		position = 3
 	)
 	String cards = "cards";
+
+	@ConfigSection(
+		name = "Monsters",
+		description = "The Log option on monsters you right-click",
+		position = 4
+	)
+	String monsters = "monsters";
+
+	@ConfigItem(
+		keyName = "logMenuOption",
+		name = "Log option on monsters",
+		description = "Adds Log to a monster's right-click menu, opening its slots, kill count and luck in the panel; Off hides it",
+		position = 1,
+		section = monsters
+	)
+	default MenuOption logMenuOption()
+	{
+		return MenuOption.ALWAYS;
+	}
 
 	@ConfigItem(
 		keyName = "showPlaque",
