@@ -162,6 +162,18 @@ public interface CodexLogInsightConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "delveLog",
+		name = "Delve log",
+		description = "Logs how deep each Doom of Mokhaiotl run went and whether you kept the loot, for the odds on its log page",
+		position = 3,
+		section = grind
+	)
+	default boolean delveLog()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "nameOnCard",
 		name = "Name on cards",
 		description = "Write your character's name on the finest finds card; turn off to share it without it",

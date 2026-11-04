@@ -7,6 +7,10 @@ import com.codex.loginsight.core.DryWatch;
 import com.codex.loginsight.core.Grind;
 import com.codex.loginsight.core.Announcements;
 import com.codex.loginsight.core.ChatReader;
+import com.codex.loginsight.core.Delve;
+import com.codex.loginsight.core.DelveLog;
+import com.codex.loginsight.core.DelveReader;
+import com.codex.loginsight.core.DelveReport;
 import com.codex.loginsight.core.LogStructure;
 import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
@@ -66,7 +70,11 @@ import net.runelite.api.ScriptEvent;
 import net.runelite.api.ScriptID;
 import net.runelite.api.Skill;
 import net.runelite.api.StructComposition;
+import net.runelite.api.Actor;
+import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.WidgetLoaded;
+import net.runelite.api.gameval.AnimationID;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOpened;
@@ -107,6 +115,10 @@ import net.runelite.client.util.Filepath;
 public class CodexLogInsightPlugin extends Plugin
 {
 	private static final String PROGRESS_KEY = "progress";
+	/** The Doom of Mokhaiotl's delve log, saved beside the progress so neither can damage the other. */
+	private static final String DELVE_KEY = "delveLog";
+	/** RuneLite's loot tracker and screenshot plugins read a delve's loot claim from this script. */
+	private static final int DOM_LOOT_CLAIM = 7928;
 	/** Added to a key's name to keep aside a saved value that could not be read in full. */
 	private static final String UNREADABLE = "Unreadable";
 	/** The script that sends the client every owned slot when the log's Search is opened. */
@@ -186,6 +198,8 @@ public class CodexLogInsightPlugin extends Plugin
 
 	private LogStructure structure = LogStructure.empty();
 	private Progress progress;
+	private DelveLog delveLog;
+	private boolean delveUnsaved;
 	private String profile;
 	private boolean dirty;
 	private boolean unsaved;
@@ -335,6 +349,7 @@ public class CodexLogInsightPlugin extends Plugin
 			save();
 			milestones.clear();
 			progress = null;
+			delveLog = null;
 			profile = null;
 		});
 		overlayManager.remove(plaque);
@@ -414,6 +429,7 @@ public class CodexLogInsightPlugin extends Plugin
 			statLevels.clear();
 			save();
 			progress = null;
+			delveLog = null;
 			profile = null;
 			session = null;
 			officialOwned = -1;
@@ -436,6 +452,7 @@ public class CodexLogInsightPlugin extends Plugin
 			grindCard.clear();
 			plaque.clear();
 			publish(Report.loggedOut(), null);
+			publishDelve();
 		}
 	}
 
@@ -448,6 +465,7 @@ public class CodexLogInsightPlugin extends Plugin
 		grindLabel = null;
 		grindCard.clear();
 		progress = null;
+		delveLog = null;
 		loadProgress();
 		dirty = true;
 	}
@@ -545,6 +563,14 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onScriptPreFired(ScriptPreFired event)
 	{
+		if (event.getScriptId() == DOM_LOOT_CLAIM)
+		{
+			if (delveLog != null && config.delveLog() && delveLog.claimed(System.currentTimeMillis()))
+			{
+				delveChanged();
+			}
+			return;
+		}
 		if (event.getScriptId() == ScriptID.NOTIFICATION_START)
 		{
 			notificationStarted = true;
@@ -596,6 +622,18 @@ public class CodexLogInsightPlugin extends Plugin
 			return;
 		}
 		String message = event.getMessage();
+		if (type == ChatMessageType.GAMEMESSAGE && delveLog != null && config.delveLog())
+		{
+			int level = DelveReader.levelMessage(message);
+			if (level > 0)
+			{
+				if (delveLog.levelCleared(level, System.currentTimeMillis()))
+				{
+					delveChanged();
+				}
+				return;
+			}
+		}
 		ChatReader.Count count = chat.count(message);
 		if (count != null && count.value >= 0)
 		{
@@ -626,6 +664,44 @@ public class CodexLogInsightPlugin extends Plugin
 		if (slot != null)
 		{
 			announced(slot, Announcements.Channel.CHAT);
+		}
+	}
+
+	/** The window at the end of each delve level names it ("Level 2 Complete!"), in case its chat line is filtered. */
+	@Subscribe
+	public void onWidgetLoaded(WidgetLoaded event)
+	{
+		if (event.getGroupId() != InterfaceID.DOM_END_LEVEL_UI || delveLog == null || !config.delveLog())
+		{
+			return;
+		}
+		clientThread.invokeLater(() ->
+		{
+			Widget frame = client.getWidget(InterfaceID.DomEndLevelUi.FRAME);
+			Widget title = frame == null ? null : frame.getChild(1);
+			int level = title == null ? -1 : DelveReader.levelTitle(title.getText());
+			if (level > 0 && delveLog != null && delveLog.levelCleared(level, System.currentTimeMillis()))
+			{
+				delveChanged();
+			}
+		});
+	}
+
+	/** The Doom's own death animation on you: the run's loot is lost. */
+	@Subscribe
+	public void onAnimationChanged(AnimationChanged event)
+	{
+		Actor actor = event.getActor();
+		if (delveLog == null || !config.delveLog() || actor == null || actor != client.getLocalPlayer())
+		{
+			return;
+		}
+		int animation = actor.getAnimation();
+		if ((animation == AnimationID.HUMAN_DOOM_SCORPION_01_PLAYER_DEATH_01
+			|| animation == AnimationID.HUMAN_DOOM_SCORPION_01_PLAYER_DEATH_01_FAST)
+			&& delveLog.died(System.currentTimeMillis()))
+		{
+			delveChanged();
 		}
 	}
 
@@ -878,6 +954,18 @@ public class CodexLogInsightPlugin extends Plugin
 				chance = Math.max(chance, 1 / Math.max(1, drop.getAttempts()));
 			}
 		}
+		int delveDepth = 0;
+		if (odds == null && !ambiguous && delveLog != null && config.delveLog() && Delve.index(itemId) >= 0)
+		{
+			DelveLog.Find find = delveLog.found(itemId, System.currentTimeMillis());
+			delveUnsaved = true;
+			if (find != null && find.getDepth() > 0)
+			{
+				delveDepth = find.getDepth();
+				chance = find.getChance();
+				luckier = find.luckierThan();
+			}
+		}
 		List<LogStructure.Page> pages = itemId > 0 && !ambiguous ? structure.pagesOf(itemId) : java.util.Collections.emptyList();
 		String page = pages.isEmpty() ? null : pages.get(0).getName();
 		boolean wasWanted = !ambiguous && itemId > 0 && progress.isWanted(itemId);
@@ -890,7 +978,8 @@ public class CodexLogInsightPlugin extends Plugin
 		changed();
 		save();
 
-		String odd = chance > 0 ? Format.chance(chance) + (count > 0 ? " at " + Format.count(count) + " " + Format.counterName(label) + " kc" : "") : page;
+		String odd = chance > 0 ? Format.chance(chance) + (count > 0 ? " at " + Format.count(count) + " " + Format.counterName(label) + " kc"
+			: delveDepth > 0 ? " on a delve " + delveDepth + " run" : "") : page;
 		String verdict = luckier >= 0 ? "Luckier than " + Math.round(luckier * 100) + "% of players" : null;
 		Color color = luckier >= 0 ? Theme.luck(Luck.verdict(luckier)) : Theme.GOLD;
 		if (config.showPlaque())
@@ -1160,8 +1249,31 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 		Progress loaded = read.getValue();
 		progress = loaded == null ? new Progress() : loaded;
+		loadDelve(key);
 		seedFromChatCommands();
 		session = new Session(progress.getOwned(), System.currentTimeMillis());
+	}
+
+	private void loadDelve(String key)
+	{
+		String json = configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, DELVE_KEY);
+		SavedJson.Read<DelveLog> read = DelveLog.load(gson, json);
+		if (read.isDamaged() && json != null
+			&& !json.equals(configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, DELVE_KEY + UNREADABLE)))
+		{
+			log.warn("Could not read all of the saved delve log; the saved text is kept as {}", DELVE_KEY + UNREADABLE);
+			configManager.setConfiguration(CodexLogInsightConfig.GROUP, key, DELVE_KEY + UNREADABLE, json);
+		}
+		delveLog = read.getValue() == null ? new DelveLog().repair() : read.getValue();
+		delveUnsaved = delveLog.settle(System.currentTimeMillis());
+	}
+
+	/** A delve was logged: saved with the progress and shown at the next analysis. */
+	private void delveChanged()
+	{
+		delveUnsaved = true;
+		dirty = true;
+		unsaved = true;
 	}
 
 	/**
@@ -1197,6 +1309,11 @@ public class CodexLogInsightPlugin extends Plugin
 			return false;
 		}
 		unsaved = false;
+		if (delveLog != null && delveUnsaved)
+		{
+			delveUnsaved = false;
+			configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, DELVE_KEY, gson.toJson(delveLog));
+		}
 		configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, PROGRESS_KEY, gson.toJson(progress));
 		return true;
 	}
@@ -1206,9 +1323,11 @@ public class CodexLogInsightPlugin extends Plugin
 		if (progress == null)
 		{
 			publish(Report.loggedOut(), null);
+			publishDelve();
 			return;
 		}
 		Progress snapshot = progress.copy();
+		publishDelve();
 		LogStructure shape = structure;
 		boolean iron = ironRates();
 		ironShown = iron;
@@ -1247,6 +1366,29 @@ public class CodexLogInsightPlugin extends Plugin
 				log.warn("Log Insight analysis failed", e);
 			}
 		});
+	}
+
+	/** The delve log read against the slots you own, for the Doom's page. Client thread. */
+	private void publishDelve()
+	{
+		LogInsightPanel target = panel;
+		if (target == null)
+		{
+			return;
+		}
+		DelveReport read = null;
+		if (delveLog != null && progress != null)
+		{
+			if (delveLog.settle(System.currentTimeMillis()))
+			{
+				delveUnsaved = true;
+				unsaved = true;
+			}
+			boolean known = DryWatch.ownedKnown(progress.getFullReadAt(), officialOwned, progress.getOwned().size());
+			read = DelveReport.of(delveLog, progress.getOwned(), known);
+		}
+		DelveReport shown = read;
+		SwingUtilities.invokeLater(() -> target.setDelve(shown));
 	}
 
 	private void publish(Report report, String name)
