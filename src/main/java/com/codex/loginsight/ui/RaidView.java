@@ -256,6 +256,11 @@ final class RaidView
 				points.append(" of ").append(Format.count(run.getTotal())).append(" (")
 					.append(Format.percent(run.getPersonal() / (double) run.getTotal())).append(')');
 			}
+			if (kind == Raids.Kind.TOA)
+			{
+				// The value the game sends leaves out the starting 5,000, as the chance does (see Raids.toa).
+				points.append(" (without the starting ").append(Format.count(Raids.TOA_START_POINTS)).append(')');
+			}
 			out.add(points.append('.').toString());
 		}
 		else if (kind != Raids.Kind.TOB)

@@ -72,6 +72,21 @@ public class RaidsTest
 	}
 
 	@Test
+	public void tombsLeaveOutTheStarting5000Once()
+	{
+		// Wiki: "the starting 5,000 points are subtracted when calculating loot and purple percentage", and at raid
+		// level 400 "a 1% chance for every ... 3,700 points earned". A solo player ending on 27,200 total reward points
+		// has 22,200 to count: 6%.
+		long counted = Raids.toaChancePoints(27_200);
+		assertEquals(22_200, counted);
+		assertEquals(0.06, Raids.toa(counted, 400, 1).getYours(), EPS);
+		assertEquals(0, Raids.toaChancePoints(3_000));
+		// The game's personal contribution already leaves the 5,000 out, so it goes in as it is, not reduced again.
+		assertEquals(22_200 / 370_000.0, Raids.toa(22_200, 400, 1).getYours(), EPS);
+		assertEquals(0, Raids.toa(0, 400, 1).getYours(), EPS);
+	}
+
+	@Test
 	public void tombsChanceIsYourPointsPercentCappedAt55()
 	{
 		Raids.Chance solo = Raids.toa(37_000, 400, 1);

@@ -46,7 +46,7 @@ public class RaidViewTest
 		RaidLog.Run run = log.completed(Raids.Kind.TOA, Raids.EXPERT, 5, 1, 37_000, 37_000, 400, 0);
 		List<String> facts = RaidView.facts(Raids.Kind.TOA, run);
 		assertEquals("Raid level 400 (Expert Mode): 1% per 3,700 points.", facts.get(0));
-		assertEquals("Your points: 37,000.", facts.get(1));
+		assertEquals("Your points: 37,000 (without the starting 5,000).", facts.get(1));
 		assertNull(RaidView.why(Raids.Kind.TOA, run));
 		RaidLog.Run trio = log.completed(Raids.Kind.COX, Raids.NORMAL, 9, 3, 30_000, 90_000, -1, 0);
 		assertEquals("Your points: 30,000 of 90,000 (33%).", RaidView.facts(Raids.Kind.COX, trio).get(0));

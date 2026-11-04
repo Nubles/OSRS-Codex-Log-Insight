@@ -1650,7 +1650,8 @@ public class CodexLogInsightPlugin extends Plugin
 
 	/**
 	 * The Tombs send your points only as the raid ends (the Tombs of Amascut plugin's finding; the var is RuneLite's
-	 * gameval TOA_PERSONAL_CONTRIBUTION). They price the raid just logged, or wait for its kill count line.
+	 * gameval TOA_PERSONAL_CONTRIBUTION), without the starting 5,000, so they go to the chance as they are (see
+	 * Raids.toa). They price the raid just logged, or wait for its kill count line.
 	 */
 	@Subscribe
 	public void onVarbitChanged(VarbitChanged event)

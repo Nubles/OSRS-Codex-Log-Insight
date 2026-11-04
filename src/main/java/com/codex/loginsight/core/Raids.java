@@ -110,6 +110,11 @@ public final class Raids
 	public static final double TOB_HARD = 1 / 7.7;
 	/** Tombs of Amascut: the cap on the team's chance. */
 	public static final double TOA_CAP = 0.55;
+	/**
+	 * Tombs of Amascut: the reward points every player starts with, which the wiki says "are subtracted when
+	 * calculating loot and purple percentage".
+	 */
+	public static final int TOA_START_POINTS = 5000;
 
 	/** Theatre of Blood modes, as the kill count line names them. */
 	public static final String NORMAL = "Normal";
@@ -301,7 +306,22 @@ public final class Raids
 	}
 
 	/**
-	 * A Tombs of Amascut raid's chance from your points (without the 5,000 you start with) and the raid level. Your
+	 * The points a Tombs of Amascut purple chance is worked from, given a player's total reward points: the total less
+	 * the starting 5,000, never below 0.
+	 */
+	public static long toaChancePoints(long totalRewardPoints)
+	{
+		return Math.max(0, totalRewardPoints - TOA_START_POINTS);
+	}
+
+	/**
+	 * A Tombs of Amascut raid's chance from your points without the starting 5,000, and the raid level.
+	 *
+	 * <p>The game's own value, {@code VarPlayerID.TOA_PERSONAL_CONTRIBUTION}, is taken to be exactly that: points already
+	 * without the starting 5,000. This is unconfirmed by the wiki or RuneLite. Its source is the Tombs of Amascut
+	 * plugin's points tracker (LlemonDuck), which adds 5,000 to the value to get your total and takes the same 5,000
+	 * off again before working out the purple chance; the Dink plugin's RaidTracker uses the value as it is. So the
+	 * value is not reduced again here, which would take the 5,000 off twice. Your
 	 * share is your points over the team's, so your chance is your own points' percent, unless the team reached the
 	 * 55% cap; alone, the team is you. In a team the total is not known to the client, so the cap is assumed unmet.
 	 */
