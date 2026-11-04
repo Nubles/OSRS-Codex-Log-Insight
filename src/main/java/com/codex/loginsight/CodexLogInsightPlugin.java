@@ -11,6 +11,10 @@ import com.codex.loginsight.core.Delve;
 import com.codex.loginsight.core.DelveLog;
 import com.codex.loginsight.core.DelveReader;
 import com.codex.loginsight.core.DelveReport;
+import com.codex.loginsight.core.RaidLog;
+import com.codex.loginsight.core.RaidReader;
+import com.codex.loginsight.core.RaidReport;
+import com.codex.loginsight.core.Raids;
 import com.codex.loginsight.core.LogStructure;
 import com.codex.loginsight.core.Luck;
 import com.codex.loginsight.core.Progress;
@@ -81,6 +85,10 @@ import net.runelite.api.events.MenuOpened;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.events.StatChanged;
+import net.runelite.api.events.VarbitChanged;
+import net.runelite.api.ItemContainer;
+import net.runelite.api.Item;
+import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.gameval.VarPlayerID;
@@ -119,6 +127,12 @@ public class CodexLogInsightPlugin extends Plugin
 	private static final String PROGRESS_KEY = "progress";
 	/** The Doom of Mokhaiotl's delve log, saved beside the progress so neither can damage the other. */
 	private static final String DELVE_KEY = "delveLog";
+	/** The raid log, saved beside the progress so neither can damage the other. */
+	private static final String RAID_KEY = "raidLog";
+	/** The Chambers' points read at its "raid is complete" line are used for the kill count line this soon after. */
+	private static final long COX_POINTS_MS = 60_000L;
+	/** The Tombs' personal points sent this soon before the kill count line belong to that raid. */
+	private static final long TOA_POINTS_MS = 2 * 60_000L;
 	/** RuneLite's loot tracker and screenshot plugins read a delve's loot claim from this script. */
 	private static final int DOM_LOOT_CLAIM = 7928;
 	/** Added to a key's name to keep aside a saved value that could not be read in full. */
@@ -202,6 +216,16 @@ public class CodexLogInsightPlugin extends Plugin
 	private Progress progress;
 	private DelveLog delveLog;
 	private boolean delveUnsaved;
+	private RaidLog raidLog;
+	private boolean raidUnsaved;
+	/** What the Chambers' "raid is complete" line and the vars beside it gave, for the kill count line after it. */
+	private long coxDoneAt;
+	private int coxDoneTeam = -1;
+	private long coxDonePersonal = -1;
+	private long coxDoneTotal = -1;
+	/** The Tombs' personal points as last sent, and when. */
+	private long toaPoints = -1;
+	private long toaPointsAt;
 	private String profile;
 	private boolean dirty;
 	private boolean unsaved;
@@ -367,6 +391,7 @@ public class CodexLogInsightPlugin extends Plugin
 			milestones.clear();
 			progress = null;
 			delveLog = null;
+			raidLog = null;
 			profile = null;
 		});
 		overlayManager.remove(plaque);
@@ -448,6 +473,7 @@ public class CodexLogInsightPlugin extends Plugin
 			save();
 			progress = null;
 			delveLog = null;
+			raidLog = null;
 			profile = null;
 			session = null;
 			officialOwned = -1;
@@ -471,6 +497,7 @@ public class CodexLogInsightPlugin extends Plugin
 			plaque.clear();
 			publish(Report.loggedOut(), null);
 			publishDelve();
+			publishRaids();
 		}
 	}
 
@@ -484,6 +511,7 @@ public class CodexLogInsightPlugin extends Plugin
 		grindCard.clear();
 		progress = null;
 		delveLog = null;
+		raidLog = null;
 		loadProgress();
 		dirty = true;
 	}
@@ -640,6 +668,23 @@ public class CodexLogInsightPlugin extends Plugin
 			return;
 		}
 		String message = event.getMessage();
+		if (raidLog != null && config.raidLog())
+		{
+			if (type == ChatMessageType.FRIENDSCHATNOTIFICATION && RaidReader.coxComplete(message))
+			{
+				// Read as RuneLite's raids plugin reads them at this line.
+				coxDoneAt = System.currentTimeMillis();
+				coxDoneTeam = RaidReader.coxTeam(message);
+				coxDonePersonal = client.getVarpValue(VarPlayerID.RAIDS_PLAYERSCORE);
+				coxDoneTotal = client.getVarbitValue(VarbitID.RAIDS_CLIENT_PARTYSCORE);
+			}
+			RaidReader.Completion done = type == ChatMessageType.GAMEMESSAGE ? RaidReader.completion(message) : null;
+			if (done != null)
+			{
+				// The count line goes on to move the log's counter below as well.
+				raidCompleted(done);
+			}
+		}
 		if (type == ChatMessageType.GAMEMESSAGE && delveLog != null && config.delveLog())
 		{
 			int level = DelveReader.levelMessage(message);
@@ -689,6 +734,10 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onWidgetLoaded(WidgetLoaded event)
 	{
+		if (raidLog != null && config.raidLog())
+		{
+			raidChest(event.getGroupId());
+		}
 		if (event.getGroupId() != InterfaceID.DOM_END_LEVEL_UI || delveLog == null || !config.delveLog())
 		{
 			return;
@@ -971,6 +1020,11 @@ public class CodexLogInsightPlugin extends Plugin
 			{
 				chance = Math.max(chance, 1 / Math.max(1, drop.getAttempts()));
 			}
+		}
+		if (!ambiguous && itemId > 0 && raidLog != null && config.raidLog() && Raids.uniqueOf(itemId) != null
+			&& raidLog.found(itemId, System.currentTimeMillis()) != null)
+		{
+			raidUnsaved = true;
 		}
 		int delveDepth = 0;
 		if (odds == null && !ambiguous && delveLog != null && config.delveLog() && Delve.index(itemId) >= 0)
@@ -1320,6 +1374,7 @@ public class CodexLogInsightPlugin extends Plugin
 		Progress loaded = read.getValue();
 		progress = loaded == null ? new Progress() : loaded;
 		loadDelve(key);
+		loadRaids(key);
 		seedFromChatCommands();
 		session = new Session(progress.getOwned(), System.currentTimeMillis());
 	}
@@ -1336,6 +1391,28 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 		delveLog = read.getValue() == null ? new DelveLog().repair() : read.getValue();
 		delveUnsaved = delveLog.settle(System.currentTimeMillis());
+	}
+
+	private void loadRaids(String key)
+	{
+		String json = configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, RAID_KEY);
+		SavedJson.Read<RaidLog> read = RaidLog.load(gson, json);
+		if (read.isDamaged() && json != null
+			&& !json.equals(configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, RAID_KEY + UNREADABLE)))
+		{
+			log.warn("Could not read all of the saved raid log; the saved text is kept as {}", RAID_KEY + UNREADABLE);
+			configManager.setConfiguration(CodexLogInsightConfig.GROUP, key, RAID_KEY + UNREADABLE, json);
+		}
+		raidLog = read.getValue() == null ? new RaidLog().repair() : read.getValue();
+		raidUnsaved = raidLog.settle(System.currentTimeMillis());
+	}
+
+	/** A raid was logged: saved with the progress and shown at the next analysis. */
+	private void raidChanged()
+	{
+		raidUnsaved = true;
+		dirty = true;
+		unsaved = true;
 	}
 
 	/** A delve was logged: saved with the progress and shown at the next analysis. */
@@ -1384,6 +1461,11 @@ public class CodexLogInsightPlugin extends Plugin
 			delveUnsaved = false;
 			configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, DELVE_KEY, gson.toJson(delveLog));
 		}
+		if (raidLog != null && raidUnsaved)
+		{
+			raidUnsaved = false;
+			configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, RAID_KEY, gson.toJson(raidLog));
+		}
 		configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, PROGRESS_KEY, gson.toJson(progress));
 		return true;
 	}
@@ -1394,10 +1476,12 @@ public class CodexLogInsightPlugin extends Plugin
 		{
 			publish(Report.loggedOut(), null);
 			publishDelve();
+			publishRaids();
 			return;
 		}
 		Progress snapshot = progress.copy();
 		publishDelve();
+		publishRaids();
 		LogStructure shape = structure;
 		boolean iron = ironRates();
 		ironShown = iron;
@@ -1460,6 +1544,171 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 		DelveReport shown = read;
 		SwingUtilities.invokeLater(() -> target.setDelve(shown));
+	}
+
+	/** The raid log read for each raid's page, from a copy so the panel never sees it change. Client thread. */
+	private void publishRaids()
+	{
+		LogInsightPanel target = panel;
+		if (target == null)
+		{
+			return;
+		}
+		Map<Raids.Kind, RaidReport> read = null;
+		if (raidLog != null && progress != null && config.raidLog())
+		{
+			if (raidLog.settle(System.currentTimeMillis()))
+			{
+				raidUnsaved = true;
+				unsaved = true;
+			}
+			RaidLog copy = RaidLog.load(gson, gson.toJson(raidLog)).getValue();
+			read = new java.util.EnumMap<>(Raids.Kind.class);
+			for (Raids.Kind kind : Raids.Kind.values())
+			{
+				read.put(kind, RaidReport.of(copy, kind));
+			}
+		}
+		Map<Raids.Kind, RaidReport> shown = read;
+		SwingUtilities.invokeLater(() -> target.setRaids(shown));
+	}
+
+	/**
+	 * A raid's kill count line: the raid is logged with what the game gave as it ended. Chambers of Xeric: your points
+	 * and the team's, as RuneLite's raids plugin reads them at the "raid is complete" line, and the team size that line
+	 * gives. Theatre of Blood and Tombs of Amascut: the team from the party vars RuneLite's chat commands count, and
+	 * for the Tombs the raid level and your points as sent at the end.
+	 */
+	private void raidCompleted(RaidReader.Completion done)
+	{
+		long now = System.currentTimeMillis();
+		int team = -1;
+		long personal = -1;
+		long total = -1;
+		int level = -1;
+		switch (done.getKind())
+		{
+			case COX:
+				if (now - coxDoneAt <= COX_POINTS_MS)
+				{
+					team = coxDoneTeam;
+					personal = coxDonePersonal;
+					total = coxDoneTotal;
+				}
+				else
+				{
+					personal = client.getVarpValue(VarPlayerID.RAIDS_PLAYERSCORE);
+					total = client.getVarbitValue(VarbitID.RAIDS_CLIENT_PARTYSCORE);
+				}
+				if (team < 1)
+				{
+					team = client.getVarbitValue(VarbitID.RAIDS_CLIENT_PARTYSIZE);
+				}
+				coxDoneAt = 0;
+				break;
+			case TOB:
+				team = Math.min(client.getVarbitValue(VarbitID.TOB_CLIENT_P0), 1)
+					+ Math.min(client.getVarbitValue(VarbitID.TOB_CLIENT_P1), 1)
+					+ Math.min(client.getVarbitValue(VarbitID.TOB_CLIENT_P2), 1)
+					+ Math.min(client.getVarbitValue(VarbitID.TOB_CLIENT_P3), 1)
+					+ Math.min(client.getVarbitValue(VarbitID.TOB_CLIENT_P4), 1);
+				break;
+			default:
+				team = toaTeam();
+				level = client.getVarbitValue(VarbitID.TOA_CLIENT_RAID_LEVEL);
+				if (toaPoints > 0 && now - toaPointsAt <= TOA_POINTS_MS)
+				{
+					personal = toaPoints;
+					toaPoints = -1;
+				}
+				break;
+		}
+		if (done.getKind() != Raids.Kind.TOA)
+		{
+			personal = personal > 0 ? personal : -1;
+			total = total > 0 ? total : -1;
+		}
+		else if (team == 1 && personal >= 0)
+		{
+			total = personal;
+		}
+		raidLog.completed(done.getKind(), done.getMode(), done.getCount(), Math.max(0, team), personal, total, level, now);
+		raidChanged();
+	}
+
+	private int toaTeam()
+	{
+		return Math.min(client.getVarbitValue(VarbitID.TOA_CLIENT_P0), 1)
+			+ Math.min(client.getVarbitValue(VarbitID.TOA_CLIENT_P1), 1)
+			+ Math.min(client.getVarbitValue(VarbitID.TOA_CLIENT_P2), 1)
+			+ Math.min(client.getVarbitValue(VarbitID.TOA_CLIENT_P3), 1)
+			+ Math.min(client.getVarbitValue(VarbitID.TOA_CLIENT_P4), 1)
+			+ Math.min(client.getVarbitValue(VarbitID.TOA_CLIENT_P5), 1)
+			+ Math.min(client.getVarbitValue(VarbitID.TOA_CLIENT_P6), 1)
+			+ Math.min(client.getVarbitValue(VarbitID.TOA_CLIENT_P7), 1);
+	}
+
+	/**
+	 * The Tombs send your points only as the raid ends (the Tombs of Amascut plugin's finding; the var is RuneLite's
+	 * gameval TOA_PERSONAL_CONTRIBUTION). They price the raid just logged, or wait for its kill count line.
+	 */
+	@Subscribe
+	public void onVarbitChanged(VarbitChanged event)
+	{
+		if (event.getVarpId() != VarPlayerID.TOA_PERSONAL_CONTRIBUTION || event.getValue() <= 0)
+		{
+			return;
+		}
+		long now = System.currentTimeMillis();
+		if (raidLog != null && config.raidLog() && raidLog.points(Raids.Kind.TOA, event.getValue(), now))
+		{
+			raidChanged();
+			return;
+		}
+		toaPoints = event.getValue();
+		toaPointsAt = now;
+	}
+
+	/** A raid's reward chest: a purple in it is yours. The chests are the ones RuneLite's loot tracker reads. */
+	private void raidChest(int group)
+	{
+		int inventory;
+		if (group == InterfaceID.RAIDS_REWARDS)
+		{
+			inventory = InventoryID.RAIDS_REWARDS;
+		}
+		else if (group == InterfaceID.TOB_CHESTS)
+		{
+			inventory = InventoryID.TOB_CHESTS;
+		}
+		else if (group == InterfaceID.TOA_CHESTS)
+		{
+			inventory = InventoryID.TOA_CHESTS;
+		}
+		else
+		{
+			return;
+		}
+		ItemContainer container = client.getItemContainer(inventory);
+		if (container == null)
+		{
+			return;
+		}
+		long now = System.currentTimeMillis();
+		if (group == InterfaceID.TOA_CHESTS && toaPoints > 0 && now - toaPointsAt <= TOA_POINTS_MS
+			&& raidLog.points(Raids.Kind.TOA, toaPoints, now))
+		{
+			toaPoints = -1;
+			raidChanged();
+		}
+		for (Item item : container.getItems())
+		{
+			if (item != null && item.getId() > 0 && Raids.uniqueOf(itemManager.canonicalize(item.getId())) != null
+				&& raidLog.found(itemManager.canonicalize(item.getId()), now) != null)
+			{
+				raidChanged();
+			}
+		}
 	}
 
 	private void publish(Report report, String name)

@@ -174,6 +174,18 @@ public interface CodexLogInsightConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "raidLog",
+		name = "Raid log",
+		description = "Logs each Chambers of Xeric, Theatre of Blood and Tombs of Amascut you finish: points, team, your purple chance and how dry you are in expected purples, on each raid's log page",
+		position = 4,
+		section = grind
+	)
+	default boolean raidLog()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "nameOnCard",
 		name = "Name on cards",
 		description = "Write your character's name on the finest finds card; turn off to share it without it",
