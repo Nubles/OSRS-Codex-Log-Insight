@@ -13,16 +13,18 @@ import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.PluginPanel;
 
 /**
- * The Log Insight side panel: the crest, then three pages. Ledger is the log at a
- * glance, Folios is the log page by page, and Quarry ranks where the next slots are.
+ * The Log Insight side panel: the crest, then five pages. Ledger is the log at a
+ * glance, Folios is the log page by page, Quarry ranks where the next slots are, Plan
+ * plans a stretch of play and Oracle reads every rare slot's luck at your own counts.
  */
 public class LogInsightPanel extends PluginPanel
 {
-	private static final String[] TABS = {"ledger", "folios", "quarry", "plan"};
+	private static final String[] TABS = {"ledger", "folios", "quarry", "plan", "oracle"};
 
 	private final ItemIcons icons;
 	private final Crest crest = new Crest();
-	private final Segmented tabs = new Segmented(true, "Ledger", "Folios", "Quarry", "Plan");
+	private final Segmented tabs = new Segmented(true, "Ledger", "Folios", "Quarry", "Plan", "Oracle");
+	private final Segmented oracleFilter = new Segmented(false, OracleView.FILTERS);
 	private final Segmented quarryFilter = new Segmented(false, QuarryView.FILTERS);
 	private final Segmented horizon = new Segmented(false, PlanView.HORIZONS);
 	private final CardLayout cards = new CardLayout();
@@ -31,6 +33,7 @@ public class LogInsightPanel extends PluginPanel
 	private final JScrollPane folios = scroller();
 	private final JScrollPane quarry = scroller();
 	private final JScrollPane plan = scroller();
+	private final JScrollPane oracle = scroller();
 	private final JPanel folioHolder = new JPanel(new BorderLayout());
 	private final JPanel searchHolder = new JPanel(new BorderLayout());
 	private final LuckDial dial = new LuckDial(112);
@@ -106,11 +109,21 @@ public class LogInsightPanel extends PluginPanel
 		content.add(folioHolder, TABS[1]);
 		content.add(quarryHolder, TABS[2]);
 		content.add(planHolder, TABS[3]);
+		JPanel oracleHolder = new JPanel(new BorderLayout());
+		oracleHolder.setOpaque(false);
+		JPanel oracleFilterHolder = new JPanel(new BorderLayout());
+		oracleFilterHolder.setOpaque(false);
+		oracleFilterHolder.setBorder(new EmptyBorder(6, 8, 0, 8));
+		oracleFilterHolder.add(oracleFilter, BorderLayout.CENTER);
+		oracleHolder.add(oracleFilterHolder, BorderLayout.NORTH);
+		oracleHolder.add(oracle, BorderLayout.CENTER);
+		content.add(oracleHolder, TABS[4]);
 		add(content, BorderLayout.CENTER);
 
 		tabs.onChange(this::showTab);
 		quarryFilter.onChange(i -> rebuildQuarry());
 		horizon.onChange(i -> rebuildPlan());
+		oracleFilter.onChange(i -> rebuildOracle());
 		for (int tab = 0; tab < TABS.length; tab++)
 		{
 			rebuildTab(tab);
@@ -315,10 +328,27 @@ public class LogInsightPanel extends PluginPanel
 		{
 			rebuildQuarry();
 		}
-		else
+		else if (tab == 3)
 		{
 			rebuildPlan();
 		}
+		else
+		{
+			rebuildOracle();
+		}
+	}
+
+	private void rebuildOracle()
+	{
+		replace(oracle, OracleView.build(report, oracleFilter.getSelected(), icons, this::showPage));
+	}
+
+	/** Shows the oracle with one of its lists: finds, chasing or pages. */
+	public void showOracle(int filter)
+	{
+		oracleFilter.setSelected(filter, false);
+		showTab(4);
+		rebuildOracle();
 	}
 
 	private void rebuildPlan()

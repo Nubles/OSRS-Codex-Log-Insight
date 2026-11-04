@@ -54,6 +54,11 @@ public final class Progress
 	 * slot drops from are kept. Missing from older saves, which use the counters as they are.
 	 */
 	private Map<Integer, Map<String, Integer>> countedAt;
+	/**
+	 * The first find seen of each slot with the kill count it came at, for the luck oracle: kept for every slot, where
+	 * {@link #finds} keeps only the latest forty. Missing from older saves, which start it from the finds they still have.
+	 */
+	private Map<Integer, Find> firstFinds;
 
 	/**
 	 * Reads saved progress, keeping every field and entry that reads on its own: one odd value never costs the log.
@@ -96,6 +101,11 @@ public final class Progress
 		obtained().entrySet().removeIf(e -> e.getKey() == null || e.getKey() <= 0 || e.getValue() == null || e.getValue() <= 0);
 		countedAt().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || !obtained().containsKey(e.getKey()));
 		countedAt().values().forEach(m -> m.entrySet().removeIf(c -> c.getKey() == null || c.getValue() == null || c.getValue() < 0));
+		if (firstFinds != null)
+		{
+			firstFinds.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || e.getValue().getCount() <= 0
+				|| e.getValue().getItemId() != e.getKey());
+		}
 		pagesRead().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
 		pageLabels().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
 		pageLabels().values().forEach(list -> list.removeIf(label -> label == null));
@@ -129,6 +139,7 @@ public final class Progress
 		p.trophies = new ArrayList<>(trophies());
 		p.obtained = new HashMap<>(obtained());
 		p.countedAt = new HashMap<>(countedAt());
+		p.firstFinds = new HashMap<>(firstFinds());
 		return p;
 	}
 
@@ -396,11 +407,50 @@ public final class Progress
 
 	public void addFind(Find find)
 	{
+		offerFirst(firstFinds(), find);
 		offer(trophies(), find);
 		finds().add(0, find);
 		while (finds().size() > MAX_FINDS)
 		{
 			finds().remove(finds().size() - 1);
+		}
+	}
+
+	/** The first find seen of a slot, with the kill count it came at, or null. */
+	public Find firstFind(int itemId)
+	{
+		return firstFinds().get(itemId);
+	}
+
+	private Map<Integer, Find> firstFinds()
+	{
+		if (firstFinds == null)
+		{
+			Map<Integer, Find> seeded = new HashMap<>();
+			// Finds are newest first, so the oldest of each slot is offered first and kept.
+			List<Find> all = finds();
+			for (int i = all.size() - 1; i >= 0; i--)
+			{
+				offerFirst(seeded, all.get(i));
+			}
+			for (Find f : trophies == null ? Collections.<Find>emptyList() : trophies)
+			{
+				offerFirst(seeded, f);
+			}
+			firstFinds = seeded;
+		}
+		return firstFinds;
+	}
+
+	/**
+	 * Keeps a find as its slot's first when it names the slot, its page and the count it came at, and none is kept yet.
+	 * A find whose name several slots share and the kill did not settle has no page, so a guess is never kept.
+	 */
+	private static void offerFirst(Map<Integer, Find> firsts, Find find)
+	{
+		if (find != null && find.getItemId() > 0 && find.getCount() > 0 && find.getLabel() != null && find.getPage() != null)
+		{
+			firsts.putIfAbsent(find.getItemId(), find);
 		}
 	}
 

@@ -45,6 +45,8 @@ public final class Report
 	private List<Progress.Find> trophies = Collections.emptyList();
 	/** Every copy the whole log counts against the odds, or null until the counts are read. Set once, like the wanted list. */
 	private Drops drops;
+	/** The luck oracle: every rare slot owned or chased and every unfinished page, read at your own counts and pace. */
+	private Oracle oracle = new Oracle(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
 
 	public Report(boolean loggedIn, boolean structureLoaded, int officialOwned, int officialTotal, int knownOwned,
 		int totalSlots, long fullReadAt, int pagesRead, int pagesTotal, int pagesComplete, Luck luck, double hoursLeft,
@@ -94,6 +96,7 @@ public final class Report
 		copy.notices = notices;
 		copy.trophies = trophies;
 		copy.drops = drops;
+		copy.oracle = oracle;
 		return copy;
 	}
 
@@ -129,6 +132,12 @@ public final class Report
 	void setDrops(Drops drops)
 	{
 		this.drops = drops;
+	}
+
+	/** Sets the luck oracle; called once by the analyst before the report is handed on. */
+	void setOracle(Oracle oracle)
+	{
+		this.oracle = oracle;
 	}
 
 	/** Sets the trophy shelf; called once by the analyst before the report is handed on. */
