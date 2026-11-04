@@ -95,8 +95,10 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.NpcLootReceived;
 import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.game.ItemStack;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -189,7 +191,7 @@ public class CodexLogInsightPlugin extends Plugin
 	private LogData baseData;
 	/** The tables at this account's levels; what every read uses. */
 	private LogData data;
-	private Analyst analyst;
+	private volatile Analyst analyst;
 	/** The levels {@link #data} was scaled to, only for the skills a rate depends on. */
 	private Map<String, Integer> scaledAt;
 	private ChatReader chat;
@@ -238,6 +240,8 @@ public class CodexLogInsightPlugin extends Plugin
 	private String grindLabel;
 	/** The monster last opened with the Log menu option, kept current in every report while the panel shows it. */
 	private volatile Bestiary.Target monsterTarget;
+	/** Today's prices of that monster's slots, read on the client thread when it was opened. */
+	private volatile Map<Integer, Long> monsterPrices;
 	private long grindAt;
 
 	@Provides
@@ -317,6 +321,19 @@ public class CodexLogInsightPlugin extends Plugin
 			}
 		}, config::nameOnCard);
 		panel.setOnWant(itemId -> clientThread.invokeLater(() -> toggleWanted(itemId)));
+		panel.setMonsterLookup(query ->
+		{
+			Analyst reader = analyst;
+			return reader == null ? Collections.emptyList() : reader.bestiary().search(query, 8);
+		}, name -> clientThread.invokeLater(() ->
+		{
+			Analyst reader = analyst;
+			Bestiary.Target target = reader == null ? null : reader.bestiary().find(name);
+			if (target != null)
+			{
+				openMonster(target);
+			}
+		}));
 		navButton = NavigationButton.builder()
 			.tooltip("Codex Log Insight")
 			.icon(Sigil.icon(16))
@@ -356,6 +373,7 @@ public class CodexLogInsightPlugin extends Plugin
 		overlayManager.remove(grindCard);
 		grindCard.clear();
 		monsterTarget = null;
+		monsterPrices = null;
 		clientToolbar.removeNavigation(navButton);
 		plaque.clear();
 		generation.incrementAndGet();
@@ -1051,6 +1069,55 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 	}
 
+	/** Today's price of each item, in coins, for the ones the game prices. Client thread: prices need item definitions. */
+	private Map<Integer, Long> prices(Set<Integer> items)
+	{
+		Map<Integer, Long> prices = new HashMap<>();
+		for (int id : items)
+		{
+			long price = itemManager.getItemPrice(id);
+			if (price > 0)
+			{
+				prices.put(id, price);
+			}
+		}
+		return prices;
+	}
+
+	/**
+	 * Adds a kill's loot to that monster's tally, for its drop table view: what the loot was worth at today's prices and
+	 * whether a unique was in it, which resets the dry streak. Only monsters Log Insight has a table for are kept.
+	 */
+	@Subscribe
+	public void onNpcLootReceived(NpcLootReceived event)
+	{
+		Analyst reader = analyst;
+		NPC npc = event.getNpc();
+		if (reader == null || progress == null || npc == null || npc.getCombatLevel() <= 0)
+		{
+			return;
+		}
+		Bestiary.Target target = reader.bestiary().lookup(npc.getName(), npc.getId());
+		if (target == null)
+		{
+			return;
+		}
+		Set<Integer> uniques = reader.uniqueIds(target);
+		long value = 0;
+		int unique = 0;
+		for (ItemStack stack : event.getItems())
+		{
+			int id = itemManager.canonicalize(stack.getId());
+			value += itemManager.getItemPrice(id) * (long) stack.getQuantity();
+			if (unique == 0 && uniques.contains(id))
+			{
+				unique = id;
+			}
+		}
+		progress.recordLoot(Progress.lootKey(target.getLabel(), target.getNpc()), value, unique, System.currentTimeMillis());
+		changed();
+	}
+
 	private boolean menuShown()
 	{
 		switch (config.logMenuOption())
@@ -1068,10 +1135,13 @@ public class CodexLogInsightPlugin extends Plugin
 	private void openMonster(Bestiary.Target target)
 	{
 		monsterTarget = target;
+		monsterPrices = null;
 		if (progress == null || analyst == null)
 		{
 			return;
 		}
+		Map<Integer, Long> prices = prices(analyst.slotIds(target));
+		monsterPrices = prices;
 		Progress snapshot = progress.copy();
 		LogStructure shape = structure;
 		boolean iron = ironRates();
@@ -1083,7 +1153,7 @@ public class CodexLogInsightPlugin extends Plugin
 			MonsterReport monster;
 			try
 			{
-				monster = reader.monster(shape, snapshot, iron, pace, target);
+				monster = reader.monster(shape, snapshot, iron, pace, target, prices);
 			}
 			catch (RuntimeException e)
 			{
@@ -1345,6 +1415,7 @@ public class CodexLogInsightPlugin extends Plugin
 		String grindOn = config.grindCard() ? grindLabel : null;
 		long grindSince = grindAt;
 		Bestiary.Target looking = monsterTarget;
+		Map<Integer, Long> lookingPrices = monsterPrices;
 		executor.execute(() ->
 		{
 			try
@@ -1353,7 +1424,7 @@ public class CodexLogInsightPlugin extends Plugin
 					.withNotices(setting);
 				if (looking != null)
 				{
-					report.setMonster(reader.monster(shape, snapshot, iron, pace, looking));
+					report.setMonster(reader.monster(shape, snapshot, iron, pace, looking, lookingPrices));
 				}
 				if (ticket == generation.get())
 				{

@@ -48,6 +48,9 @@ public class LogInsightPanel extends PluginPanel
 	/** The monster opened with the "Log" menu option, shown on the Folios tab until you go back. */
 	private com.codex.loginsight.core.MonsterReport monster;
 	private boolean monsterOpen;
+	/** Monsters whose names match the search, and opening one's drop table; set by the plugin. */
+	private java.util.function.Function<String, java.util.List<String>> monsterSearch;
+	private java.util.function.Consumer<String> onMonster;
 	/** Marks a slot wanted or not; set by the plugin. */
 	private java.util.function.IntConsumer onWant;
 	private ShareActions share;
@@ -150,6 +153,17 @@ public class LogInsightPanel extends PluginPanel
 	public void setOnWant(java.util.function.IntConsumer onWant)
 	{
 		this.onWant = onWant;
+	}
+
+	/**
+	 * Lets the Folios search find monsters as well as pages, and open one's drop table beside your own loot.
+	 * {@code search} runs on the Swing thread and must be quick; {@code open} hands the name back to the plugin.
+	 */
+	public void setMonsterLookup(java.util.function.Function<String, java.util.List<String>> search,
+		java.util.function.Consumer<String> open)
+	{
+		this.monsterSearch = search;
+		this.onMonster = open;
 	}
 
 	/** Lets the Ledger save and copy the finest finds card; names go on it while the option is on. */
@@ -453,13 +467,14 @@ public class LogInsightPanel extends PluginPanel
 		else
 		{
 			openPage = null;
+			java.util.function.Function<String, java.util.List<String>> search = monsterSearch;
 			replace(folios, FoliosView.build(report, filter, name ->
 			{
 				openPage = name;
 				monsterOpen = false;
 				rebuildFolios();
 				SwingUtilities.invokeLater(() -> folios.getVerticalScrollBar().setValue(0));
-			}));
+			}, search == null ? java.util.Collections.emptyList() : search.apply(filter), onMonster));
 		}
 		folioHolder.revalidate();
 	}

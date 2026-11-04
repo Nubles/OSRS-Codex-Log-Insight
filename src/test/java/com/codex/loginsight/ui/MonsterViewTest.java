@@ -39,4 +39,21 @@ public class MonsterViewTest
 		assertNull(Format.detail("Killing gargoyles"));
 		assertEquals("On task", Format.detail("Killing wyrms (on task)"));
 	}
+
+	@Test
+	public void lootLinesReadPlainly()
+	{
+		assertEquals("0.77x the table", MonsterView.ratioLine(0.773));
+		assertEquals("1.3x the table", MonsterView.ratioLine(1.31));
+		assertEquals("12x the table", MonsterView.ratioLine(12.2));
+		assertEquals("none yet", MonsterView.ratioLine(0));
+		assertEquals("850", Format.gp(850));
+		assertEquals("12.4k", Format.gp(12_400));
+		assertEquals("13.8k", Format.gp(13_819.9));
+		assertEquals("312k", Format.gp(312_000));
+		assertEquals("3.25M", Format.gp(3_250_000));
+		assertEquals("150M", Format.gp(150_000_000));
+		assertEquals("1.2B", Format.gp(1_200_000_000));
+		assertEquals("-", Format.gp(-1));
+	}
 }

@@ -1,5 +1,6 @@
 package com.codex.loginsight.ui;
 
+import com.codex.loginsight.core.LootLookup;
 import com.codex.loginsight.core.MonsterReport;
 import com.codex.loginsight.core.Report;
 import java.awt.BorderLayout;
@@ -13,6 +14,7 @@ import java.util.function.IntConsumer;
 import java.util.function.IntPredicate;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
@@ -77,6 +79,10 @@ final class MonsterView
 				: Ui.escape(monster.getLabel())) + " use the rates for " + Ui.escape(monster.getBasis().toLowerCase(Locale.ENGLISH)) + ".");
 		}
 		stack.add(head);
+		for (JComponent card : lootCards(monster.getLookup()))
+		{
+			stack.add(card);
+		}
 
 		if (monster.getLuck() != null)
 		{
@@ -141,6 +147,212 @@ final class MonsterView
 		}
 		stack.add(Box.createVerticalStrut(2));
 		return stack;
+	}
+
+	/**
+	 * The drop table beside your own loot: what a kill's uniques are worth to you and by the table, what all its loot has
+	 * been worth a kill, and how long you have gone without a unique. Nothing for a monster with no uniques and no kills
+	 * watched.
+	 */
+	static List<JComponent> lootCards(LootLookup lookup)
+	{
+		List<JComponent> cards = new ArrayList<>();
+		if (lookup == null || lookup.getUniques() == 0 && lookup.getWatchedKills() == 0)
+		{
+			return cards;
+		}
+		cards.add(new SectionHeader("Loot", missingLine(lookup)));
+
+		if (lookup.getTablePerKill() > 0 || lookup.getWatchedKills() > 0)
+		{
+			Card worth = new Card(new BorderLayout(0, 4));
+			worth.setBorder(new EmptyBorder(7, 9, 8, 9));
+			JPanel top = new JPanel(new BorderLayout(6, 0));
+			top.setOpaque(false);
+			top.add(Ui.label("A KILL'S WORTH", Theme.small(), Theme.TEXT_MUTED), BorderLayout.WEST);
+			double ratio = lookup.ratio();
+			if (ratio >= 0)
+			{
+				top.add(new Pill(ratioLine(ratio), ratio >= 1 ? Theme.GREEN : Theme.EMBER), BorderLayout.EAST);
+			}
+			worth.add(top, BorderLayout.NORTH);
+			JPanel body = new JPanel();
+			body.setOpaque(false);
+			body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+			if (lookup.getTablePerKill() > 0)
+			{
+				body.add(new WorthBars(new String[]{"Your uniques", "Table's"},
+					new double[]{lookup.getYoursPerKill(), lookup.getTablePerKill()},
+					new Color[]{Theme.GOLD_BRIGHT, Theme.TEAL}));
+				body.add(Box.createVerticalStrut(3));
+				body.add(Ui.wrapped(worthNote(lookup), Theme.small(), Theme.TEXT_FAINT, 170));
+			}
+			String watched = watchedLine(lookup);
+			if (watched != null)
+			{
+				if (lookup.getTablePerKill() > 0)
+				{
+					body.add(Box.createVerticalStrut(5));
+				}
+				body.add(Ui.wrapped(watched, Theme.small(), lookup.getWatchedKills() > 0 ? Theme.TEXT : Theme.TEXT_FAINT, 170));
+			}
+			worth.add(body, BorderLayout.CENTER);
+			worth.setToolTipText("<html>Uniques: the log's copies of each tradeable unique over the kill count it was read at,"
+				+ "<br>against the table's rate, both at today's prices.<br>All loot: every drop Log Insight saw on the floor,"
+				+ "<br>at the price of the day it came.</html>");
+			cards.add(worth);
+		}
+
+		if (lookup.getUniques() > 0)
+		{
+			cards.add(dryCard(lookup));
+		}
+		return cards;
+	}
+
+	private static Card dryCard(LootLookup lookup)
+	{
+		Card card = new Card(new BorderLayout(0, 3));
+		card.setBorder(new EmptyBorder(7, 9, 8, 9));
+		double without = lookup.stillWithout();
+		Color tone = without >= 0 ? Theme.dry(without) : Theme.TEXT_MUTED;
+		JPanel top = new JPanel(new BorderLayout(6, 0));
+		top.setOpaque(false);
+		top.add(Ui.label("DRY STREAK", Theme.small(), Theme.TEXT_MUTED), BorderLayout.WEST);
+		if (without >= 0 && lookup.getDryStreak() > 0)
+		{
+			top.add(new Pill(Format.dry(without), tone), BorderLayout.EAST);
+		}
+		card.add(top, BorderLayout.NORTH);
+		JPanel body = new JPanel();
+		body.setOpaque(false);
+		body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+		if (lookup.getDryStreak() < 0)
+		{
+			body.add(Ui.wrapped("Counting starts with your next kill: Log Insight watches each kill's loot for a unique.",
+				Theme.small(), Theme.TEXT_FAINT, 170));
+		}
+		else
+		{
+			body.add(Ui.label(streakLine(lookup), Theme.title(), lookup.getDryStreak() == 0 ? Theme.GOLD_BRIGHT : tone));
+			body.add(Ui.wrapped(sinceLine(lookup), Theme.small(), Theme.TEXT_MUTED, 170));
+			if (without >= 0)
+			{
+				body.add(Box.createVerticalStrut(5));
+				body.add(new DryBar(without));
+				body.add(Box.createVerticalStrut(3));
+				body.add(Ui.wrapped(oddsLine(lookup), Theme.small(), Theme.TEXT_FAINT, 170));
+			}
+		}
+		card.add(body, BorderLayout.CENTER);
+		if (without >= 0 && without < 0.2)
+		{
+			card.accent(tone);
+		}
+		return card;
+	}
+
+	/** "3 of 7 uniques missing", or "All 7 uniques found". */
+	static String missingLine(LootLookup lookup)
+	{
+		int uniques = lookup.getUniques();
+		if (uniques == 0)
+		{
+			return null;
+		}
+		String word = uniques == 1 ? " unique" : " uniques";
+		if (lookup.getMissing() == 0)
+		{
+			return uniques == 1 ? "unique found" : "all " + uniques + word + " found";
+		}
+		return lookup.getMissing() + " of " + uniques + word + " missing";
+	}
+
+	/** "1.3x the table", "0.62x the table", or "none yet". */
+	static String ratioLine(double ratio)
+	{
+		if (ratio <= 0)
+		{
+			return "none yet";
+		}
+		String figure = ratio >= 9.95 ? String.valueOf(Math.round(ratio))
+			: ratio >= 0.995 ? String.format(Locale.ENGLISH, "%.1f", ratio)
+			: String.format(Locale.ENGLISH, "%.2f", ratio);
+		return figure + "x the table";
+	}
+
+	/** What the worth bars count, and why yours may be missing. */
+	static String worthNote(LootLookup lookup)
+	{
+		StringBuilder sb = new StringBuilder();
+		sb.append(lookup.getValued()).append(lookup.getValued() == 1 ? " tradeable unique" : " tradeable uniques")
+			.append(" at today's prices");
+		if (lookup.getUnpriced() > 0)
+		{
+			sb.append(", ").append(lookup.getUnpriced()).append(" without a price left out");
+		}
+		sb.append('.');
+		if (lookup.getYoursPerKill() < 0)
+		{
+			sb.append(" Yours needs this monster's kill count and its log page read.");
+		}
+		return sb.toString();
+	}
+
+	/** "All loot: 48.2k a kill over 212 kills seen", or a note that it counts from the next kill. */
+	static String watchedLine(LootLookup lookup)
+	{
+		if (lookup.getWatchedKills() <= 0)
+		{
+			return "All loot a kill counts from your next kill here.";
+		}
+		int kills = lookup.getWatchedKills();
+		return "All loot: " + Format.gp(lookup.getWatchedPerKill()) + " a kill over " + Format.count(kills)
+			+ (kills == 1 ? " kill seen" : " kills seen");
+	}
+
+	/** "143 kills", "1 kill", "At least 40 kills" or "Just had one". */
+	static String streakLine(LootLookup lookup)
+	{
+		int streak = lookup.getDryStreak();
+		if (streak == 0)
+		{
+			return "Just had one";
+		}
+		String kills = Format.count(streak) + (streak == 1 ? " kill" : " kills");
+		return lookup.getDrySince() == LootLookup.DrySince.WATCHED ? "At least " + kills : kills;
+	}
+
+	/** Where the streak is counted from. */
+	static String sinceLine(LootLookup lookup)
+	{
+		switch (lookup.getDrySince())
+		{
+			case SEEN:
+				return "Since your " + lookup.getLastUnique() + (lookup.getDryStreak() == 0 ? ", on the last kill" : "");
+			case FIND:
+				return "Since your " + lookup.getLastUnique() + " went into the log";
+			case NONE_OWNED:
+				return "Your whole kill count: no unique from it yet";
+			case WATCHED:
+				return "No unique in the kills watched so far; earlier ones were not seen";
+			default:
+				return "";
+		}
+	}
+
+	/** "One a ~146 kills on average  ·  75% of players would have had one by now". */
+	static String oddsLine(LootLookup lookup)
+	{
+		double every = lookup.killsPerUnique();
+		String rate = Double.isInfinite(every) ? "" : "A unique every ~" + Format.count(Math.max(1, Math.round(every)))
+			+ " kills on average. ";
+		if (lookup.getDryStreak() == 0)
+		{
+			return rate.trim();
+		}
+		return rate + Format.have(lookup.stillWithout()) + " of players would have had one in "
+			+ (lookup.getDryStreak() == 1 ? "1 kill." : Format.count(lookup.getDryStreak()) + " kills.");
 	}
 
 	/** "Zulrah kc 1,240", or why there is none. */

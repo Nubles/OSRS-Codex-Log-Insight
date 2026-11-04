@@ -111,18 +111,26 @@ public final class Bestiary
 
 	private static void rule(Map<String, Rule> rules, String npc, String activity, int... onlyIds)
 	{
-		rules.put(normalise(npc), new Rule(activity, onlyIds));
+		rules.put(normalise(npc), new Rule(npc, activity, onlyIds));
 	}
+
+	/** The names the counters above are kept under, as the game shows them. */
+	private static final String[] COUNTER_NAMES = {"Dusk", "Dawn", "Branda the Fire Queen", "Eldric the Ice King"};
 
 	/** An activity a monster is timed by, optionally only for some of the NPC ids that share its name. */
 	static final class Rule
 	{
+		final String npc;
 		final String activity;
 		final Set<Integer> onlyIds;
+		/** An NPC id the rule covers, for looking it up by name alone, or -1 when every id is covered. */
+		final int anyId;
 
-		Rule(String activity, int[] onlyIds)
+		Rule(String npc, String activity, int[] onlyIds)
 		{
+			this.npc = npc;
 			this.activity = activity;
+			this.anyId = onlyIds.length == 0 ? -1 : onlyIds[0];
 			Set<Integer> ids = new HashSet<>();
 			for (int id : onlyIds)
 			{
@@ -261,6 +269,54 @@ public final class Bestiary
 			return null;
 		}
 		return new Target(clean(name), label, activities);
+	}
+
+	/**
+	 * Every monster whose name holds this text, for the panel's search: bosses by their counter's name and the monsters
+	 * Log Insight times by an activity. Names that start with it come first, then the rest alphabetically.
+	 *
+	 * @param query at least two letters; fewer match nothing
+	 */
+	public List<String> search(String query, int limit)
+	{
+		String needle = query == null ? "" : normalise(query);
+		List<String> found = new ArrayList<>();
+		if (needle.length() < 2)
+		{
+			return found;
+		}
+		Map<String, String> names = new java.util.TreeMap<>();
+		for (String label : labelsByName.values())
+		{
+			String name = label.substring(0, label.length() - " kills".length());
+			names.putIfAbsent(normalise(name), name);
+		}
+		for (String name : COUNTER_NAMES)
+		{
+			names.putIfAbsent(normalise(name), name);
+		}
+		for (Rule rule : ACTIVITIES.values())
+		{
+			names.putIfAbsent(normalise(rule.npc), rule.npc);
+		}
+		List<String> later = new ArrayList<>();
+		for (Map.Entry<String, String> e : names.entrySet())
+		{
+			if (!e.getKey().contains(needle) || find(e.getValue()) == null)
+			{
+				continue;
+			}
+			(e.getKey().startsWith(needle) ? found : later).add(e.getValue());
+		}
+		found.addAll(later);
+		return found.size() > limit ? new ArrayList<>(found.subList(0, limit)) : found;
+	}
+
+	/** A monster by its name alone, as the panel's search finds it; null when Log Insight knows nothing it drops. */
+	public Target find(String name)
+	{
+		Rule rule = name == null ? null : ACTIVITIES.get(normalise(name));
+		return lookup(name, rule == null ? -1 : rule.anyId);
 	}
 
 	/** Lower case, without colour tags, extra spaces or a leading "The". */
