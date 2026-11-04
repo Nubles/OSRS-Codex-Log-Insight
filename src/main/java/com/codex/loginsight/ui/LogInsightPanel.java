@@ -64,6 +64,8 @@ public class LogInsightPanel extends PluginPanel
 	private boolean active;
 	/** The Doom of Mokhaiotl's delve log, shown on its page; null while logged out. */
 	private com.codex.loginsight.core.DelveReport delve;
+	/** The raid log, read for each raid's page; null while logged out or turned off. */
+	private java.util.Map<com.codex.loginsight.core.Raids.Kind, com.codex.loginsight.core.RaidReport> raids;
 
 	public LogInsightPanel(ItemIcons icons)
 	{
@@ -291,6 +293,38 @@ public class LogInsightPanel extends PluginPanel
 		}
 	}
 
+	/** Called on the Swing thread with each new read of the raid log, or null when logged out or turned off. */
+	public void setRaids(java.util.Map<com.codex.loginsight.core.Raids.Kind, com.codex.loginsight.core.RaidReport> raids)
+	{
+		this.raids = raids;
+		boolean onRaid = monsterOpen && monster != null && RaidView.kindOf(monster.getPage()) != null
+			|| RaidView.kindOf(openPage) != null;
+		if (onRaid && shown == 1 && (active || isShowing()))
+		{
+			rebuildFolios();
+		}
+		else
+		{
+			stale[1] = true;
+		}
+	}
+
+	/** The raid log's cards under the head card of a raid's page or monster view. */
+	private void addRaid(StackPanel stack, String page)
+	{
+		com.codex.loginsight.core.Raids.Kind kind = RaidView.kindOf(page);
+		com.codex.loginsight.core.RaidReport report = raids == null || kind == null ? null : raids.get(kind);
+		if (report == null)
+		{
+			return;
+		}
+		int at = Math.min(2, stack.getComponentCount());
+		for (JComponent card : RaidView.cards(report, icons, System.currentTimeMillis()))
+		{
+			stack.add(card, at++);
+		}
+	}
+
 	/** The delve log's cards under the head card of the Doom's page or monster view. */
 	private void addDelve(StackPanel stack, String page)
 	{
@@ -451,6 +485,7 @@ public class LogInsightPanel extends PluginPanel
 			}, () -> showPage(home), report::isWanted, onWant,
 				report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED);
 			addDelve(view, home);
+			addRaid(view, home);
 			replace(folios, view);
 		}
 		else if (page != null)
@@ -462,6 +497,7 @@ public class LogInsightPanel extends PluginPanel
 			}, report::isWanted, onWant, report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED,
 				DelveView.isDelvePage(page.getName()) ? delve : null);
 			addDelve(view, page.getName());
+			addRaid(view, page.getName());
 			replace(folios, view);
 		}
 		else
