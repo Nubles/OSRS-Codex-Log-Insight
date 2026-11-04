@@ -186,6 +186,18 @@ public interface CodexLogInsightConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "contributionLog",
+		name = "Contribution log",
+		description = "After each kill at Nex, the Corporeal Beast or the Royal Titans, logs your damage share, the unique chance it gave you and your odds so far, on the boss's log page. Never shown mid-fight",
+		position = 5,
+		section = grind
+	)
+	default boolean contributionLog()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "nameOnCard",
 		name = "Name on cards",
 		description = "Write your character's name on the finest finds card; turn off to share it without it",

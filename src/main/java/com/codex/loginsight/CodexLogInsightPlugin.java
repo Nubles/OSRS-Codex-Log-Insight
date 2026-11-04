@@ -11,6 +11,9 @@ import com.codex.loginsight.core.Delve;
 import com.codex.loginsight.core.DelveLog;
 import com.codex.loginsight.core.DelveReader;
 import com.codex.loginsight.core.DelveReport;
+import com.codex.loginsight.core.Contribution;
+import com.codex.loginsight.core.ContributionLog;
+import com.codex.loginsight.core.ContributionReport;
 import com.codex.loginsight.core.RaidLog;
 import com.codex.loginsight.core.RaidReader;
 import com.codex.loginsight.core.RaidReport;
@@ -75,7 +78,10 @@ import net.runelite.api.ScriptID;
 import net.runelite.api.Skill;
 import net.runelite.api.StructComposition;
 import net.runelite.api.Actor;
+import net.runelite.api.Hitsplat;
+import net.runelite.api.events.ActorDeath;
 import net.runelite.api.events.AnimationChanged;
+import net.runelite.api.events.HitsplatApplied;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.gameval.AnimationID;
@@ -104,6 +110,7 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.NpcLootReceived;
+import net.runelite.client.events.ServerNpcLoot;
 import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemStack;
@@ -129,6 +136,8 @@ public class CodexLogInsightPlugin extends Plugin
 	private static final String DELVE_KEY = "delveLog";
 	/** The raid log, saved beside the progress so neither can damage the other. */
 	private static final String RAID_KEY = "raidLog";
+	/** The contribution log at the shared bosses, saved beside the progress so neither can damage the other. */
+	private static final String CONTRIBUTION_KEY = "contributionLog";
 	/** The Chambers' points read at its "raid is complete" line are used for the kill count line this soon after. */
 	private static final long COX_POINTS_MS = 60_000L;
 	/** The Tombs' personal points sent this soon before the kill count line belong to that raid. */
@@ -218,6 +227,14 @@ public class CodexLogInsightPlugin extends Plugin
 	private boolean delveUnsaved;
 	private RaidLog raidLog;
 	private boolean raidUnsaved;
+	private ContributionLog contributionLog;
+	private boolean contributionUnsaved;
+	/** The damage seen in a shared boss fight under way; read only once the kill ends. */
+	private final Contribution.Fight fight = new Contribution.Fight();
+	/** Uniques seen before their kill was logged: item id and when. */
+	private final List<long[]> heldUniques = new ArrayList<>();
+	/** A held unique goes to the log on its own after this long. */
+	private static final long HELD_UNIQUE_MS = 60_000L;
 	/** What the Chambers' "raid is complete" line and the vars beside it gave, for the kill count line after it. */
 	private long coxDoneAt;
 	private int coxDoneTeam = -1;
@@ -392,6 +409,9 @@ public class CodexLogInsightPlugin extends Plugin
 			progress = null;
 			delveLog = null;
 			raidLog = null;
+			contributionLog = null;
+			fight.clear();
+			heldUniques.clear();
 			profile = null;
 		});
 		overlayManager.remove(plaque);
@@ -474,6 +494,9 @@ public class CodexLogInsightPlugin extends Plugin
 			progress = null;
 			delveLog = null;
 			raidLog = null;
+			contributionLog = null;
+			fight.clear();
+			heldUniques.clear();
 			profile = null;
 			session = null;
 			officialOwned = -1;
@@ -498,6 +521,7 @@ public class CodexLogInsightPlugin extends Plugin
 			publish(Report.loggedOut(), null);
 			publishDelve();
 			publishRaids();
+			publishContribution();
 		}
 	}
 
@@ -512,6 +536,9 @@ public class CodexLogInsightPlugin extends Plugin
 		progress = null;
 		delveLog = null;
 		raidLog = null;
+		contributionLog = null;
+		fight.clear();
+		heldUniques.clear();
 		loadProgress();
 		dirty = true;
 	}
@@ -546,6 +573,20 @@ public class CodexLogInsightPlugin extends Plugin
 		{
 			buildStructure();
 			dirty |= !structure.isEmpty();
+		}
+		if (contributionLog != null && config.contributionLog())
+		{
+			for (Contribution.Fight.Done done : fight.expired(System.currentTimeMillis()))
+			{
+				// The boss died a while ago and no kill count line came: the kill was not yours.
+				contributionLog.killed(done.getBoss(), -1, done.getMine(), done.getOthers(), false,
+					System.currentTimeMillis());
+				contributionChanged();
+			}
+			if (!heldUniques.isEmpty())
+			{
+				releaseUniques();
+			}
 		}
 		if (!milestones.isEmpty() && progress != null)
 		{
@@ -683,6 +724,22 @@ public class CodexLogInsightPlugin extends Plugin
 			{
 				// The count line goes on to move the log's counter below as well.
 				raidCompleted(done);
+			}
+		}
+		if (type == ChatMessageType.GAMEMESSAGE && contributionLog != null && config.contributionLog())
+		{
+			Contribution.KillLine line = Contribution.KillLine.read(message);
+			if (line != null)
+			{
+				// The count line goes on to move the log's counter below as well.
+				Contribution.Fight.Done done = fight.credited(line.getBoss());
+				if (done != null)
+				{
+					contributionLog.killed(done.getBoss(), line.getCount(), done.getMine(), done.getOthers(), true,
+						System.currentTimeMillis());
+					contributionChanged();
+					releaseUniques();
+				}
 			}
 		}
 		if (type == ChatMessageType.GAMEMESSAGE && delveLog != null && config.delveLog())
@@ -1026,6 +1083,10 @@ public class CodexLogInsightPlugin extends Plugin
 		{
 			raidUnsaved = true;
 		}
+		if (!ambiguous && itemId > 0 && contributionLog != null && config.contributionLog())
+		{
+			contributionUnique(itemId);
+		}
 		int delveDepth = 0;
 		if (odds == null && !ambiguous && delveLog != null && config.delveLog() && Delve.index(itemId) >= 0)
 		{
@@ -1145,6 +1206,7 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onNpcLootReceived(NpcLootReceived event)
 	{
+		contributionLoot(event.getItems());
 		Analyst reader = analyst;
 		NPC npc = event.getNpc();
 		if (reader == null || progress == null || npc == null || npc.getCombatLevel() <= 0)
@@ -1375,6 +1437,7 @@ public class CodexLogInsightPlugin extends Plugin
 		progress = loaded == null ? new Progress() : loaded;
 		loadDelve(key);
 		loadRaids(key);
+		loadContribution(key);
 		seedFromChatCommands();
 		session = new Session(progress.getOwned(), System.currentTimeMillis());
 	}
@@ -1405,6 +1468,28 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 		raidLog = read.getValue() == null ? new RaidLog().repair() : read.getValue();
 		raidUnsaved = raidLog.settle(System.currentTimeMillis());
+	}
+
+	private void loadContribution(String key)
+	{
+		String json = configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, CONTRIBUTION_KEY);
+		SavedJson.Read<ContributionLog> read = ContributionLog.load(gson, json);
+		if (read.isDamaged() && json != null && !json.equals(
+			configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, CONTRIBUTION_KEY + UNREADABLE)))
+		{
+			log.warn("Could not read all of the saved contribution log; the saved text is kept as {}",
+				CONTRIBUTION_KEY + UNREADABLE);
+			configManager.setConfiguration(CodexLogInsightConfig.GROUP, key, CONTRIBUTION_KEY + UNREADABLE, json);
+		}
+		contributionLog = read.getValue() == null ? new ContributionLog().repair() : read.getValue();
+	}
+
+	/** A shared boss kill was logged: saved with the progress and shown at the next analysis. */
+	private void contributionChanged()
+	{
+		contributionUnsaved = true;
+		dirty = true;
+		unsaved = true;
 	}
 
 	/** A raid was logged: saved with the progress and shown at the next analysis. */
@@ -1466,6 +1551,12 @@ public class CodexLogInsightPlugin extends Plugin
 			raidUnsaved = false;
 			configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, RAID_KEY, gson.toJson(raidLog));
 		}
+		if (contributionLog != null && contributionUnsaved)
+		{
+			contributionUnsaved = false;
+			configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, CONTRIBUTION_KEY,
+				gson.toJson(contributionLog));
+		}
 		configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, PROGRESS_KEY, gson.toJson(progress));
 		return true;
 	}
@@ -1477,11 +1568,13 @@ public class CodexLogInsightPlugin extends Plugin
 			publish(Report.loggedOut(), null);
 			publishDelve();
 			publishRaids();
+			publishContribution();
 			return;
 		}
 		Progress snapshot = progress.copy();
 		publishDelve();
 		publishRaids();
+		publishContribution();
 		LogStructure shape = structure;
 		boolean iron = ironRates();
 		ironShown = iron;
@@ -1571,6 +1664,126 @@ public class CodexLogInsightPlugin extends Plugin
 		}
 		Map<Raids.Kind, RaidReport> shown = read;
 		SwingUtilities.invokeLater(() -> target.setRaids(shown));
+	}
+
+	/** The contribution log read for each shared boss's page, from a copy so the panel never sees it change. */
+	private void publishContribution()
+	{
+		LogInsightPanel target = panel;
+		if (target == null)
+		{
+			return;
+		}
+		Map<Contribution.Boss, ContributionReport> read = null;
+		if (contributionLog != null && progress != null && config.contributionLog())
+		{
+			ContributionLog copy = ContributionLog.load(gson, gson.toJson(contributionLog)).getValue();
+			read = new EnumMap<>(Contribution.Boss.class);
+			for (Contribution.Boss boss : Contribution.Boss.values())
+			{
+				read.put(boss, ContributionReport.of(copy, boss));
+			}
+		}
+		Map<Contribution.Boss, ContributionReport> shown = read;
+		SwingUtilities.invokeLater(() -> target.setContribution(shown));
+	}
+
+	/**
+	 * Damage at the shared bosses, counted as RuneLite's damage counter counts it: your own hitsplats and other
+	 * players' (Hitsplat.isMine and isOthers) on the NPCs whose damage makes up the kill. It is kept in memory only and
+	 * read once the kill ends; nothing is shown during the fight.
+	 */
+	@Subscribe
+	public void onHitsplatApplied(HitsplatApplied event)
+	{
+		if (contributionLog == null || !config.contributionLog() || !(event.getActor() instanceof NPC))
+		{
+			return;
+		}
+		Contribution.Boss boss = Contribution.Boss.ofDamaged(((NPC) event.getActor()).getId());
+		Hitsplat hit = event.getHitsplat();
+		if (boss == null || hit == null || !hit.isMine() && !hit.isOthers())
+		{
+			return;
+		}
+		fight.hit(boss, hit.isMine(), hit.getAmount(), System.currentTimeMillis());
+	}
+
+	/** A shared boss died: the kill ends with its kill count line, or a while after without one. */
+	@Subscribe
+	public void onActorDeath(ActorDeath event)
+	{
+		if (contributionLog == null || !config.contributionLog() || !(event.getActor() instanceof NPC))
+		{
+			return;
+		}
+		Contribution.Boss boss = Contribution.Boss.ofDying(((NPC) event.getActor()).getId());
+		if (boss != null)
+		{
+			fight.died(boss, System.currentTimeMillis());
+		}
+	}
+
+	/** Loot the game itself reports (the Royal Titans' loot option among others), read for uniques. */
+	@Subscribe
+	public void onServerNpcLoot(ServerNpcLoot event)
+	{
+		contributionLoot(event.getItems());
+	}
+
+	/** A shared boss's unique in a kill's loot belongs to the latest kill logged. */
+	private void contributionLoot(java.util.Collection<ItemStack> items)
+	{
+		if (contributionLog == null || !config.contributionLog() || items == null)
+		{
+			return;
+		}
+		for (ItemStack stack : items)
+		{
+			contributionUnique(itemManager.canonicalize(stack.getId()));
+		}
+	}
+
+	/**
+	 * A shared boss's unique came to you. While its kill is not logged yet (the loot can come before the kill count
+	 * line) the unique waits for it, so it is never put down to the kill before.
+	 */
+	private void contributionUnique(int itemId)
+	{
+		Contribution.Boss boss = Contribution.uniqueOf(itemId);
+		if (boss == null || contributionLog == null)
+		{
+			return;
+		}
+		if (fight.isOpen(boss))
+		{
+			heldUniques.add(new long[]{itemId, System.currentTimeMillis()});
+			return;
+		}
+		if (contributionLog.found(itemId, System.currentTimeMillis()) != null)
+		{
+			contributionChanged();
+		}
+	}
+
+	/** Uniques held for a kill not yet logged go to it once it is, or on their own after a while. */
+	private void releaseUniques()
+	{
+		long now = System.currentTimeMillis();
+		for (java.util.Iterator<long[]> it = heldUniques.iterator(); it.hasNext(); )
+		{
+			long[] held = it.next();
+			Contribution.Boss boss = Contribution.uniqueOf((int) held[0]);
+			if (boss != null && fight.isOpen(boss) && now - held[1] < HELD_UNIQUE_MS)
+			{
+				continue;
+			}
+			it.remove();
+			if (contributionLog != null && contributionLog.found((int) held[0], now) != null)
+			{
+				contributionChanged();
+			}
+		}
 	}
 
 	/**

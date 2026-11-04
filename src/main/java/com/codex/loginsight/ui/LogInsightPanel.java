@@ -66,6 +66,8 @@ public class LogInsightPanel extends PluginPanel
 	private com.codex.loginsight.core.DelveReport delve;
 	/** The raid log, read for each raid's page; null while logged out or turned off. */
 	private java.util.Map<com.codex.loginsight.core.Raids.Kind, com.codex.loginsight.core.RaidReport> raids;
+	/** The contribution log, read for each shared boss's page; null while logged out or turned off. */
+	private java.util.Map<com.codex.loginsight.core.Contribution.Boss, com.codex.loginsight.core.ContributionReport> contribution;
 
 	public LogInsightPanel(ItemIcons icons)
 	{
@@ -309,6 +311,40 @@ public class LogInsightPanel extends PluginPanel
 		}
 	}
 
+	/** Called on the Swing thread with each new read of the contribution log, or null when logged out or turned off. */
+	public void setContribution(
+		java.util.Map<com.codex.loginsight.core.Contribution.Boss, com.codex.loginsight.core.ContributionReport> contribution)
+	{
+		this.contribution = contribution;
+		boolean onBoss = monsterOpen && monster != null && ContributionView.bossOf(monster.getPage()) != null
+			|| ContributionView.bossOf(openPage) != null;
+		if (onBoss && shown == 1 && (active || isShowing()))
+		{
+			rebuildFolios();
+		}
+		else
+		{
+			stale[1] = true;
+		}
+	}
+
+	/** The contribution log's cards under the head card of a shared boss's page or monster view. */
+	private void addContribution(StackPanel stack, String page)
+	{
+		com.codex.loginsight.core.Contribution.Boss boss = ContributionView.bossOf(page);
+		com.codex.loginsight.core.ContributionReport report = contribution == null || boss == null ? null
+			: contribution.get(boss);
+		if (report == null)
+		{
+			return;
+		}
+		int at = Math.min(2, stack.getComponentCount());
+		for (JComponent card : ContributionView.cards(report, icons, System.currentTimeMillis()))
+		{
+			stack.add(card, at++);
+		}
+	}
+
 	/** The raid log's cards under the head card of a raid's page or monster view. */
 	private void addRaid(StackPanel stack, String page)
 	{
@@ -486,6 +522,7 @@ public class LogInsightPanel extends PluginPanel
 				report.getWanted().size() >= com.codex.loginsight.core.Progress.MAX_WANTED);
 			addDelve(view, home);
 			addRaid(view, home);
+			addContribution(view, home);
 			replace(folios, view);
 		}
 		else if (page != null)
@@ -498,6 +535,7 @@ public class LogInsightPanel extends PluginPanel
 				DelveView.isDelvePage(page.getName()) ? delve : null);
 			addDelve(view, page.getName());
 			addRaid(view, page.getName());
+			addContribution(view, page.getName());
 			replace(folios, view);
 		}
 		else
