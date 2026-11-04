@@ -136,6 +136,7 @@ public final class Analyst
 		report.setWanted(wanted);
 		report.setTrophies(progress.getTrophies());
 		report.setDrops(ownedRead ? drops(unique, progress) : null);
+		report.setOracle(oracle(structure, unique, pages, progress, rates, ownedRead));
 		return report;
 	}
 
@@ -297,6 +298,176 @@ public final class Analyst
 	private boolean countable(int id, ItemOdds odds)
 	{
 		return odds != null && odds.isCountable() && !data.isPet(id) && odds.mainChance() <= COMMON;
+	}
+
+	/**
+	 * The luck oracle: every rare slot owned or missing read against your own counts, and every unfinished page timed
+	 * at your own pace. Owned slots need the kill count they dropped at, or their copies read with the log; missing
+	 * slots are only read once the owned ones are, so nothing owned is ever called dry.
+	 */
+	private Oracle oracle(LogStructure structure, Set<Integer> unique, List<Report.PageReport> pages, Progress progress,
+		Rates rates, boolean ownedRead)
+	{
+		Map<String, Integer> counters = progress.getCounters();
+		List<Oracle.Owned> owned = new ArrayList<>();
+		List<Oracle.Chase> chasing = new ArrayList<>();
+		for (int id : unique)
+		{
+			ItemOdds odds = data.odds(id);
+			if (odds == null || odds.getRolls().isEmpty() || odds.mainChance() > COMMON && !data.isPet(id))
+			{
+				continue;
+			}
+			List<LogStructure.Page> where = structure.pagesOf(id);
+			String page = where.isEmpty() ? null : where.get(0).getName();
+			String label = odds.mainLabel();
+			double chance = odds.mainChance();
+			if (progress.owns(id))
+			{
+				Oracle.Owned reading = ownedReading(structure, id, page, odds, progress);
+				if (reading != null)
+				{
+					owned.add(reading);
+				}
+				continue;
+			}
+			Integer count = counters.get(label);
+			double dry = odds.dryChance(counters);
+			if (!ownedRead || count == null || count <= 0 || dry < 0)
+			{
+				continue;
+			}
+			double times = 0;
+			for (ItemOdds.Roll roll : odds.getRolls())
+			{
+				Integer c = counters.get(roll.getLabel());
+				if (c != null)
+				{
+					times += roll.getChance() * roll.getRolls() * c;
+				}
+			}
+			Activity.Drop fastest = rates.fastest(id);
+			Activity activity = fastest == null ? null : data.activity(fastest.getActivityIndex());
+			chasing.add(new Oracle.Chase(id, structure.name(id), page, label, chance, count, dry, times,
+				activity == null ? Double.POSITIVE_INFINITY : rates.hours(activity, fastest.getAttempts()),
+				activity == null ? null : activity.getName(), activity == null ? 0 : rates.perHour(activity),
+				activity != null && rates.isOwnPace(activity), data.isPet(id), progress.isWanted(id)));
+		}
+		owned.sort(Comparator.comparingDouble((Oracle.Owned o) -> -o.getLuckier()).thenComparingDouble(Oracle.Owned::getChance));
+		chasing.sort(Comparator.comparingDouble(Oracle.Chase::getDry).thenComparingDouble(c -> -c.getTimesRate()));
+
+		List<Oracle.Forecast> forecasts = new ArrayList<>();
+		if (ownedRead)
+		{
+			for (Report.PageReport page : pages)
+			{
+				if (page.isComplete() || !Double.isFinite(page.getHoursToFinish()))
+				{
+					continue;
+				}
+				Activity main = mainActivity(page.getCountLabel(), rates);
+				if (main == null)
+				{
+					main = activityNamed(page.getNextSource());
+				}
+				Projection curve = page.getProjection();
+				forecasts.add(new Oracle.Forecast(page.getTab(), page.getName(), page.getOwned(), page.getTotal(),
+					page.getHoursToFinish(), curve == null ? Double.POSITIVE_INFINITY : curve.getMedian(),
+					curve == null ? Double.POSITIVE_INFINITY : curve.getLikely(), main == null ? page.getNextSource() : main.getName(),
+					main == null ? 0 : rates.perHour(main), main != null && rates.isOwnPace(main), page.getUnrated(),
+					page.getLuck() == null ? -1 : page.getLuck().getPercentile()));
+			}
+			forecasts.sort(Comparator.comparingDouble(Oracle.Forecast::getHours));
+		}
+		return new Oracle(owned, chasing, forecasts);
+	}
+
+	/** An owned slot's reading: at the kill it dropped on when that was seen, else from its copies; null when neither. */
+	private Oracle.Owned ownedReading(LogStructure structure, int id, String page, ItemOdds odds, Progress progress)
+	{
+		boolean pet = data.isPet(id);
+		Progress.Find first = progress.firstFind(id);
+		if (first != null)
+		{
+			double chance = 1;
+			for (ItemOdds.Roll roll : odds.getRolls())
+			{
+				if (roll.getLabel().equals(first.getLabel()))
+				{
+					chance *= Math.pow(1 - roll.getChance(), roll.getRolls());
+				}
+			}
+			chance = 1 - chance;
+			if (chance > 0)
+			{
+				int guarantee = first.getLabel().equals(odds.mainLabel()) ? odds.getGuaranteedBy() : 0;
+				return new Oracle.Owned(id, structure.name(id), page, first.getLabel(), chance, first.getCount(),
+					Math.max(1, progress.obtained(id)), Oracle.luckAtKill(chance, first.getCount(), guarantee),
+					Oracle.Basis.AT_KILL, pet);
+			}
+		}
+		int copies = progress.obtained(id);
+		if (copies <= 0 || !odds.isCountable() || pet)
+		{
+			return null;
+		}
+		Map<String, Integer> at = progress.countedAt(id);
+		double expected = odds.expectedCount(at);
+		if (expected <= 0)
+		{
+			return null;
+		}
+		double luckier;
+		String label = odds.mainLabel();
+		if (odds.getRolls().size() == 1)
+		{
+			ItemOdds.Roll roll = odds.getRolls().get(0);
+			luckier = Oracle.copiesPercentile((long) roll.getRolls() * at.get(roll.getLabel()), roll.getChance(), copies);
+		}
+		else
+		{
+			// Several sources add up to a Poisson binomial, close to a Poisson count with the same mean.
+			luckier = Odds.dropPercentile(expected, copies);
+		}
+		Integer count = at.get(label);
+		return new Oracle.Owned(id, structure.name(id), page, label, odds.mainChance(), count == null ? 0 : count, copies,
+			luckier, Oracle.Basis.COPIES, false);
+	}
+
+	/** The activity with this name, or null. */
+	private Activity activityNamed(String name)
+	{
+		for (Activity activity : data.getActivities())
+		{
+			if (activity.getName().equals(name))
+			{
+				return activity;
+			}
+		}
+		return null;
+	}
+
+	/** The activity that advances this counter, preferring your own timed pace, then the quickest; null when none. */
+	private Activity mainActivity(String label, Rates rates)
+	{
+		if (label == null)
+		{
+			return null;
+		}
+		Activity best = null;
+		for (Activity activity : data.getActivities())
+		{
+			if (!label.equals(activityLabels.get(activity.getIndex())))
+			{
+				continue;
+			}
+			if (best == null || rates.isOwnPace(activity) && !rates.isOwnPace(best)
+				|| rates.isOwnPace(activity) == rates.isOwnPace(best) && rates.perHour(activity) > rates.perHour(best))
+			{
+				best = activity;
+			}
+		}
+		return best;
 	}
 
 	/** The commonest drop whose copies are counted, per kill. */
