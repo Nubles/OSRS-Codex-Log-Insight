@@ -136,6 +136,28 @@ public final class Format
 		return out.endsWith(".") ? out.substring(0, out.length() - 1) : out;
 	}
 
+	/** Coins the way the game's own stacks read them: "850", "12.4k", "3.25M", "1.2B"; "-" when unknown. */
+	public static String gp(double coins)
+	{
+		if (Double.isNaN(coins) || Double.isInfinite(coins) || coins < 0)
+		{
+			return "-";
+		}
+		if (coins < 1_000)
+		{
+			return String.valueOf(Math.round(coins));
+		}
+		if (coins < 999_950)
+		{
+			return trimZeros(String.format(java.util.Locale.ENGLISH, coins < 99_950 ? "%.1f" : "%.0f", coins / 1_000)) + "k";
+		}
+		if (coins < 999_950_000)
+		{
+			return trimZeros(String.format(java.util.Locale.ENGLISH, coins < 99_950_000 ? "%.2f" : "%.1f", coins / 1_000_000)) + "M";
+		}
+		return trimZeros(String.format(java.util.Locale.ENGLISH, "%.2f", coins / 1_000_000_000)) + "B";
+	}
+
 	public static String count(long value)
 	{
 		return String.format("%,d", value);

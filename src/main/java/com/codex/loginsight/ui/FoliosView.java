@@ -21,6 +21,16 @@ final class FoliosView
 
 	static StackPanel build(Report report, String filter, Consumer<String> openPage)
 	{
+		return build(report, filter, openPage, java.util.Collections.emptyList(), null);
+	}
+
+	/**
+	 * @param monsters  monsters whose names match the search, whose drop tables can be opened
+	 * @param onMonster opens one monster's drop table beside your own loot, or null
+	 */
+	static StackPanel build(Report report, String filter, Consumer<String> openPage, List<String> monsters,
+		Consumer<String> onMonster)
+	{
 		StackPanel stack = new StackPanel(5, 8);
 		if (!report.isLoggedIn())
 		{
@@ -41,9 +51,21 @@ final class FoliosView
 				byTab.computeIfAbsent(page.getTab(), k -> new ArrayList<>()).add(page);
 			}
 		}
+		if (!needle.isEmpty() && onMonster != null && !monsters.isEmpty())
+		{
+			stack.add(new SectionHeader("Drop tables", String.valueOf(monsters.size())));
+			for (String monster : monsters)
+			{
+				stack.add(Rows.line(null, monster, "Its drops beside your own loot", new Pill("Look up", Theme.GOLD), null)
+					.onClick(() -> onMonster.accept(monster)));
+			}
+		}
 		if (byTab.isEmpty())
 		{
-			stack.add(Rows.note("No page or slot matches \"" + filter.trim() + "\".", 190));
+			if (monsters.isEmpty() || onMonster == null)
+			{
+				stack.add(Rows.note("No page, slot or monster matches \"" + filter.trim() + "\".", 190));
+			}
 			return stack;
 		}
 		for (Map.Entry<String, List<Report.PageReport>> tab : byTab.entrySet())

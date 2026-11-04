@@ -82,6 +82,17 @@ public final class Analyst
 	public MonsterReport monster(LogStructure structure, Progress progress, boolean iron, boolean ownPace,
 		Bestiary.Target target)
 	{
+		return monster(structure, progress, iron, ownPace, target, null);
+	}
+
+	/**
+	 * The same, with its drop table set beside what you have actually had from it (see {@link LootLookup}).
+	 *
+	 * @param prices today's price of each slot in coins, read on the client thread; null leaves worth out
+	 */
+	public MonsterReport monster(LogStructure structure, Progress progress, boolean iron, boolean ownPace,
+		Bestiary.Target target, Map<Integer, Long> prices)
+	{
 		if (target == null || structure.isEmpty())
 		{
 			return null;
@@ -255,10 +266,200 @@ public final class Analyst
 				luck = Luck.of(chances.stream().mapToDouble(Double::doubleValue).toArray(), have);
 			}
 		}
-		return new MonsterReport(target.getNpc(), label, kills, home.getName(), home.getTab(),
+		MonsterReport report = new MonsterReport(target.getNpc(), label, kills, home.getName(), home.getTab(),
 			fromActivity && main != null ? main.getName() : null, items, luck, killsToNext, nextItem,
 			nextItem < 0 ? null : structure.name(nextItem), hoursToNext, perHour, main != null && rates.isOwnPace(main),
 			read, locked);
+		report.setLookup(lookup(structure, progress, target, items, rows, kills, read, prices));
+		return report;
+	}
+
+	/** True when a slot counts as a unique: not a pet, and rolled at 1 in 40 or rarer. */
+	private boolean isUnique(int id, double chance)
+	{
+		return !data.isPet(id) && chance > 0 && chance <= COMMON;
+	}
+
+	/**
+	 * The uniques a monster can drop, for spotting one in its loot: the slots {@link #monster} shows that are not pets
+	 * and come at 1 in 40 or rarer. Needs no log structure, so it can be read from the moment the tables load.
+	 */
+	public Set<Integer> uniqueIds(Bestiary.Target target)
+	{
+		Set<Integer> ids = new HashSet<>();
+		if (target == null)
+		{
+			return ids;
+		}
+		String label = target.getLabel();
+		if (label != null)
+		{
+			for (Map.Entry<Integer, ItemOdds> e : data.allOdds().entrySet())
+			{
+				if (isUnique(e.getKey(), chanceOn(e.getValue(), label)))
+				{
+					ids.add(e.getKey());
+				}
+			}
+		}
+		for (int index : target.getActivities())
+		{
+			for (Activity.Drop drop : data.activity(index).getDrops())
+			{
+				if (!ids.contains(drop.getItemId()) && chanceOn(data.odds(drop.getItemId()), label) <= 0 && !drop.isExact()
+					&& isUnique(drop.getItemId(), 1 / Math.max(1, drop.getAttempts())))
+				{
+					ids.add(drop.getItemId());
+				}
+			}
+		}
+		return ids;
+	}
+
+	/** Every slot a monster's view can show, for reading their prices on the client thread. */
+	public Set<Integer> slotIds(Bestiary.Target target)
+	{
+		Set<Integer> ids = new HashSet<>();
+		if (target == null)
+		{
+			return ids;
+		}
+		for (int index : target.getActivities())
+		{
+			for (Activity.Drop drop : data.activity(index).getDrops())
+			{
+				ids.add(drop.getItemId());
+			}
+		}
+		if (target.getLabel() != null)
+		{
+			for (Map.Entry<Integer, ItemOdds> e : data.allOdds().entrySet())
+			{
+				if (chanceOn(e.getValue(), target.getLabel()) > 0)
+				{
+					ids.add(e.getKey());
+				}
+			}
+		}
+		return ids;
+	}
+
+	/**
+	 * The drop table beside your own loot. Worth only counts uniques the log can count copies of (one copy a roll) and
+	 * that drop from this counter alone, so a copy from elsewhere never reads as luck here.
+	 */
+	private LootLookup lookup(LogStructure structure, Progress progress, Bestiary.Target target,
+		List<Report.ItemReport> items, Map<Integer, Activity.Drop> rows, int kills, boolean read, Map<Integer, Long> prices)
+	{
+		String label = target.getLabel();
+		Set<Integer> uniques = new HashSet<>();
+		double miss = 1;
+		int missing = 0;
+		boolean ownAny = false;
+		double table = 0;
+		double yours = 0;
+		int valued = 0;
+		int unpriced = 0;
+		for (Report.ItemReport item : items)
+		{
+			int id = item.getItemId();
+			if (!isUnique(id, item.getChance()))
+			{
+				continue;
+			}
+			uniques.add(id);
+			miss *= 1 - item.getChance();
+			if (item.isOwned())
+			{
+				ownAny = true;
+			}
+			else
+			{
+				missing++;
+			}
+			double perKill = copiesPerKill(id, label, rows.get(id));
+			if (perKill <= 0)
+			{
+				continue;
+			}
+			Long price = prices == null ? null : prices.get(id);
+			if (price == null || price <= 0)
+			{
+				unpriced++;
+				continue;
+			}
+			valued++;
+			table += perKill * price;
+			if (item.isOwned() && label != null)
+			{
+				Integer at = progress.countedAt(id).get(label);
+				int over = at == null || at <= 0 ? kills : at;
+				if (over > 0)
+				{
+					yours += Math.max(1, progress.obtained(id)) * (double) price / over;
+				}
+			}
+		}
+		boolean canYours = label != null && read && kills > 0 && valued > 0;
+
+		String key = Progress.lootKey(label, target.getNpc());
+		LootTally tally = progress.loot(key);
+		int streak = -1;
+		LootLookup.DrySince since = LootLookup.DrySince.UNKNOWN;
+		String last = null;
+		Progress.Find find = progress.lastFindOn(label, uniques);
+		if (tally != null && tally.getLastUnique() > 0)
+		{
+			streak = tally.getSinceUnique();
+			since = LootLookup.DrySince.SEEN;
+			last = structure.name(tally.getLastUnique());
+		}
+		else if (find != null && kills >= find.getCount())
+		{
+			streak = kills - find.getCount();
+			since = LootLookup.DrySince.FIND;
+			last = find.getName();
+		}
+		else if (label != null && read && kills >= 0 && !ownAny && !uniques.isEmpty())
+		{
+			streak = kills;
+			since = LootLookup.DrySince.NONE_OWNED;
+		}
+		else if (tally != null)
+		{
+			streak = tally.getSinceUnique();
+			since = LootLookup.DrySince.WATCHED;
+		}
+		return new LootLookup(valued > 0 ? table : -1, canYours ? yours : -1, valued, unpriced,
+			tally == null ? 0 : tally.getKills(), tally == null ? -1 : tally.perKill(), tally == null ? 0 : tally.getSince(),
+			uniques.size(), missing, 1 - miss, streak, since, last);
+	}
+
+	/**
+	 * Copies of a unique an average kill gives, or 0 when the log's count of it cannot be set against this monster
+	 * alone: it also drops elsewhere, comes in sets, or is earned rather than rolled.
+	 */
+	private double copiesPerKill(int id, String label, Activity.Drop row)
+	{
+		ItemOdds odds = data.odds(id);
+		if (label != null && odds != null && chanceOn(odds, label) > 0)
+		{
+			if (!odds.isCountable())
+			{
+				return 0;
+			}
+			double copies = 0;
+			for (ItemOdds.Roll roll : odds.getRolls())
+			{
+				if (!roll.getLabel().equals(label))
+				{
+					return 0;
+				}
+				copies += roll.getChance() * roll.getRolls();
+			}
+			return copies;
+		}
+		return row == null || row.isExact() || data.dropsOf(id).size() > 1 ? 0 : 1 / Math.max(1, row.getAttempts());
 	}
 
 	/** The chance in one kill on this counter, or 0 when the slot has no odds on it. */

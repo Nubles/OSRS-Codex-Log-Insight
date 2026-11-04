@@ -47,6 +47,8 @@ public final class MonsterReport
 	private final boolean read;
 	/** Missing slots that only drop once the piece before them is owned. */
 	private final int locked;
+	/** Its drop table beside what you have actually had from it, or null when it was not worked out. */
+	private LootLookup lookup;
 
 	MonsterReport(String npc, String label, int kills, String page, String tab, String basis, List<Report.ItemReport> items,
 		Luck luck, double killsToNext, int nextItem, String nextName, double hoursToNext, double perHour, boolean ownPace,
@@ -68,6 +70,11 @@ public final class MonsterReport
 		this.ownPace = ownPace;
 		this.read = read;
 		this.locked = locked;
+	}
+
+	void setLookup(LootLookup lookup)
+	{
+		this.lookup = lookup;
 	}
 
 	public int owned()

@@ -171,4 +171,31 @@ public class BestiaryTest
 		assertTrue(report.getKillsToNext() > 4);
 		assertFalse(report.isComplete());
 	}
+
+	@Test
+	public void searchFindsMonstersByAnyPartOfTheirName()
+	{
+		assertTrue(bestiary.search("zul", 8).contains("Zulrah"));
+		List<String> dra = bestiary.search("dra", 20);
+		// Names that start with the text come first.
+		assertEquals("Drake", dra.get(0));
+		assertTrue(dra.contains("Adamant dragon"));
+		assertTrue(dra.indexOf("Drake") < dra.indexOf("Adamant dragon"));
+		assertEquals(3, bestiary.search("dra", 3).size());
+		assertTrue(bestiary.search("d", 8).isEmpty());
+		assertTrue(bestiary.search("no such beast", 8).isEmpty());
+		assertTrue(bestiary.search("dusk", 8).contains("Dusk"));
+	}
+
+	@Test
+	public void aSearchedMonsterOpensLikeARightClickedOne()
+	{
+		assertEquals("Zulrah kills", bestiary.find("Zulrah").getLabel());
+		assertEquals("Grotesque Guardian kills", bestiary.find("Dusk").getLabel());
+		// Only the Catacombs version rolls the totem pieces, so a search opens that one.
+		Bestiary.Target demon = bestiary.find("Abyssal demon");
+		assertNotNull(demon);
+		assertEquals("Killing abyssal demons (on task)", activity(demon, 0));
+		assertNull(bestiary.find("Hans"));
+	}
 }

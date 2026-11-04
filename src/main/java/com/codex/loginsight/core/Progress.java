@@ -59,6 +59,11 @@ public final class Progress
 	 * {@link #finds} keeps only the latest forty. Missing from older saves, which start it from the finds they still have.
 	 */
 	private Map<Integer, Find> firstFinds;
+	/**
+	 * What each monster has actually dropped since Log Insight began watching its kills, by {@link #lootKey}. Missing
+	 * from older saves, which start it empty.
+	 */
+	private Map<String, LootTally> loot;
 
 	/**
 	 * Reads saved progress, keeping every field and entry that reads on its own: one odd value never costs the log.
@@ -106,6 +111,7 @@ public final class Progress
 			firstFinds.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || e.getValue().getCount() <= 0
 				|| e.getValue().getItemId() != e.getKey());
 		}
+		loot().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null || !e.getValue().sane());
 		pagesRead().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
 		pageLabels().entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
 		pageLabels().values().forEach(list -> list.removeIf(label -> label == null));
@@ -140,6 +146,11 @@ public final class Progress
 		p.obtained = new HashMap<>(obtained());
 		p.countedAt = new HashMap<>(countedAt());
 		p.firstFinds = new HashMap<>(firstFinds());
+		p.loot = new HashMap<>();
+		for (Map.Entry<String, LootTally> e : loot().entrySet())
+		{
+			p.loot.put(e.getKey(), e.getValue().copy());
+		}
 		return p;
 	}
 
@@ -452,6 +463,70 @@ public final class Progress
 		{
 			firsts.putIfAbsent(find.getItemId(), find);
 		}
+	}
+
+	private Map<String, LootTally> loot()
+	{
+		if (loot == null)
+		{
+			loot = new HashMap<>();
+		}
+		return loot;
+	}
+
+	/**
+	 * The key a monster's loot is kept under: its kill counter where the game keeps one (so Dusk and Dawn share the
+	 * Grotesque Guardians'), else its own name.
+	 */
+	public static String lootKey(String label, String npc)
+	{
+		if (label != null)
+		{
+			return label;
+		}
+		return npc == null ? null : "npc:" + npc.toLowerCase(java.util.Locale.ENGLISH);
+	}
+
+	/** What a monster has dropped since its kills were first watched, or null before any. */
+	public LootTally loot(String key)
+	{
+		return key == null ? null : loot().get(key);
+	}
+
+	/** Adds one kill's loot to a monster's tally. */
+	public void recordLoot(String key, long value, int unique, long now)
+	{
+		if (key != null)
+		{
+			loot().computeIfAbsent(key, k -> new LootTally()).record(value, unique, now);
+		}
+	}
+
+	/** The latest find of one of these slots seen at a count on this counter, or null. */
+	public Find lastFindOn(String label, Set<Integer> items)
+	{
+		if (label == null)
+		{
+			return null;
+		}
+		Find latest = null;
+		for (Find f : finds())
+		{
+			if (label.equals(f.getLabel()) && items.contains(f.getItemId()) && f.getCount() > 0
+				&& (latest == null || f.getCount() > latest.getCount()))
+			{
+				latest = f;
+			}
+		}
+		for (Find f : firstFinds().values())
+		{
+			if (label.equals(f.getLabel()) && items.contains(f.getItemId()) && f.getCount() > 0
+				&& (latest == null || f.getCount() > latest.getCount()))
+			{
+				latest = f;
+			}
+		}
+		return latest;
 	}
 
 	/** The finest finds, rarest first: at most {@link #TROPHIES}. */

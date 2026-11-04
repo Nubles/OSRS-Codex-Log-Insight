@@ -15,7 +15,7 @@ import javax.swing.event.DocumentListener;
 /** An inked search line with a small lens, matching the rest of the panel. */
 class SearchField extends JTextField
 {
-	private static final String HINT = "Find a page or slot";
+	private static final String HINT = "Find a page, slot or monster";
 
 	SearchField(Consumer<String> onChange)
 	{
