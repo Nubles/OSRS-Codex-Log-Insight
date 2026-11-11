@@ -26,7 +26,9 @@ import com.codex.loginsight.core.SavedJson;
 import com.codex.loginsight.core.Session;
 import com.codex.loginsight.core.SlotResolver;
 import com.codex.loginsight.core.Setup;
+import com.codex.loginsight.core.Story;
 import com.codex.loginsight.core.Unlocks;
+import com.codex.loginsight.core.WantedFeed;
 import com.codex.loginsight.data.Activity;
 import com.codex.loginsight.data.ItemOdds;
 import com.codex.loginsight.data.LogData;
@@ -229,6 +231,9 @@ public class CodexLogInsightPlugin extends Plugin
 	private boolean raidUnsaved;
 	private ContributionLog contributionLog;
 	private boolean contributionUnsaved;
+	/** The account's moments for the suite's story (Annals and Home read them); null when a newer version wrote it. */
+	private Story story;
+	private boolean storyUnsaved;
 	/** The damage seen in a shared boss fight under way; read only once the kill ends. */
 	private final Contribution.Fight fight = new Contribution.Fight();
 	/** Uniques seen before their kill was logged: item id and when. */
@@ -244,6 +249,8 @@ public class CodexLogInsightPlugin extends Plugin
 	private long toaPoints = -1;
 	private long toaPointsAt;
 	private String profile;
+	/** The wanted list as last shared with the suite, without its time, so an unchanged list is not written again. */
+	private String sharedWanted;
 	private boolean dirty;
 	private boolean unsaved;
 	private int ticksSinceSave;
@@ -410,6 +417,7 @@ public class CodexLogInsightPlugin extends Plugin
 			delveLog = null;
 			raidLog = null;
 			contributionLog = null;
+			story = null;
 			fight.clear();
 			heldUniques.clear();
 			profile = null;
@@ -495,6 +503,7 @@ public class CodexLogInsightPlugin extends Plugin
 			delveLog = null;
 			raidLog = null;
 			contributionLog = null;
+			story = null;
 			fight.clear();
 			heldUniques.clear();
 			profile = null;
@@ -537,6 +546,7 @@ public class CodexLogInsightPlugin extends Plugin
 		delveLog = null;
 		raidLog = null;
 		contributionLog = null;
+		story = null;
 		fight.clear();
 		heldUniques.clear();
 		loadProgress();
@@ -546,8 +556,9 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (!CodexLogInsightConfig.GROUP.equals(event.getGroup()))
+		if (!CodexLogInsightConfig.GROUP.equals(event.getGroup()) || event.getProfile() != null)
 		{
+			// Only a setting changes what is shown; the account's own saves (progress, the shared wanted list) do not.
 			return;
 		}
 		if (!config.showPlaque())
@@ -607,6 +618,14 @@ public class CodexLogInsightPlugin extends Plugin
 		int total = client.getVarpValue(VarPlayerID.COLLECTION_COUNT_MAX);
 		if (total > 0 && (owned != officialOwned || total != officialTotal))
 		{
+			// A slot or two at a time is a find; a bigger jump is the count arriving at login or a hop.
+			int hundred = owned - officialOwned <= 2 ? Story.hundredPassed(officialOwned, owned) : 0;
+			if (hundred > 0 && story != null && story.add(Story.slots(System.currentTimeMillis(), hundred),
+				System.currentTimeMillis()))
+			{
+				storyUnsaved = true;
+				unsaved = true;
+			}
 			officialOwned = owned;
 			officialTotal = total;
 			dirty = true;
@@ -1108,6 +1127,7 @@ public class CodexLogInsightPlugin extends Plugin
 			recordCount(resolved.owned, 1);
 		}
 		progress.addFind(new Progress.Find(itemId, name, page, label, count, chance, luckier, System.currentTimeMillis()));
+		tellStory(ambiguous ? 0 : itemId, name, label, count, chance, luckier, wasWanted, pages);
 		changed();
 		save();
 
@@ -1139,6 +1159,25 @@ public class CodexLogInsightPlugin extends Plugin
 				.type(ChatMessageType.CONSOLE)
 				.runeLiteFormattedMessage(line.build())
 				.build());
+		}
+	}
+
+	/** The new slot as a moment of the account's story, and each page it finishes. */
+	private void tellStory(int itemId, String name, String label, int count, double chance, double luckier,
+		boolean wanted, List<LogStructure.Page> pages)
+	{
+		if (story == null)
+		{
+			return;
+		}
+		long now = System.currentTimeMillis();
+		storyUnsaved |= story.add(Story.slot(now, itemId, name, label, count, chance, luckier, wanted), now);
+		for (LogStructure.Page page : pages)
+		{
+			if (!page.getItems().isEmpty() && progress.getOwned().containsAll(page.getItems()))
+			{
+				storyUnsaved |= story.add(Story.pageDone(now, page.getName(), new HashSet<>(page.getItems()).size()), now);
+			}
 		}
 	}
 
@@ -1424,6 +1463,7 @@ public class CodexLogInsightPlugin extends Plugin
 			return;
 		}
 		profile = key;
+		sharedWanted = null;
 		String json = configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, PROGRESS_KEY);
 		SavedJson.Read<Progress> read = Progress.load(gson, json);
 		if (read.isDamaged() && json != null
@@ -1438,6 +1478,7 @@ public class CodexLogInsightPlugin extends Plugin
 		loadDelve(key);
 		loadRaids(key);
 		loadContribution(key);
+		loadStory();
 		seedFromChatCommands();
 		session = new Session(progress.getOwned(), System.currentTimeMillis());
 	}
@@ -1482,6 +1523,12 @@ public class CodexLogInsightPlugin extends Plugin
 			configManager.setConfiguration(CodexLogInsightConfig.GROUP, key, CONTRIBUTION_KEY + UNREADABLE, json);
 		}
 		contributionLog = read.getValue() == null ? new ContributionLog().repair() : read.getValue();
+	}
+
+	private void loadStory()
+	{
+		story = Story.load(gson, configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, Story.KEY));
+		storyUnsaved = false;
 	}
 
 	/** A shared boss kill was logged: saved with the progress and shown at the next analysis. */
@@ -1557,6 +1604,11 @@ public class CodexLogInsightPlugin extends Plugin
 			configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, CONTRIBUTION_KEY,
 				gson.toJson(contributionLog));
 		}
+		if (story != null && storyUnsaved)
+		{
+			storyUnsaved = false;
+			configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, Story.KEY, gson.toJson(story));
+		}
 		configManager.setConfiguration(CodexLogInsightConfig.GROUP, profile, PROGRESS_KEY, gson.toJson(progress));
 		return true;
 	}
@@ -1593,6 +1645,7 @@ public class CodexLogInsightPlugin extends Plugin
 		long grindSince = grindAt;
 		Bestiary.Target looking = monsterTarget;
 		Map<Integer, Long> lookingPrices = monsterPrices;
+		String account = profile;
 		executor.execute(() ->
 		{
 			try
@@ -1607,6 +1660,11 @@ public class CodexLogInsightPlugin extends Plugin
 				{
 					grindCard.setGrind(Grind.of(report, grindOn, grindSince));
 					publish(report, name);
+					if (report.isStructureLoaded() && account != null)
+					{
+						WantedFeed feed = WantedFeed.of(report.getWanted(), System.currentTimeMillis());
+						clientThread.invokeLater(() -> shareWanted(feed, account));
+					}
 				}
 			}
 			catch (RuntimeException e)
@@ -1614,6 +1672,27 @@ public class CodexLogInsightPlugin extends Plugin
 				log.warn("Log Insight analysis failed", e);
 			}
 		});
+	}
+
+	/**
+	 * Shares the wanted list with the rest of the suite (Navigator, Autopilot, Home, Boss Pilot and Session Chronicle
+	 * read it), and offers each slot to Navigator's Goal Exchange, when it has changed. Client thread.
+	 */
+	private void shareWanted(WantedFeed feed, String account)
+	{
+		if (!account.equals(profile) || progress == null)
+		{
+			return;
+		}
+		String body = gson.toJson(feed.at(0));
+		if (body.equals(sharedWanted))
+		{
+			return;
+		}
+		sharedWanted = body;
+		configManager.setConfiguration(CodexLogInsightConfig.GROUP, account, WantedFeed.KEY, gson.toJson(feed));
+		configManager.setConfiguration(CodexLogInsightConfig.GROUP, account, WantedFeed.OFFERS_KEY,
+			gson.toJson(feed.offers()));
 	}
 
 	/** The delve log read against the slots you own, for the Doom's page. Client thread. */

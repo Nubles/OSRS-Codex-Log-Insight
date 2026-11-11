@@ -83,8 +83,25 @@ public class FindPlaque extends Overlay
 		view = null;
 	}
 
+	/**
+	 * Draws on a copy of the overlay's graphics, so nothing it sets (clip, composite, font, stroke, paint, hints) is
+	 * left behind for the overlays drawn after it.
+	 */
 	@Override
-	public Dimension render(Graphics2D g)
+	public Dimension render(Graphics2D graphics)
+	{
+		Graphics2D g = (Graphics2D) graphics.create();
+		try
+		{
+			return draw(g);
+		}
+		finally
+		{
+			g.dispose();
+		}
+	}
+
+	private Dimension draw(Graphics2D g)
 	{
 		View v = view;
 		if (v == null)
