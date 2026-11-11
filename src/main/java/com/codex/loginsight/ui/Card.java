@@ -101,10 +101,12 @@ public class Card extends JPanel
 
 		if (accent != null)
 		{
-			g.setClip(shape);
+			// The clip is narrowed and then put back as it was: never cleared, which would let later paint run wild.
+			java.awt.Shape clip = g.getClip();
+			g.clip(shape);
 			g.setPaint(new GradientPaint(0, 0, accent, 0, h, Theme.alpha(accent, 90)));
 			g.fillRect(0, 0, 3, h);
-			g.setClip(null);
+			g.setClip(clip);
 		}
 
 		Color rim = highlighted ? Theme.alpha(Theme.GOLD, 150) : hover ? Theme.alpha(Theme.GOLD, 90) : Theme.STROKE_SOFT;
