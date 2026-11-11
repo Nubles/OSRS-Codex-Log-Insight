@@ -27,6 +27,7 @@ import com.codex.loginsight.core.Session;
 import com.codex.loginsight.core.SlotResolver;
 import com.codex.loginsight.core.Setup;
 import com.codex.loginsight.core.Unlocks;
+import com.codex.loginsight.core.WantedFeed;
 import com.codex.loginsight.data.Activity;
 import com.codex.loginsight.data.ItemOdds;
 import com.codex.loginsight.data.LogData;
@@ -244,6 +245,8 @@ public class CodexLogInsightPlugin extends Plugin
 	private long toaPoints = -1;
 	private long toaPointsAt;
 	private String profile;
+	/** The wanted list as last shared with the suite, without its time, so an unchanged list is not written again. */
+	private String sharedWanted;
 	private boolean dirty;
 	private boolean unsaved;
 	private int ticksSinceSave;
@@ -546,8 +549,9 @@ public class CodexLogInsightPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (!CodexLogInsightConfig.GROUP.equals(event.getGroup()))
+		if (!CodexLogInsightConfig.GROUP.equals(event.getGroup()) || event.getProfile() != null)
 		{
+			// Only a setting changes what is shown; the account's own saves (progress, the shared wanted list) do not.
 			return;
 		}
 		if (!config.showPlaque())
@@ -1424,6 +1428,7 @@ public class CodexLogInsightPlugin extends Plugin
 			return;
 		}
 		profile = key;
+		sharedWanted = null;
 		String json = configManager.getRSProfileConfiguration(CodexLogInsightConfig.GROUP, PROGRESS_KEY);
 		SavedJson.Read<Progress> read = Progress.load(gson, json);
 		if (read.isDamaged() && json != null
@@ -1593,6 +1598,7 @@ public class CodexLogInsightPlugin extends Plugin
 		long grindSince = grindAt;
 		Bestiary.Target looking = monsterTarget;
 		Map<Integer, Long> lookingPrices = monsterPrices;
+		String account = profile;
 		executor.execute(() ->
 		{
 			try
@@ -1607,6 +1613,11 @@ public class CodexLogInsightPlugin extends Plugin
 				{
 					grindCard.setGrind(Grind.of(report, grindOn, grindSince));
 					publish(report, name);
+					if (report.isStructureLoaded() && account != null)
+					{
+						WantedFeed feed = WantedFeed.of(report.getWanted(), System.currentTimeMillis());
+						clientThread.invokeLater(() -> shareWanted(feed, account));
+					}
 				}
 			}
 			catch (RuntimeException e)
@@ -1614,6 +1625,27 @@ public class CodexLogInsightPlugin extends Plugin
 				log.warn("Log Insight analysis failed", e);
 			}
 		});
+	}
+
+	/**
+	 * Shares the wanted list with the rest of the suite (Navigator, Autopilot, Home, Boss Pilot and Session Chronicle
+	 * read it), and offers each slot to Navigator's Goal Exchange, when it has changed. Client thread.
+	 */
+	private void shareWanted(WantedFeed feed, String account)
+	{
+		if (!account.equals(profile) || progress == null)
+		{
+			return;
+		}
+		String body = gson.toJson(feed.at(0));
+		if (body.equals(sharedWanted))
+		{
+			return;
+		}
+		sharedWanted = body;
+		configManager.setConfiguration(CodexLogInsightConfig.GROUP, account, WantedFeed.KEY, gson.toJson(feed));
+		configManager.setConfiguration(CodexLogInsightConfig.GROUP, account, WantedFeed.OFFERS_KEY,
+			gson.toJson(feed.offers()));
 	}
 
 	/** The delve log read against the slots you own, for the Doom's page. Client thread. */
